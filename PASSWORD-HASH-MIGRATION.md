@@ -34,7 +34,7 @@ Since we upgraded from plain-text passwords to bcrypt hashing, you need to reset
    - Or click **"Actions"** → **"Restart"**
 
 5. **The app will automatically create a new users.json with:**
-   - Username: `admin`
+   - Email: `admin@skylit.com`
    - Password: `admin123` (hashed with bcrypt)
 
 ### Option 2: Manual File Management (Alternative)
@@ -64,7 +64,7 @@ Since we upgraded from plain-text passwords to bcrypt hashing, you need to reset
 ## 🔐 Default Admin Credentials (Post-Migration)
 
 ```
-Username: admin
+Email: admin@skylit.com
 Password: admin123
 ```
 
@@ -107,7 +107,7 @@ After restart, check `server/data/users.json`:
 
 ### 2. Test Login
 - Go to your website
-- Log in with: `admin` / `admin123`
+- Log in with: `admin@skylit.com` / `admin123`
 - Should work successfully
 
 ### 3. Test Password Change
@@ -157,7 +157,7 @@ Match? → Login successful!
 
 ## 🆘 Troubleshooting
 
-### Problem: Can't log in with admin/admin123
+### Problem: Can't log in with admin@skylit.com/admin123
 
 **Possible causes:**
 1. Old users.json still exists (not regenerated)
@@ -173,7 +173,7 @@ rm -f /workspace/server/data/users.json
 ### Problem: "Invalid credentials" error
 
 **Check:**
-1. Username is `admin` (not `admin@skylit.com`)
+1. Email is `admin@skylit.com` (with @skylit.com)
 2. Password is `admin123` (case-sensitive)
 3. users.json has been regenerated
 4. App has been restarted

@@ -150,7 +150,7 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
   - ✅ Secure password verification for login
   - ✅ Hashed passwords on registration and password change
   - ✅ Production-ready security implementation
-  - ✅ Default admin credentials: `admin` / `admin123` (hashed)
+  - ✅ Default admin credentials: `admin@skylit.com` / `admin123` (hashed)
   - ⚠️ **Migration completed** - All passwords now encrypted
 
 #### 📚 Documentation Added:

@@ -35,7 +35,7 @@
   📁 Data stored in: server/data
   ```
 - [ ] **Test login with:**
-  - Username: `admin`
+  - Email: `admin@skylit.com`
   - Password: `admin123`
 - [ ] **Should work!** ✅
 - [ ] **Change password via Profile page**
@@ -80,7 +80,7 @@ You **must** delete the old users.json on DigitalOcean because it has plain-text
 ### Step 4: Verify on Live Site
 - [ ] Go to your live website
 - [ ] Try to login with:
-  - Username: `admin`
+  - Email: `admin@skylit.com`
   - Password: `admin123`
 - [ ] **Should work!** ✅
 
@@ -99,7 +99,7 @@ You **must** delete the old users.json on DigitalOcean because it has plain-text
 
 **After deployment and users.json reset:**
 ```
-Username: admin
+Email: admin@skylit.com
 Password: admin123
 ```
 
@@ -158,7 +158,7 @@ Password: admin123
 ## 🆘 If Something Goes Wrong
 
 ### Can't Log In?
-1. Check you're using `admin` (not `admin@skylit.com`)
+1. Check you're using `admin@skylit.com` (with @skylit.com)
 2. Check password is `admin123` (case-sensitive)
 3. Delete users.json and restart app
 4. Check runtime logs for errors
@@ -170,7 +170,7 @@ Password: admin123
    rm -f /workspace/server/data/users.json
    ```
 3. Restart app
-4. Log in with `admin/admin123`
+4. Log in with `admin@skylit.com/admin123`
 5. Set new password
 
 ### Users Can't Register?
@@ -182,7 +182,7 @@ Password: admin123
 ## ✅ Success Criteria
 
 You'll know everything is working when:
-- ✅ Can log in with admin/admin123 on live site
+- ✅ Can log in with `admin@skylit.com/admin123` on live site
 - ✅ Can change password via Profile
 - ✅ Can log out and back in with new password
 - ✅ Password shown as hash in users.json (if you check)

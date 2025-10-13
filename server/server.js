@@ -264,7 +264,7 @@ async function initializeDataFiles() {
     users: [
       {
         id: 1,
-        email: 'admin',
+        email: 'admin@skylit.com',
         password: hashedPassword, // Hashed with bcrypt
         name: 'Alina Suedbeck',
         role: 'admin',
