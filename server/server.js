@@ -1,0 +1,1474 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const multer = require('multer');
+const fs = require('fs').promises;
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL || 'https://your-app.ondigitalocean.app']
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'skylit-photography-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Allow cross-site in production
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Passport serialization
+passport.serializeUser((user, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.id === id);
+    done(null, user);
+  } catch (error) {
+    done(error, null);
+  }
+});
+
+// Google OAuth Strategy
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5000/api/auth/google/callback'
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      const usersData = await readJSONFile(USERS_FILE);
+      
+      // Check if user already exists by Google ID
+      let user = usersData.users.find(u => u.googleId === profile.id);
+      
+      if (!user) {
+        // Check if user exists by email
+        user = usersData.users.find(u => u.email === profile.emails[0].value);
+        
+        if (user) {
+          // Link Google account to existing user
+          user.googleId = profile.id;
+          user.profilePicture = profile.photos[0]?.value;
+          await writeJSONFile(USERS_FILE, usersData);
+        } else {
+          // Create new user with pending status
+          const newUser = {
+            id: Date.now().toString(),
+            googleId: profile.id,
+            name: profile.displayName,
+            email: profile.emails[0].value,
+            profilePicture: profile.photos[0]?.value,
+            phone: '', // Will need to be added later
+            role: 'user',
+            status: 'pending', // Requires admin approval
+            createdAt: new Date().toISOString(),
+            authMethod: 'google'
+          };
+          
+          usersData.users.push(newUser);
+          await writeJSONFile(USERS_FILE, usersData);
+          user = newUser;
+        }
+      }
+      
+      return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
+  }));
+}
+
+// Serve uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads');
+    try {
+      await fs.access(uploadDir);
+    } catch {
+      await fs.mkdir(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
+// Data file paths
+const DATA_DIR = path.join(__dirname, 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const PRICING_FILE = path.join(DATA_DIR, 'pricing.json');
+const AUTH_SESSIONS_FILE = path.join(DATA_DIR, 'auth-sessions.json');
+const BOOKINGS_FILE = path.join(DATA_DIR, 'bookings.json');
+const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
+const INVOICES_FILE = path.join(DATA_DIR, 'invoices.json');
+const EXPENSES_FILE = path.join(DATA_DIR, 'expenses.json');
+
+// Ensure data directory exists
+async function ensureDataDirectory() {
+  try {
+    await fs.access(DATA_DIR);
+  } catch {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+  }
+}
+
+// Read JSON file
+async function readJSONFile(filePath, defaultData = {}) {
+  try {
+    const data = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist, create it with default data
+    await fs.writeFile(filePath, JSON.stringify(defaultData, null, 2));
+    return defaultData;
+  }
+}
+
+// Write JSON file
+async function writeJSONFile(filePath, data) {
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+}
+
+// Initialize data files
+async function initializeDataFiles() {
+  await ensureDataDirectory();
+  
+  // Initialize users file
+  const defaultUsers = {
+    users: [
+      {
+        id: 1,
+        email: 'admin@skylit.com',
+        password: 'admin123', // In production, use bcrypt hashing
+        name: 'Alina Suedbeck',
+        role: 'admin'
+      },
+      {
+        id: 2,
+        email: 'user@example.com',
+        password: 'user123', // In production, use bcrypt hashing
+        name: 'Demo User',
+        role: 'user'
+      }
+    ]
+  };
+  await readJSONFile(USERS_FILE, defaultUsers);
+
+  // Initialize pricing file
+  const defaultPricing = {
+    packages: [
+      {
+        id: 1,
+        name: 'Essential',
+        price: 350,
+        duration: '1 hour',
+        features: [
+          '1 hour photo session',
+          '1 location',
+          '30 edited high-resolution images',
+          'Online gallery',
+          'Personal printing rights',
+          '2 week delivery'
+        ],
+        recommended: false
+      },
+      {
+        id: 2,
+        name: 'Premium',
+        price: 650,
+        duration: '2 hours',
+        features: [
+          '2 hour photo session',
+          'Up to 2 locations',
+          '75 edited high-resolution images',
+          'Online gallery',
+          'Personal printing rights',
+          'Expedited 1 week delivery',
+          'Complimentary wardrobe consultation'
+        ],
+        recommended: true
+      },
+      {
+        id: 3,
+        name: 'Luxury',
+        price: 1200,
+        duration: 'Half day',
+        features: [
+          'Half day coverage (4 hours)',
+          'Multiple locations',
+          '150+ edited high-resolution images',
+          'Premium online gallery',
+          'Full printing rights',
+          'Expedited 1 week delivery',
+          'Pre-session consultation',
+          'Complimentary engagement session'
+        ],
+        recommended: false
+      }
+    ],
+    addOns: [
+      { id: 1, name: 'Additional Hour', price: 200 },
+      { id: 2, name: 'Rush Delivery (1 week)', price: 150 },
+      { id: 3, name: 'Second Photographer', price: 300 },
+      { id: 4, name: 'Printed Photo Album', price: 400 },
+      { id: 5, name: 'Canvas Print (16x20)', price: 150 },
+      { id: 6, name: 'USB with All Photos', price: 75 }
+    ]
+  };
+  await readJSONFile(PRICING_FILE, defaultPricing);
+
+  // Initialize auth sessions file
+  await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
+
+  // Initialize bookings/sessions file
+  const defaultBookings = {
+    bookings: []
+  };
+  await readJSONFile(BOOKINGS_FILE, defaultBookings);
+
+  // Initialize invoices file
+  const defaultInvoices = {
+    invoices: []
+  };
+  await readJSONFile(INVOICES_FILE, defaultInvoices);
+
+  // Initialize expenses file
+  const defaultExpenses = {
+    expenses: []
+  };
+  await readJSONFile(EXPENSES_FILE, defaultExpenses);
+
+  // Initialize shoots file
+  const defaultShoots = {
+    categories: [
+      'Weddings',
+      'Engagements', 
+      'Portraits',
+      'Family',
+      'Newborn',
+      'Maternity',
+      'Couples',
+      'Cars',
+      'Motorcycles',
+      'Animals',
+      'Events',
+      'Lifestyle',
+      'Fashion',
+      'Headshots',
+      'Real Estate',
+      'Products',
+      'Nature',
+      'Other'
+    ],
+    shoots: []
+  };
+  await readJSONFile(SHOOTS_FILE, defaultShoots);
+}
+
+// ===================================
+// Authentication Routes
+// ===================================
+
+// Google OAuth Routes
+app.get('/api/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/api/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login' }),
+  async (req, res) => {
+    try {
+      // Store user in session
+      req.session.userId = req.user.id;
+      req.session.userRole = req.user.role;
+      
+      // Save session to file
+      const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
+      sessionsData.sessions.push({
+        sessionId: req.sessionID,
+        userId: req.user.id,
+        createdAt: new Date().toISOString()
+      });
+      await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+      
+      // Check if user needs approval
+      if (req.user.status === 'pending') {
+        // Redirect to a pending approval page
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/pending-approval`);
+      } else if (req.user.status === 'approved' || req.user.role === 'admin') {
+        // Redirect to dashboard
+        const redirectUrl = req.user.role === 'admin' ? '/admin' : '/dashboard';
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}${redirectUrl}`);
+      } else {
+        // Rejected or other status
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=account_not_approved`);
+      }
+    } catch (error) {
+      console.error('Google callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+    }
+  }
+);
+
+// Register
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, phone, password } = req.body;
+    
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    const usersData = await readJSONFile(USERS_FILE);
+    
+    // Check if email already exists
+    const existingUser = usersData.users.find(u => u.email === email);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Create new user with pending approval status
+    const newUser = {
+      id: Date.now().toString(),
+      name,
+      email,
+      phone,
+      password, // In production, hash this!
+      role: 'user',
+      status: 'pending', // pending, approved, rejected
+      createdAt: new Date().toISOString()
+    };
+
+    usersData.users.push(newUser);
+    await writeJSONFile(USERS_FILE, usersData);
+
+    res.json({
+      success: true,
+      message: 'Registration successful! Your account is pending admin approval.'
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.email === email && u.password === password);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user is approved (admins bypass this check)
+    if (user.role !== 'admin' && user.status === 'pending') {
+      return res.status(403).json({ error: 'Your account is pending admin approval. Please wait for approval.' });
+    }
+
+    if (user.role !== 'admin' && user.status === 'rejected') {
+      return res.status(403).json({ error: 'Your account registration was not approved. Please contact support.' });
+    }
+
+    // Store user in session
+    req.session.userId = user.id;
+    req.session.userRole = user.role;
+
+    // Save session to file
+    const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
+    sessionsData.sessions.push({
+      sessionId: req.sessionID,
+      userId: user.id,
+      createdAt: new Date().toISOString()
+    });
+    await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+
+    // Return user data without password
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({
+      success: true,
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    // Remove session from file
+    const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
+    sessionsData.sessions = sessionsData.sessions.filter(s => s.sessionId !== req.sessionID);
+    await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      res.json({ success: true });
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Check session
+app.get('/api/auth/session', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ authenticated: false });
+    }
+
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.id === req.session.userId);
+
+    if (!user) {
+      return res.status(401).json({ authenticated: false });
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({
+      authenticated: true,
+      user: userWithoutPassword
+    });
+  } catch (error) {
+    console.error('Session check error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Pricing Routes
+// ===================================
+
+// Get all pricing data
+app.get('/api/pricing', async (req, res) => {
+  try {
+    const pricingData = await readJSONFile(PRICING_FILE);
+    res.json(pricingData);
+  } catch (error) {
+    console.error('Get pricing error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Middleware to check admin role
+function requireAuth(req, res, next) {
+  if (!req.session.userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+}
+
+function requireAdmin(req, res, next) {
+  if (!req.session.userId || req.session.userRole !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+// Update package (admin only)
+app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
+  try {
+    const packageId = parseInt(req.params.id);
+    const updatedPackage = req.body;
+
+    const pricingData = await readJSONFile(PRICING_FILE);
+    const packageIndex = pricingData.packages.findIndex(p => p.id === packageId);
+
+    if (packageIndex === -1) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
+
+    pricingData.packages[packageIndex] = { ...pricingData.packages[packageIndex], ...updatedPackage };
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true, package: pricingData.packages[packageIndex] });
+  } catch (error) {
+    console.error('Update package error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add package (admin only)
+app.post('/api/pricing/packages', requireAdmin, async (req, res) => {
+  try {
+    const newPackage = req.body;
+    const pricingData = await readJSONFile(PRICING_FILE);
+
+    // Generate new ID
+    const maxId = Math.max(...pricingData.packages.map(p => p.id), 0);
+    newPackage.id = maxId + 1;
+
+    pricingData.packages.push(newPackage);
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true, package: newPackage });
+  } catch (error) {
+    console.error('Add package error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete package (admin only)
+app.delete('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
+  try {
+    const packageId = parseInt(req.params.id);
+    const pricingData = await readJSONFile(PRICING_FILE);
+
+    pricingData.packages = pricingData.packages.filter(p => p.id !== packageId);
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete package error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update add-on (admin only)
+app.put('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
+  try {
+    const addonId = parseInt(req.params.id);
+    const updatedAddon = req.body;
+
+    const pricingData = await readJSONFile(PRICING_FILE);
+    const addonIndex = pricingData.addOns.findIndex(a => a.id === addonId);
+
+    if (addonIndex === -1) {
+      return res.status(404).json({ error: 'Add-on not found' });
+    }
+
+    pricingData.addOns[addonIndex] = { ...pricingData.addOns[addonIndex], ...updatedAddon };
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true, addon: pricingData.addOns[addonIndex] });
+  } catch (error) {
+    console.error('Update add-on error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add add-on (admin only)
+app.post('/api/pricing/addons', requireAdmin, async (req, res) => {
+  try {
+    const newAddon = req.body;
+    const pricingData = await readJSONFile(PRICING_FILE);
+
+    // Generate new ID
+    const maxId = Math.max(...pricingData.addOns.map(a => a.id), 0);
+    newAddon.id = maxId + 1;
+
+    pricingData.addOns.push(newAddon);
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true, addon: newAddon });
+  } catch (error) {
+    console.error('Add add-on error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete add-on (admin only)
+app.delete('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
+  try {
+    const addonId = parseInt(req.params.id);
+    const pricingData = await readJSONFile(PRICING_FILE);
+
+    pricingData.addOns = pricingData.addOns.filter(a => a.id !== addonId);
+    await writeJSONFile(PRICING_FILE, pricingData);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete add-on error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Bookings/Sessions Routes
+// ===================================
+
+// Get all bookings (admin sees all, users see only theirs)
+app.get('/api/bookings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    
+    // Admin sees all bookings, users see only their own
+    const bookings = req.session.userRole === 'admin'
+      ? bookingsData.bookings
+      : bookingsData.bookings.filter(b => b.userId === req.session.userId);
+    
+    res.json({ bookings });
+  } catch (error) {
+    console.error('Get bookings error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create booking (users and admin)
+app.post('/api/bookings', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { sessionType, date, time, location, notes, clientName, clientEmail } = req.body;
+    
+    if (!sessionType || !date) {
+      return res.status(400).json({ error: 'Session type and date required' });
+    }
+
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    const usersData = await readJSONFile(USERS_FILE);
+    
+    // Get user info
+    const user = usersData.users.find(u => u.id === req.session.userId);
+    
+    // Generate new ID
+    const maxId = Math.max(...bookingsData.bookings.map(b => b.id), 0);
+    const newBooking = {
+      id: maxId + 1,
+      userId: req.session.userId,
+      clientName: clientName || user.name,
+      clientEmail: clientEmail || user.email,
+      sessionType,
+      date,
+      time: time || '',
+      location: location || '',
+      notes: notes || '',
+      status: 'Pending',
+      createdAt: new Date().toISOString(),
+      invoiceId: null
+    };
+    
+    bookingsData.bookings.unshift(newBooking);
+    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    
+    res.json({ success: true, booking: newBooking });
+  } catch (error) {
+    console.error('Create booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update booking (admin only)
+app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
+    
+    if (bookingIndex === -1) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    bookingsData.bookings[bookingIndex] = {
+      ...bookingsData.bookings[bookingIndex],
+      ...updates,
+      id: bookingId
+    };
+    
+    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    
+    res.json({ success: true, booking: bookingsData.bookings[bookingIndex] });
+  } catch (error) {
+    console.error('Update booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete booking (admin only)
+app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    
+    bookingsData.bookings = bookingsData.bookings.filter(b => b.id !== bookingId);
+    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Invoices Routes
+// ===================================
+
+// Get all invoices (admin only)
+app.get('/api/invoices', requireAdmin, async (req, res) => {
+  try {
+    const invoicesData = await readJSONFile(INVOICES_FILE);
+    res.json({ invoices: invoicesData.invoices });
+  } catch (error) {
+    console.error('Get invoices error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create invoice (admin only)
+app.post('/api/invoices', requireAdmin, async (req, res) => {
+  try {
+    const { clientName, clientEmail, amount, status, date, items, bookingId } = req.body;
+    
+    if (!clientName || !amount) {
+      return res.status(400).json({ error: 'Client name and amount required' });
+    }
+    
+    const invoicesData = await readJSONFile(INVOICES_FILE);
+    
+    // Generate invoice number
+    const maxId = Math.max(...invoicesData.invoices.map(i => i.id), 0);
+    const invoiceNumber = `INV-${String(maxId + 1).padStart(4, '0')}`;
+    
+    const newInvoice = {
+      id: maxId + 1,
+      invoiceNumber,
+      clientName,
+      clientEmail: clientEmail || '',
+      amount: parseFloat(amount),
+      status: status || 'Pending',
+      date: date || new Date().toISOString().split('T')[0],
+      items: items || [],
+      bookingId: bookingId || null,
+      createdAt: new Date().toISOString()
+    };
+    
+    invoicesData.invoices.unshift(newInvoice);
+    await writeJSONFile(INVOICES_FILE, invoicesData);
+    
+    // If linked to booking, update booking with invoice ID
+    if (bookingId) {
+      const bookingsData = await readJSONFile(BOOKINGS_FILE);
+      const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
+      if (bookingIndex !== -1) {
+        bookingsData.bookings[bookingIndex].invoiceId = newInvoice.id;
+        bookingsData.bookings[bookingIndex].status = 'Invoiced';
+        await writeJSONFile(BOOKINGS_FILE, bookingsData);
+      }
+    }
+    
+    res.json({ success: true, invoice: newInvoice });
+  } catch (error) {
+    console.error('Create invoice error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update invoice (admin only)
+app.put('/api/invoices/:id', requireAdmin, async (req, res) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const invoicesData = await readJSONFile(INVOICES_FILE);
+    const invoiceIndex = invoicesData.invoices.findIndex(i => i.id === invoiceId);
+    
+    if (invoiceIndex === -1) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    
+    invoicesData.invoices[invoiceIndex] = {
+      ...invoicesData.invoices[invoiceIndex],
+      ...updates,
+      id: invoiceId
+    };
+    
+    await writeJSONFile(INVOICES_FILE, invoicesData);
+    
+    res.json({ success: true, invoice: invoicesData.invoices[invoiceIndex] });
+  } catch (error) {
+    console.error('Update invoice error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete invoice (admin only)
+app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
+  try {
+    const invoiceId = parseInt(req.params.id);
+    const invoicesData = await readJSONFile(INVOICES_FILE);
+    
+    invoicesData.invoices = invoicesData.invoices.filter(i => i.id !== invoiceId);
+    await writeJSONFile(INVOICES_FILE, invoicesData);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete invoice error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Expenses Routes
+// ===================================
+
+// Get all expenses (admin only)
+app.get('/api/expenses', requireAdmin, async (req, res) => {
+  try {
+    const expensesData = await readJSONFile(EXPENSES_FILE);
+    res.json({ expenses: expensesData.expenses });
+  } catch (error) {
+    console.error('Get expenses error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create expense (admin only)
+app.post('/api/expenses', requireAdmin, async (req, res) => {
+  try {
+    const { category, description, amount, date } = req.body;
+    
+    if (!category || !description || !amount) {
+      return res.status(400).json({ error: 'Category, description, and amount required' });
+    }
+    
+    const expensesData = await readJSONFile(EXPENSES_FILE);
+    
+    const maxId = Math.max(...expensesData.expenses.map(e => e.id), 0);
+    const newExpense = {
+      id: maxId + 1,
+      category,
+      description,
+      amount: parseFloat(amount),
+      date: date || new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString()
+    };
+    
+    expensesData.expenses.unshift(newExpense);
+    await writeJSONFile(EXPENSES_FILE, expensesData);
+    
+    res.json({ success: true, expense: newExpense });
+  } catch (error) {
+    console.error('Create expense error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update expense (admin only)
+app.put('/api/expenses/:id', requireAdmin, async (req, res) => {
+  try {
+    const expenseId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const expensesData = await readJSONFile(EXPENSES_FILE);
+    const expenseIndex = expensesData.expenses.findIndex(e => e.id === expenseId);
+    
+    if (expenseIndex === -1) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
+    
+    expensesData.expenses[expenseIndex] = {
+      ...expensesData.expenses[expenseIndex],
+      ...updates,
+      id: expenseId
+    };
+    
+    await writeJSONFile(EXPENSES_FILE, expensesData);
+    
+    res.json({ success: true, expense: expensesData.expenses[expenseIndex] });
+  } catch (error) {
+    console.error('Update expense error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete expense (admin only)
+app.delete('/api/expenses/:id', requireAdmin, async (req, res) => {
+  try {
+    const expenseId = parseInt(req.params.id);
+    const expensesData = await readJSONFile(EXPENSES_FILE);
+    
+    expensesData.expenses = expensesData.expenses.filter(e => e.id !== expenseId);
+    await writeJSONFile(EXPENSES_FILE, expensesData);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete expense error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Portfolio/Shoots Routes
+// ===================================
+
+// Get all shoots and categories
+app.get('/api/portfolio', async (req, res) => {
+  try {
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    res.json(shootsData);
+  } catch (error) {
+    console.error('Get portfolio error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get shoots by category
+app.get('/api/portfolio/category/:category', async (req, res) => {
+  try {
+    const category = req.params.category;
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    const filteredShoots = category === 'all' 
+      ? shootsData.shoots 
+      : shootsData.shoots.filter(shoot => shoot.category.toLowerCase() === category.toLowerCase());
+    
+    res.json({ shoots: filteredShoots });
+  } catch (error) {
+    console.error('Get shoots by category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get single shoot
+app.get('/api/portfolio/shoots/:id', async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    res.json(shoot);
+  } catch (error) {
+    console.error('Get shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create new shoot (admin only)
+app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
+  try {
+    const { title, description, category, date } = req.body;
+    
+    if (!title || !category) {
+      return res.status(400).json({ error: 'Title and category are required' });
+    }
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    // Generate new ID
+    const maxId = Math.max(...shootsData.shoots.map(s => s.id), 0);
+    const newShoot = {
+      id: maxId + 1,
+      title,
+      description: description || '',
+      category,
+      date: date || new Date().toISOString(),
+      photos: [],
+      createdAt: new Date().toISOString()
+    };
+    
+    shootsData.shoots.unshift(newShoot);
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ success: true, shoot: newShoot });
+  } catch (error) {
+    console.error('Create shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update shoot (admin only)
+app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    shootsData.shoots[shootIndex] = {
+      ...shootsData.shoots[shootIndex],
+      ...updates,
+      id: shootId // Prevent ID from being changed
+    };
+    
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ success: true, shoot: shootsData.shoots[shootIndex] });
+  } catch (error) {
+    console.error('Update shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete shoot (admin only)
+app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Delete associated photos from filesystem
+    for (const photo of shoot.photos) {
+      try {
+        const photoPath = path.join(__dirname, 'uploads', path.basename(photo.url));
+        await fs.unlink(photoPath);
+      } catch (err) {
+        console.error('Error deleting photo:', err);
+      }
+    }
+    
+    shootsData.shoots = shootsData.shoots.filter(s => s.id !== shootId);
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Upload photos to shoot (admin only)
+app.post('/api/portfolio/shoots/:id/photos', requireAdmin, upload.array('photos', 20), async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Add uploaded photos to shoot
+    const newPhotos = req.files.map(file => ({
+      id: Date.now() + Math.random(),
+      url: `/uploads/${file.filename}`,
+      filename: file.filename,
+      originalName: file.originalname,
+      uploadedAt: new Date().toISOString()
+    }));
+    
+    shootsData.shoots[shootIndex].photos.push(...newPhotos);
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ success: true, photos: newPhotos });
+  } catch (error) {
+    console.error('Upload photos error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete photo from shoot (admin only)
+app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.shootId);
+    const photoId = parseFloat(req.params.photoId);
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    const photo = shootsData.shoots[shootIndex].photos.find(p => p.id === photoId);
+    if (photo) {
+      // Delete file from filesystem
+      try {
+        const photoPath = path.join(__dirname, 'uploads', photo.filename);
+        await fs.unlink(photoPath);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+      
+      // Remove from shoot
+      shootsData.shoots[shootIndex].photos = shootsData.shoots[shootIndex].photos.filter(p => p.id !== photoId);
+      await writeJSONFile(SHOOTS_FILE, shootsData);
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Add/Update categories (admin only)
+app.post('/api/portfolio/categories', requireAdmin, async (req, res) => {
+  try {
+    const { category } = req.body;
+    
+    if (!category) {
+      return res.status(400).json({ error: 'Category name required' });
+    }
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    if (!shootsData.categories.includes(category)) {
+      shootsData.categories.push(category);
+      shootsData.categories.sort();
+      await writeJSONFile(SHOOTS_FILE, shootsData);
+    }
+    
+    res.json({ success: true, categories: shootsData.categories });
+  } catch (error) {
+    console.error('Add category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// User Management Routes (Admin Only)
+// ===================================
+
+// Get all users (admin only)
+app.get('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const usersData = await readJSONFile(USERS_FILE);
+    // Return users without passwords
+    const usersWithoutPasswords = usersData.users.map(({ password, ...user }) => user);
+    res.json({ users: usersWithoutPasswords });
+  } catch (error) {
+    console.error('Get users error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get pending users (admin only)
+app.get('/api/users/pending', requireAdmin, async (req, res) => {
+  try {
+    const usersData = await readJSONFile(USERS_FILE);
+    const pendingUsers = usersData.users
+      .filter(u => u.status === 'pending')
+      .map(({ password, ...user }) => user);
+    res.json({ users: pendingUsers });
+  } catch (error) {
+    console.error('Get pending users error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Approve user (admin only)
+app.put('/api/users/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const usersData = await readJSONFile(USERS_FILE);
+    const userIndex = usersData.users.findIndex(u => u.id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    usersData.users[userIndex].status = 'approved';
+    usersData.users[userIndex].approvedAt = new Date().toISOString();
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'User approved' });
+  } catch (error) {
+    console.error('Approve user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reject user (admin only)
+app.put('/api/users/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const usersData = await readJSONFile(USERS_FILE);
+    const userIndex = usersData.users.findIndex(u => u.id === userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    usersData.users[userIndex].status = 'rejected';
+    usersData.users[userIndex].rejectedAt = new Date().toISOString();
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'User rejected' });
+  } catch (error) {
+    console.error('Reject user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const usersData = await readJSONFile(USERS_FILE);
+    
+    // Prevent deleting admin user
+    const user = usersData.users.find(u => u.id === userId);
+    if (user && user.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot delete admin user' });
+    }
+    
+    usersData.users = usersData.users.filter(u => u.id !== userId);
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Profile Management Routes
+// ===================================
+
+// Get current user profile
+app.get('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.id === req.session.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Return user without password
+    const { password, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update email
+app.put('/api/profile/update-email', requireAuth, async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    const usersData = await readJSONFile(USERS_FILE);
+    
+    // Check if email is already taken by another user
+    const existingUser = usersData.users.find(u => u.email === email && u.id !== req.session.userId);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+    
+    // Update user email
+    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    usersData.users[userIndex].email = email;
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'Email updated successfully' });
+  } catch (error) {
+    console.error('Update email error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update phone
+app.put('/api/profile/update-phone', requireAuth, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    
+    const usersData = await readJSONFile(USERS_FILE);
+    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    usersData.users[userIndex].phone = phone || '';
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'Phone number updated successfully' });
+  } catch (error) {
+    console.error('Update phone error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update password
+app.put('/api/profile/update-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+    
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    
+    const usersData = await readJSONFile(USERS_FILE);
+    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = usersData.users[userIndex];
+    
+    // Check if user has a password (Google OAuth users might not)
+    if (!user.password) {
+      return res.status(400).json({ error: 'Cannot change password for Google-authenticated accounts' });
+    }
+    
+    // Verify current password
+    if (user.password !== currentPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Update password
+    usersData.users[userIndex].password = newPassword;
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Update password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete account
+app.delete('/api/profile/delete-account', requireAuth, async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const usersData = await readJSONFile(USERS_FILE);
+    
+    // Prevent deleting admin user
+    const user = usersData.users.find(u => u.id === userId);
+    if (user && user.role === 'admin') {
+      return res.status(403).json({ error: 'Admin accounts cannot be deleted through this method' });
+    }
+    
+    // Delete user
+    usersData.users = usersData.users.filter(u => u.id !== userId);
+    await writeJSONFile(USERS_FILE, usersData);
+    
+    // Clear session
+    req.session.destroy();
+    
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Serve React Frontend in Production
+// ===================================
+if (process.env.NODE_ENV === 'production') {
+  // Serve static files from the React app build directory
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+  });
+}
+
+// ===================================
+// Start Server
+// ===================================
+
+initializeDataFiles().then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on http://localhost:${PORT}`);
+    console.log(`📁 Data stored in: ${DATA_DIR}`);
+    console.log(`📸 Uploads stored in: ${path.join(__dirname, 'uploads')}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}).catch(error => {
+  console.error('Failed to initialize server:', error);
+  process.exit(1);
+});
+
