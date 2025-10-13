@@ -23,26 +23,60 @@ const About = () => {
             <div className="about-text-section">
               <h2>Hi, I'm Alina Suedbeck</h2>
               <p className="lead-text">
-                Based in the beautiful city of Raleigh, North Carolina, I'm a professional 
-                photographer with a passion for capturing life's most precious moments.
+                The eye behind the lens at Skylit Photography. Based in the Raleigh/Durham area of North Carolina.
               </p>
               <p>
-                Photography has been my life's passion for over a decade. What started as 
-                a hobby quickly evolved into a calling. I believe that every moment tells 
-                a story, and my mission is to preserve those stories through timeless imagery 
-                that you'll treasure for generations.
+                I'm a professional photographer with a passion for capturing powerful, unforgettable moments -  
+                whether it's the spark of an engagement, the sleek lines of a dream car, or the raw energy of a
+                motorcycle in motion.
               </p>
               <p>
-                My approach to photography is deeply personal and collaborative. I strive 
-                to create a comfortable, fun environment where your authentic self shines 
-                through. Whether it's the joy of a wedding day, the warmth of a family 
-                gathering, or the confidence in a professional portrait, I'm dedicated to 
-                capturing the genuine emotions that make each moment special.
+                With every shot, I aim to blend emotion, style, and story - turning everday scenes into timeless images. 
+                Whether you're celebrating love or showcasing horsepower. I'm here to bring your vision to life,
+                one frame at a time.
               </p>
               <p>
-                When I'm not behind the camera, you'll find me exploring Raleigh's beautiful 
-                parks, trying new coffee shops, and spending time with my own family. These 
+                When I'm not behind the camera, you'll find me hanging out with my fiancé and our dog, crushing cones on an autocross course,
+                lifting weights at the gym, and enjoying nature and travel. These 
                 experiences continually inspire my work and remind me why I love what I do.
+              </p>
+              <p>
+                Let's create something unforgettable together!
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Specialties Section */}
+        <section className="specialties-section">
+          <h2 className="section-title">What I Specialize In</h2>
+          <div className="specialties-grid">
+            <div className="specialty-item">
+              <h3>Engagements & Couples</h3>
+              <p>
+                Capturing the love, connection, and excitement of your relationship with 
+                authentic, heartfelt imagery that tells your unique story.
+              </p>
+            </div>
+            <div className="specialty-item">
+              <h3>Automotive Photography</h3>
+              <p>
+                Showcasing the beauty, power, and craftsmanship of cars and motorcycles 
+                with dynamic angles and dramatic lighting.
+              </p>
+            </div>
+            <div className="specialty-item">
+              <h3>Portraits & Lifestyle</h3>
+              <p>
+                Creating timeless portraits that capture your personality, style, and 
+                the moments that matter most to you.
+              </p>
+            </div>
+            <div className="specialty-item">
+              <h3>Events & Special Occasions</h3>
+              <p>
+                Documenting your celebrations with energy and emotion, ensuring every 
+                important moment is beautifully preserved.
               </p>
             </div>
           </div>
@@ -53,7 +87,6 @@ const About = () => {
           <h2 className="section-title">My Photography Philosophy</h2>
           <div className="philosophy-grid">
             <div className="philosophy-item">
-              <div className="philosophy-icon">🎨</div>
               <h3>Artistic Vision</h3>
               <p>
                 Every session is approached with creativity and artistry, ensuring 
@@ -61,15 +94,6 @@ const About = () => {
               </p>
             </div>
             <div className="philosophy-item">
-              <div className="philosophy-icon">❤️</div>
-              <h3>Authentic Moments</h3>
-              <p>
-                I capture genuine emotions and real connections, not just posed shots. 
-                Your authentic story is what matters most.
-              </p>
-            </div>
-            <div className="philosophy-item">
-              <div className="philosophy-icon">✨</div>
               <h3>Attention to Detail</h3>
               <p>
                 From lighting to composition, every detail is carefully considered 
@@ -77,7 +101,6 @@ const About = () => {
               </p>
             </div>
             <div className="philosophy-item">
-              <div className="philosophy-icon">🤝</div>
               <h3>Client Experience</h3>
               <p>
                 Your comfort and satisfaction are my top priorities. I work closely 
@@ -87,49 +110,9 @@ const About = () => {
           </div>
         </section>
 
-        {/* Experience Section */}
-        <section className="experience-section">
-          <div className="experience-content">
-            <h2 className="section-title">Experience & Expertise</h2>
-            <div className="experience-grid">
-              <div className="experience-stat">
-                <div className="stat-number">10+</div>
-                <div className="stat-label">Years Experience</div>
-              </div>
-              <div className="experience-stat">
-                <div className="stat-number">500+</div>
-                <div className="stat-label">Happy Clients</div>
-              </div>
-              <div className="experience-stat">
-                <div className="stat-number">200+</div>
-                <div className="stat-label">Weddings Captured</div>
-              </div>
-              <div className="experience-stat">
-                <div className="stat-number">50k+</div>
-                <div className="stat-label">Photos Delivered</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Equipment Section */}
-        <section className="equipment-section">
-          <h3>Professional Equipment</h3>
-          <p>
-            I use state-of-the-art professional camera equipment and editing software 
-            to ensure the highest quality results. My gear includes multiple camera 
-            bodies, a variety of professional lenses, and professional lighting equipment 
-            for any situation.
-          </p>
-        </section>
-
         {/* CTA Section */}
         <section className="about-cta">
-          <h2>Let's Create Something Beautiful Together</h2>
-          <p>
-            I'd love to hear about your photography needs and how I can help 
-            preserve your special moments.
-          </p>
+          <h2>Let's Create Something Unforgettable Together!</h2>
           <div className="cta-buttons">
             <Link to="/contact" className="btn btn-primary">Get in Touch</Link>
             <Link to="/portfolio" className="btn btn-secondary">View My Work</Link>

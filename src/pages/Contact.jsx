@@ -168,7 +168,7 @@ const Contact = () => {
               <div className="info-icon">📍</div>
               <div className="info-content">
                 <h3>Location</h3>
-                <p>Raleigh, North Carolina</p>
+                <p>Raleigh/Durham, North Carolina</p>
                 <p className="small-text">Serving the Triangle area and beyond</p>
               </div>
             </div>

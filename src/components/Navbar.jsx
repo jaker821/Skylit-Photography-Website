@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/images/logo.png'
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
@@ -30,97 +31,17 @@ const Navbar = () => {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container">
-        {/* Left Navigation */}
-        <ul className={`nav-links nav-links-left ${mobileMenuOpen ? 'active' : ''}`}>
-          <li>
-            <Link 
-              to="/" 
-              className={location.pathname === '/' ? 'active' : ''}
-              onClick={closeMobileMenu}
-            >
-              Home
-            </Link>
-          </li>
-          <li>
-            <Link 
-              to="/portfolio" 
-              className={location.pathname === '/portfolio' ? 'active' : ''}
-              onClick={closeMobileMenu}
-            >
-              Portfolio
-            </Link>
-          </li>
-          <li>
-            <Link 
-              to="/pricing" 
-              className={location.pathname === '/pricing' ? 'active' : ''}
-              onClick={closeMobileMenu}
-            >
-              Pricing
-            </Link>
-          </li>
-        </ul>
-
-        {/* Center Logo */}
-        <Link to="/" className="logo logo-center" onClick={closeMobileMenu}>
-          <span className="logo-text">Skylit Photography</span>
-          <span className="logo-subtitle">by Alina Suedbeck</span>
+        {/* Logo */}
+        <Link to="/" className="logo" onClick={closeMobileMenu}>
+          <img src={logo} alt="Skylit Photography Logo" className="logo-image" />
+          <div className="logo-text-container">
+            <span className="logo-text">Skylit Photography</span>
+            <span className="logo-subtitle">by Alina Suedbeck</span>
+          </div>
         </Link>
 
-        {/* Right Navigation */}
-        <ul className={`nav-links nav-links-right ${mobileMenuOpen ? 'active' : ''}`}>
-          <li>
-            <Link 
-              to="/about" 
-              className={location.pathname === '/about' ? 'active' : ''}
-              onClick={closeMobileMenu}
-            >
-              About
-            </Link>
-          </li>
-          <li>
-            <Link 
-              to="/contact" 
-              className={location.pathname === '/contact' ? 'active' : ''}
-              onClick={closeMobileMenu}
-            >
-              Contact
-            </Link>
-          </li>
-        </ul>
-
-        {/* Far Right: Auth & Theme */}
-        <div className="nav-actions">
-          {isAuthenticated ? (
-            <>
-              <Link 
-                to="/profile"
-                className={`nav-link ${location.pathname === '/profile' ? 'active' : ''}`}
-                onClick={closeMobileMenu}
-              >
-                Profile
-              </Link>
-              <Link 
-                to={isAdmin ? "/admin" : "/dashboard"}
-                className="nav-dashboard"
-                onClick={closeMobileMenu}
-              >
-                {isAdmin ? 'Admin' : 'Dashboard'}
-              </Link>
-              <button onClick={handleLogout} className="nav-logout">
-                Logout
-              </button>
-            </>
-          ) : (
-            <Link 
-              to="/login" 
-              className="nav-login"
-              onClick={closeMobileMenu}
-            >
-              Login
-            </Link>
-          )}
-          
+        {/* Right side: Theme toggle & Hamburger menu */}
+        <div className="nav-right">
           <button 
             className="theme-toggle"
             onClick={toggleTheme}
@@ -129,18 +50,106 @@ const Navbar = () => {
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
+
+          <button 
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <button 
-          className="mobile-menu-toggle"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
+        {/* Hamburger Menu - All Navigation */}
+        <div className={`nav-menu ${mobileMenuOpen ? 'active' : ''}`}>
+          <ul className="nav-links">
+            <li>
+              <Link 
+                to="/" 
+                className={location.pathname === '/' ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/portfolio" 
+                className={location.pathname === '/portfolio' ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                Portfolio
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/pricing" 
+                className={location.pathname === '/pricing' ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                Pricing
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/about" 
+                className={location.pathname === '/about' ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                About
+              </Link>
+            </li>
+            <li>
+              <Link 
+                to="/contact" 
+                className={location.pathname === '/contact' ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                Contact
+              </Link>
+            </li>
+            
+            {isAuthenticated ? (
+              <>
+                <li>
+                  <Link 
+                    to="/profile"
+                    className={location.pathname === '/profile' ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                  >
+                    Profile
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    to={isAdmin ? "/admin" : "/dashboard"}
+                    className={location.pathname === '/admin' || location.pathname === '/dashboard' ? 'active' : ''}
+                    onClick={closeMobileMenu}
+                  >
+                    {isAdmin ? 'Admin' : 'Dashboard'}
+                  </Link>
+                </li>
+                <li>
+                  <button onClick={handleLogout} className="nav-logout-btn">
+                    Logout
+                  </button>
+                </li>
+              </>
+            ) : (
+              <li>
+                <Link 
+                  to="/login" 
+                  className={location.pathname === '/login' ? 'active' : ''}
+                  onClick={closeMobileMenu}
+                >
+                  Login
+                </Link>
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
     </nav>
   )

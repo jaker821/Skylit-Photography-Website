@@ -35,4 +35,22 @@ services:
       #   type: SECRET
       # - key: GOOGLE_CALLBACK_URL
       #   value: ${APP_URL}/api/auth/google/callback
+      
+      # DigitalOcean Spaces (OPTIONAL - Highly recommended for persistent image storage)
+      # Uncomment and configure these when you've set up a Space
+      # See DIGITALOCEAN-SPACES-SETUP.md for instructions
+      # - key: SPACES_ENDPOINT
+      #   value: nyc3.digitaloceanspaces.com
+      # - key: SPACES_REGION
+      #   value: nyc3
+      # - key: SPACES_BUCKET
+      #   value: skylit-photography
+      # - key: SPACES_ACCESS_KEY
+      #   value: YOUR_SPACES_ACCESS_KEY
+      #   type: SECRET
+      # - key: SPACES_SECRET_KEY
+      #   value: YOUR_SPACES_SECRET_KEY
+      #   type: SECRET
+      # - key: SPACES_CDN_URL
+      #   value: https://skylit-photography.nyc3.cdn.digitaloceanspaces.com
 

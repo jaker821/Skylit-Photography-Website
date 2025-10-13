@@ -10,7 +10,7 @@ const Footer = () => {
         <div className="footer-section">
           <h3>Skylit Photography</h3>
           <p>Capturing moments, creating memories</p>
-          <p className="footer-location">Based in Raleigh, NC</p>
+          <p className="footer-location">Based in Raleigh/Durham, NC</p>
         </div>
 
         <div className="footer-section">
@@ -26,7 +26,7 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Contact</h4>
           <p>Email: <a href="mailto:skylit.photography25@gmail.com">skylit.photography25@gmail.com</a></p>
-          <p>Raleigh, North Carolina</p>
+          <p>Raleigh/Durham, North Carolina</p>
         </div>
 
         <div className="footer-section">

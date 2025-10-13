@@ -37,6 +37,19 @@ SESSION_SECRET=your_session_secret_here
 # Application URLs
 # ===================================
 FRONTEND_URL=http://localhost:3000
+
+# ===================================
+# DigitalOcean Spaces (Optional - for persistent image storage)
+# ===================================
+# Get these from DigitalOcean Spaces dashboard
+# See DIGITALOCEAN-SPACES-SETUP.md for detailed instructions
+
+SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
+SPACES_REGION=nyc3
+SPACES_BUCKET=your-bucket-name
+SPACES_ACCESS_KEY=your_spaces_access_key
+SPACES_SECRET_KEY=your_spaces_secret_key
+SPACES_CDN_URL=https://your-bucket-name.nyc3.cdn.digitaloceanspaces.com
 ```
 
 ---
@@ -64,23 +77,55 @@ FRONTEND_URL=http://localhost:3000
 
 **To enable Google OAuth:** Simply add the Google credentials to your `.env` file and restart the server.
 
+### Optional (for DigitalOcean Spaces - Recommended for Production):
+
+**Note:** Without Spaces, images are stored locally and will be **deleted on every deployment**.
+
+| Variable | Description | Where to Get |
+|----------|-------------|--------------|
+| `SPACES_ENDPOINT` | Spaces region endpoint | DigitalOcean Spaces dashboard (e.g., `nyc3.digitaloceanspaces.com`) |
+| `SPACES_REGION` | Spaces region code | Match your endpoint (e.g., `nyc3`, `sfo3`, `sgp1`) |
+| `SPACES_BUCKET` | Your Space name | Choose when creating Space |
+| `SPACES_ACCESS_KEY` | Spaces API Access Key | DigitalOcean → API → Spaces Keys |
+| `SPACES_SECRET_KEY` | Spaces API Secret Key | DigitalOcean → API → Spaces Keys |
+| `SPACES_CDN_URL` | CDN endpoint URL | Your Space settings (e.g., `https://bucket.nyc3.cdn.digitaloceanspaces.com`) |
+
+**To enable Spaces:** Follow the [DigitalOcean Spaces Setup Guide](./DIGITALOCEAN-SPACES-SETUP.md).
+
 ---
 
 ## 🏭 Production Environment Variables (DigitalOcean)
 
 When deploying to DigitalOcean App Platform, set these in the dashboard:
 
+### Required:
 ```env
 NODE_ENV=production
 PORT=8080
 SESSION_SECRET=<strong_random_secret_64+_characters>
-GOOGLE_CLIENT_ID=<your_production_google_client_id>
-GOOGLE_CLIENT_SECRET=<your_production_google_client_secret>
-GOOGLE_CALLBACK_URL=${APP_URL}/api/auth/google/callback
 FRONTEND_URL=${APP_URL}
 ```
 
-**Note**: `${APP_URL}` is automatically provided by DigitalOcean.
+### Optional - Google OAuth (Currently Disabled):
+```env
+GOOGLE_CLIENT_ID=<your_production_google_client_id>
+GOOGLE_CLIENT_SECRET=<your_production_google_client_secret>
+GOOGLE_CALLBACK_URL=${APP_URL}/api/auth/google/callback
+```
+
+### Optional - DigitalOcean Spaces (Highly Recommended):
+```env
+SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
+SPACES_REGION=nyc3
+SPACES_BUCKET=skylit-photography
+SPACES_ACCESS_KEY=<your_spaces_access_key>
+SPACES_SECRET_KEY=<your_spaces_secret_key>
+SPACES_CDN_URL=https://skylit-photography.nyc3.cdn.digitaloceanspaces.com
+```
+
+**Note**: 
+- `${APP_URL}` is automatically provided by DigitalOcean.
+- Mark `SESSION_SECRET`, `SPACES_ACCESS_KEY`, and `SPACES_SECRET_KEY` as **Secret** type in the dashboard.
 
 ---
 

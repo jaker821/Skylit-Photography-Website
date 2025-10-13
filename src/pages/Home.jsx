@@ -29,11 +29,10 @@ const Home = () => {
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title animate-fade-in">
-            Capturing Life's
-            <span className="hero-highlight"> Precious Moments</span>
+            <span className="hero-highlight"> Blending Emotion, Style, and Story</span>
           </h1>
           <p className="hero-subtitle animate-fade-in-delay">
-            Professional photography services in Raleigh, NC
+            Professional photographery in Raleigh/Durham, NC
           </p>
           <div className="hero-buttons animate-fade-in-delay-2">
             <Link to="/portfolio" className="btn btn-primary">View Portfolio</Link>
@@ -91,13 +90,13 @@ const Home = () => {
             <div className="about-preview-text">
               <h2>Hi, I'm Alina</h2>
               <p>
-                I'm a passionate photographer based in Raleigh, NC, dedicated to capturing 
-                the beauty in every moment. With years of experience and a keen eye for detail, 
-                I specialize in creating timeless images that tell your unique story.
+                I'm a professional photographer with a passion for capturing powerful, unforgettable moments - 
+                whether it's the spark of an engagement, the sleek lines of a dream car, or the raw energy of a 
+                motorcycle in motion. With every shot, I aim to blend emotion, style, and story - turning everday 
+                scenes into timeless images.
               </p>
               <p>
-                Whether it's your wedding day, a family portrait, or a special event, 
-                I'm here to preserve those precious memories for you to treasure forever.
+                Let's create something unforgettable together!
               </p>
               <Link to="/about" className="btn btn-text">Learn More About Me →</Link>
             </div>
@@ -116,22 +115,18 @@ const Home = () => {
           <h2 className="section-title">What I Offer</h2>
           <div className="services-grid">
             <div className="service-card">
-              <div className="service-icon">📸</div>
               <h3>Professional Quality</h3>
               <p>High-resolution images edited to perfection</p>
             </div>
             <div className="service-card">
-              <div className="service-icon">⏱️</div>
               <h3>Quick Turnaround</h3>
-              <p>Receive your photos within 2-3 weeks</p>
+              <p>Receive your photos within 1-2 weeks</p>
             </div>
             <div className="service-card">
-              <div className="service-icon">🎨</div>
               <h3>Custom Packages</h3>
               <p>Tailored to fit your specific needs</p>
             </div>
             <div className="service-card">
-              <div className="service-icon">💜</div>
               <h3>Personal Touch</h3>
               <p>A collaborative and comfortable experience</p>
             </div>

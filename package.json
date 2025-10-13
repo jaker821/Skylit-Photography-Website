@@ -1,6 +1,6 @@
 {
   "name": "skylit-photography",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Portfolio website for Skylit Photography by Alina Suedbeck",
   "main": "server/server.js",
   "scripts": {
@@ -15,25 +15,30 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
-  "keywords": ["photography", "portfolio", "react"],
+  "keywords": [
+    "photography",
+    "portfolio",
+    "react"
+  ],
   "author": "Alina Suedbeck",
   "license": "MIT",
   "dependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "aws-sdk": "^2.1692.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "multer": "^1.4.5-lts.1",
+    "multer-s3": "^3.0.1",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
-    "express-session": "^1.17.3",
-    "multer": "^1.4.5-lts.1",
-    "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
-    "dotenv": "^16.3.1",
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.2.0"
+    "vite": "^5.0.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
 }
-

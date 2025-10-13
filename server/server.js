@@ -5,6 +5,8 @@ const session = require('express-session');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const multer = require('multer');
+const multerS3 = require('multer-s3');
+const AWS = require('aws-sdk');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -127,26 +129,78 @@ if (GOOGLE_OAUTH_ENABLED) {
   console.log('⚠️  Google OAuth is DISABLED - Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable');
 }
 
-// Serve uploaded images
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// ===================================
+// DigitalOcean Spaces Configuration
+// ===================================
+
+// Check if Spaces is configured
+const SPACES_ENABLED = !!(
+  process.env.SPACES_ENDPOINT && 
+  process.env.SPACES_BUCKET && 
+  process.env.SPACES_ACCESS_KEY && 
+  process.env.SPACES_SECRET_KEY
+);
+
+let s3Client;
+let storage;
+
+if (SPACES_ENABLED) {
+  console.log('✅ DigitalOcean Spaces is ENABLED');
+  
+  // Configure AWS S3 client for DigitalOcean Spaces
+  s3Client = new AWS.S3({
+    endpoint: new AWS.Endpoint(process.env.SPACES_ENDPOINT),
+    accessKeyId: process.env.SPACES_ACCESS_KEY,
+    secretAccessKey: process.env.SPACES_SECRET_KEY,
+    region: process.env.SPACES_REGION || 'us-east-1', // Spaces doesn't strictly need region, but SDK requires it
+    s3ForcePathStyle: false, // Use virtual-hosted-style URLs
+    signatureVersion: 'v4'
+  });
+
+  // Configure multer to use S3 storage
+  storage = multerS3({
+    s3: s3Client,
+    bucket: process.env.SPACES_BUCKET,
+    acl: 'public-read', // Make files publicly readable
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const filename = uniqueSuffix + path.extname(file.originalname);
+      // Store in portfolio folder
+      cb(null, `portfolio/${filename}`);
+    },
+    metadata: (req, file, cb) => {
+      cb(null, { 
+        fieldName: file.fieldname,
+        originalName: file.originalname
+      });
+    }
+  });
+} else {
+  console.log('⚠️  DigitalOcean Spaces is DISABLED - Using local storage (files will be lost on deployment!)');
+  console.log('   To enable Spaces, set: SPACES_ENDPOINT, SPACES_BUCKET, SPACES_ACCESS_KEY, SPACES_SECRET_KEY');
+  
+  // Fallback to local disk storage
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  
+  storage = multer.diskStorage({
+    destination: async (req, file, cb) => {
+      const uploadDir = path.join(__dirname, 'uploads');
+      try {
+        await fs.access(uploadDir);
+      } catch {
+        await fs.mkdir(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+}
 
 // Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads');
-    try {
-      await fs.access(uploadDir);
-    } catch {
-      await fs.mkdir(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
 const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -1127,13 +1181,26 @@ app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    // Delete associated photos from filesystem
+    // Delete associated photos from storage
     for (const photo of shoot.photos) {
       try {
-        const photoPath = path.join(__dirname, 'uploads', path.basename(photo.url));
-        await fs.unlink(photoPath);
+        if (SPACES_ENABLED && s3Client) {
+          // Delete from DigitalOcean Spaces
+          const deleteParams = {
+            Bucket: process.env.SPACES_BUCKET,
+            Key: photo.key || photo.filename || path.basename(photo.url)
+          };
+          await s3Client.deleteObject(deleteParams).promise();
+          console.log(`Deleted from Spaces: ${photo.key || photo.filename}`);
+        } else {
+          // Delete from local filesystem
+          const photoPath = path.join(__dirname, 'uploads', path.basename(photo.url));
+          await fs.unlink(photoPath);
+          console.log(`Deleted from local storage: ${path.basename(photo.url)}`);
+        }
       } catch (err) {
         console.error('Error deleting photo:', err);
+        // Continue to next photo
       }
     }
     
@@ -1159,13 +1226,34 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, upload.array('photos'
     }
     
     // Add uploaded photos to shoot
-    const newPhotos = req.files.map(file => ({
-      id: Date.now() + Math.random(),
-      url: `/uploads/${file.filename}`,
-      filename: file.filename,
-      originalName: file.originalname,
-      uploadedAt: new Date().toISOString()
-    }));
+    const newPhotos = req.files.map(file => {
+      let photoUrl;
+      let photoKey;
+      
+      if (SPACES_ENABLED) {
+        // Use the CDN URL if available, otherwise use the direct Spaces URL
+        const cdnUrl = process.env.SPACES_CDN_URL;
+        if (cdnUrl) {
+          photoUrl = `${cdnUrl}/${file.key}`;
+        } else {
+          photoUrl = file.location; // Direct S3 URL from multer-s3
+        }
+        photoKey = file.key; // S3 key for deletion
+      } else {
+        // Local storage
+        photoUrl = `/uploads/${file.filename}`;
+        photoKey = file.filename;
+      }
+      
+      return {
+        id: Date.now() + Math.random(),
+        url: photoUrl,
+        key: photoKey, // Store key for deletion
+        filename: file.filename || path.basename(file.key || ''),
+        originalName: file.originalname,
+        uploadedAt: new Date().toISOString()
+      };
+    });
     
     shootsData.shoots[shootIndex].photos.push(...newPhotos);
     await writeJSONFile(SHOOTS_FILE, shootsData);
@@ -1192,12 +1280,25 @@ app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async
     
     const photo = shootsData.shoots[shootIndex].photos.find(p => p.id === photoId);
     if (photo) {
-      // Delete file from filesystem
+      // Delete file from storage
       try {
-        const photoPath = path.join(__dirname, 'uploads', photo.filename);
-        await fs.unlink(photoPath);
+        if (SPACES_ENABLED && s3Client) {
+          // Delete from DigitalOcean Spaces
+          const deleteParams = {
+            Bucket: process.env.SPACES_BUCKET,
+            Key: photo.key || photo.filename // Use key if available, fallback to filename
+          };
+          await s3Client.deleteObject(deleteParams).promise();
+          console.log(`Deleted from Spaces: ${photo.key || photo.filename}`);
+        } else {
+          // Delete from local filesystem
+          const photoPath = path.join(__dirname, 'uploads', photo.filename);
+          await fs.unlink(photoPath);
+          console.log(`Deleted from local storage: ${photo.filename}`);
+        }
       } catch (err) {
         console.error('Error deleting file:', err);
+        // Continue anyway to remove from database
       }
       
       // Remove from shoot
