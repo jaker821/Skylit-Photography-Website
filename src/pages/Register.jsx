@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-
-const API_URL = 'http://localhost:5000/api'
-const GOOGLE_AUTH_URL = 'http://localhost:5000/api/auth/google'
+import { API_URL, GOOGLE_AUTH_URL } from '../config'
 
 const Register = () => {
   const navigate = useNavigate()

@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-
-const API_URL = 'http://localhost:5000/api'
-const GOOGLE_AUTH_URL = 'http://localhost:5000/api/auth/google'
+import { API_URL, GOOGLE_AUTH_URL } from '../config'
 
 const Login = () => {
   const [email, setEmail] = useState('')

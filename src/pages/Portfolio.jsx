@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-
-const API_URL = 'http://localhost:5000/api'
+import { API_URL } from '../config'
 
 const Portfolio = () => {
   const [activeCategory, setActiveCategory] = useState('all')
