@@ -45,6 +45,12 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Debug middleware - log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Session ID: ${req.sessionID} - User ID: ${req.session?.userId || 'none'}`);
+  next();
+});
+
 // Passport serialization
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -447,20 +453,33 @@ app.post('/api/auth/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.userRole = user.role;
 
-    // Save session to file
-    const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
-    sessionsData.sessions.push({
-      sessionId: req.sessionID,
-      userId: user.id,
-      createdAt: new Date().toISOString()
-    });
-    await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+    // Explicitly save the session before responding
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+        return res.status(500).json({ error: 'Session save failed' });
+      }
 
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({
-      success: true,
-      user: userWithoutPassword
+      console.log('✅ Login successful - Session saved:', req.sessionID, 'User:', user.email);
+      
+      // Save session to file for tracking
+      readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] })
+        .then(sessionsData => {
+          sessionsData.sessions.push({
+            sessionId: req.sessionID,
+            userId: user.id,
+            createdAt: new Date().toISOString()
+          });
+          return writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+        })
+        .catch(err => console.error('Auth sessions file error:', err));
+
+      // Return user data without password
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({
+        success: true,
+        user: userWithoutPassword
+      });
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -530,9 +549,16 @@ app.get('/api/pricing', async (req, res) => {
 
 // Middleware to check admin role
 function requireAuth(req, res, next) {
+  console.log('requireAuth - Session exists:', !!req.session);
+  console.log('requireAuth - Session userId:', req.session?.userId);
+  console.log('requireAuth - Session ID:', req.sessionID);
+  
   if (!req.session.userId) {
+    console.error('requireAuth - FAILED: No userId in session');
     return res.status(401).json({ error: 'Authentication required' });
   }
+  
+  console.log('requireAuth - PASSED');
   next();
 }
 
@@ -1309,12 +1335,18 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
 // Get current user profile
 app.get('/api/profile', requireAuth, async (req, res) => {
   try {
+    console.log('Profile request - Session ID:', req.sessionID);
+    console.log('Profile request - User ID from session:', req.session.userId);
+    
     const usersData = await readJSONFile(USERS_FILE);
     const user = usersData.users.find(u => u.id === req.session.userId);
     
     if (!user) {
+      console.error('User not found in database. Session userId:', req.session.userId);
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    console.log('Profile retrieved successfully for user:', user.email);
     
     // Return user without password
     const { password, ...userWithoutPassword } = user;
