@@ -61,6 +61,7 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
 
 - [Getting Started Guide](./GETTING-STARTED.md)
 - [Deployment Guide](./DEPLOYMENT-GUIDE.md)
+- [Password Hash Migration](./PASSWORD-HASH-MIGRATION.md) 🔐 *Important!*
 - [DigitalOcean Spaces Setup](./DIGITALOCEAN-SPACES-SETUP.md) ⭐ *New!*
   - [Quick Start Guide](./QUICK-START-SPACES.md) - 20 min setup
   - [Storage Comparison](./STORAGE-COMPARISON.md) - Local vs. Spaces
@@ -104,8 +105,8 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
 
 ## 📋 Version Log
 
-### Version 1.1.0 - DigitalOcean Spaces & UI Improvements (October 13, 2024)
-**Status:** ✅ Ready for Deployment
+### Version 1.2.0 - Security & Storage Improvements (October 13, 2024)
+**Status:** ✅ Live in Production
 
 #### 🎨 UI/UX Improvements:
 - **About Page Refinement:**
@@ -128,8 +129,12 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
   - Better button visibility across themes
   - Gold accents for headings in dark mode
 
+- **Profile Page Protection:**
+  - Admin users cannot delete their account (safety feature)
+  - Prevents accidental system lockout
+
 #### 🚀 Major Features Added:
-- **DigitalOcean Spaces Integration:**
+- **DigitalOcean Spaces Integration:** ✅ **IMPLEMENTED**
   - ✅ S3-compatible object storage for persistent image hosting
   - ✅ CDN integration for fast worldwide image delivery
   - ✅ Automatic detection and fallback to local storage
@@ -137,19 +142,35 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
   - ✅ Organized storage in `portfolio/` folder
   - ✅ Supports both local development and production
   - ✅ Cost-effective ($5/month for 250GB + 1TB CDN transfer)
+  - ✅ **Bucket storage configured and active**
+
+- **🔐 Password Security (Bcrypt Hashing):**
+  - ✅ Industry-standard bcrypt encryption (10 salt rounds)
+  - ✅ Passwords no longer stored as plain text
+  - ✅ Secure password verification for login
+  - ✅ Hashed passwords on registration and password change
+  - ✅ Production-ready security implementation
+  - ✅ Default admin credentials: `admin` / `admin123` (hashed)
+  - ⚠️ **Migration completed** - All passwords now encrypted
 
 #### 📚 Documentation Added:
 - **DIGITALOCEAN-SPACES-SETUP.md** - Complete setup guide (30 min read)
 - **QUICK-START-SPACES.md** - Fast 20-minute setup checklist
 - **STORAGE-COMPARISON.md** - Local vs. Spaces comparison
 - **SPACES-IMPLEMENTATION-SUMMARY.md** - Technical implementation details
+- **PASSWORD-HASH-MIGRATION.md** - Password migration guide
+- **DEPLOYMENT-CHECKLIST-v1.1.0.md** - Deployment checklist
 
 #### 🛠️ Technical Updates:
 - **New Dependencies:**
   - `aws-sdk@^2.1692.0` - AWS S3 client for Spaces
   - `multer-s3@^3.0.1` - Direct S3 uploads
+  - `bcrypt@^5.1.1` - Password hashing and encryption
   
 - **Backend Enhancements:**
+  - Bcrypt password hashing on registration and login
+  - Secure password comparison using bcrypt.compare()
+  - Password change endpoint updated with bcrypt
   - Conditional Spaces configuration detection
   - Dual storage support (local + Spaces)
   - CDN URL generation for optimal delivery
@@ -157,23 +178,32 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
   - Enhanced logging for storage status
 
 - **Environment Variables:**
-  - Added 6 new optional Spaces variables
+  - Added 6 new optional Spaces variables (configured)
   - Updated `.do/app.yaml` with Spaces config template
   - Comprehensive environment documentation
 
-#### ⚠️ Resolved Limitations:
-- ~~**Ephemeral Storage**~~ → **Solved:** Spaces provides persistent storage
-- ~~**Images lost on deployment**~~ → **Solved:** Images now permanent in cloud
+- **Security Improvements:**
+  - Admin account deletion disabled (safety feature)
+  - Password complexity requirements enforced
+  - Session security maintained
+  - Secure credential storage
 
-#### 🔜 Next Planned Updates (v1.2.0):
+#### ⚠️ Resolved Limitations:
+- ~~**Ephemeral Storage**~~ → **✅ SOLVED:** Spaces provides persistent storage (ACTIVE)
+- ~~**Images lost on deployment**~~ → **✅ SOLVED:** Images now permanent in cloud
+- ~~**Plain-text passwords**~~ → **✅ SOLVED:** Bcrypt hashing implemented and active
+- ~~**Admin lockout risk**~~ → **✅ SOLVED:** Admin cannot delete own account
+
+#### 🔜 Next Planned Updates (v1.3.0):
 - PostgreSQL database migration
 - Email notification system
 - Google OAuth enablement
 - Payment processing integration
+- Two-factor authentication (2FA)
 
 ---
 
-### Version 1.0.0 - Initial Production Release (October 13, 2024)
+### Version 1.1.0 - DigitalOcean Spaces Foundation (October 13, 2024)
 **Status:** ✅ Live in Production
 
 #### 🎨 Public Features:
@@ -248,7 +278,7 @@ For detailed setup instructions, see [GETTING-STARTED.md](./GETTING-STARTED.md)
 - Zero-downtime deployments
 
 #### ✅ Implemented in v1.1.0:
-- ~~DigitalOcean Spaces integration for persistent image storage~~
+- ~~DigitalOcean Spaces integration for persistent image storage~~ (Completed and deployed in v1.2.0)
 
 ---
 

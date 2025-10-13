@@ -7,6 +7,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const AWS = require('aws-sdk');
+const bcrypt = require('bcrypt');
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -257,22 +258,18 @@ async function writeJSONFile(filePath, data) {
 async function initializeDataFiles() {
   await ensureDataDirectory();
   
-  // Initialize users file
+  // Initialize users file with hashed password
+  const hashedPassword = await bcrypt.hash('admin123', 10); // 10 salt rounds
   const defaultUsers = {
     users: [
       {
         id: 1,
-        email: 'admin@skylit.com',
-        password: 'admin123', // In production, use bcrypt hashing
+        email: 'admin',
+        password: hashedPassword, // Hashed with bcrypt
         name: 'Alina Suedbeck',
-        role: 'admin'
-      },
-      {
-        id: 2,
-        email: 'user@example.com',
-        password: 'user123', // In production, use bcrypt hashing
-        name: 'Demo User',
-        role: 'user'
+        role: 'admin',
+        authMethod: 'email',
+        createdAt: new Date().toISOString()
       }
     ]
   };
@@ -458,15 +455,19 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
+    // Hash password before storing
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     // Create new user with pending approval status
     const newUser = {
       id: Date.now().toString(),
       name,
       email,
       phone,
-      password, // In production, hash this!
+      password: hashedPassword, // Securely hashed with bcrypt
       role: 'user',
       status: 'pending', // pending, approved, rejected
+      authMethod: 'email',
       createdAt: new Date().toISOString()
     };
 
@@ -493,9 +494,15 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.email === email && u.password === password);
+    const user = usersData.users.find(u => u.email === email);
 
     if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Verify password with bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -1551,13 +1558,15 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Cannot change password for Google-authenticated accounts' });
     }
     
-    // Verify current password
-    if (user.password !== currentPassword) {
+    // Verify current password with bcrypt
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
     
-    // Update password
-    usersData.users[userIndex].password = newPassword;
+    // Hash new password before storing
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    usersData.users[userIndex].password = hashedPassword;
     await writeJSONFile(USERS_FILE, usersData);
     
     res.json({ success: true, message: 'Password updated successfully' });

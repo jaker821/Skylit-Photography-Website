@@ -410,19 +410,21 @@ const Profile = () => {
             </div>
           )}
 
-          {/* Delete Account */}
-          <div className="settings-card danger-card">
-            <h3>⚠️ Delete Account</h3>
-            <p className="danger-text">
-              <strong>Warning:</strong> This action is permanent and cannot be undone. All your data will be permanently deleted.
-            </p>
-            <button 
-              className="btn btn-danger"
-              onClick={handleDeleteAccount}
-            >
-              Delete My Account
-            </button>
-          </div>
+          {/* Delete Account - Hidden for admin */}
+          {profileData.role !== 'admin' && (
+            <div className="settings-card danger-card">
+              <h3>⚠️ Delete Account</h3>
+              <p className="danger-text">
+                <strong>Warning:</strong> This action is permanent and cannot be undone. All your data will be permanently deleted.
+              </p>
+              <button 
+                className="btn btn-danger"
+                onClick={handleDeleteAccount}
+              >
+                Delete My Account
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
