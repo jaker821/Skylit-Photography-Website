@@ -30,33 +30,8 @@ const Navbar = () => {
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container">
-        <Link to="/" className="logo" onClick={closeMobileMenu}>
-          <span className="logo-text">Skylit Photography</span>
-          <span className="logo-subtitle">by Alina Suedbeck</span>
-        </Link>
-
-        <div className="nav-right">
-          <button 
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-
-          <button 
-            className="mobile-menu-toggle"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
-        </div>
-
-        <ul className={`nav-links ${mobileMenuOpen ? 'active' : ''}`}>
+        {/* Left Navigation */}
+        <ul className={`nav-links nav-links-left ${mobileMenuOpen ? 'active' : ''}`}>
           <li>
             <Link 
               to="/" 
@@ -84,6 +59,16 @@ const Navbar = () => {
               Pricing
             </Link>
           </li>
+        </ul>
+
+        {/* Center Logo */}
+        <Link to="/" className="logo logo-center" onClick={closeMobileMenu}>
+          <span className="logo-text">Skylit Photography</span>
+          <span className="logo-subtitle">by Alina Suedbeck</span>
+        </Link>
+
+        {/* Right Navigation */}
+        <ul className={`nav-links nav-links-right ${mobileMenuOpen ? 'active' : ''}`}>
           <li>
             <Link 
               to="/about" 
@@ -102,45 +87,60 @@ const Navbar = () => {
               Contact
             </Link>
           </li>
-          
+        </ul>
+
+        {/* Far Right: Auth & Theme */}
+        <div className="nav-actions">
           {isAuthenticated ? (
             <>
-              <li>
-                <Link 
-                  to="/profile"
-                  className={location.pathname === '/profile' ? 'active' : ''}
-                  onClick={closeMobileMenu}
-                >
-                  Profile
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to={isAdmin ? "/admin" : "/dashboard"}
-                  className="nav-dashboard"
-                  onClick={closeMobileMenu}
-                >
-                  {isAdmin ? 'Admin' : 'Dashboard'}
-                </Link>
-              </li>
-              <li>
-                <button onClick={handleLogout} className="nav-logout">
-                  Logout
-                </button>
-              </li>
-            </>
-          ) : (
-            <li>
               <Link 
-                to="/login" 
-                className="nav-login"
+                to="/profile"
+                className={`nav-link ${location.pathname === '/profile' ? 'active' : ''}`}
                 onClick={closeMobileMenu}
               >
-                Login
+                Profile
               </Link>
-            </li>
+              <Link 
+                to={isAdmin ? "/admin" : "/dashboard"}
+                className="nav-dashboard"
+                onClick={closeMobileMenu}
+              >
+                {isAdmin ? 'Admin' : 'Dashboard'}
+              </Link>
+              <button onClick={handleLogout} className="nav-logout">
+                Logout
+              </button>
+            </>
+          ) : (
+            <Link 
+              to="/login" 
+              className="nav-login"
+              onClick={closeMobileMenu}
+            >
+              Login
+            </Link>
           )}
-        </ul>
+          
+          <button 
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
+        </div>
+
+        {/* Mobile Menu Toggle */}
+        <button 
+          className="mobile-menu-toggle"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
     </nav>
   )

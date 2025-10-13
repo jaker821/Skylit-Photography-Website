@@ -11,6 +11,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy - DigitalOcean App Platform uses a load balancer
+app.set('trust proxy', 1);
+
 // Middleware
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.FRONTEND_URL || 'https://your-app.ondigitalocean.app']
@@ -30,14 +33,16 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(session({
+  name: 'skylit.sid', // Explicit session cookie name
   secret: process.env.SESSION_SECRET || 'skylit-photography-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+    path: '/',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax' // Same-origin (server serves both frontend and backend)
+    secure: false, // Disable secure for now to test (DigitalOcean handles HTTPS at the load balancer)
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 
