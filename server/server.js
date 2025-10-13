@@ -60,8 +60,11 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Google OAuth Strategy
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+// Google OAuth Strategy (DISABLED - Can be enabled by setting environment variables)
+const GOOGLE_OAUTH_ENABLED = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+if (GOOGLE_OAUTH_ENABLED) {
+  console.log('✅ Google OAuth is ENABLED');
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -109,6 +112,8 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       return done(error, null);
     }
   }));
+} else {
+  console.log('⚠️  Google OAuth is DISABLED - Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable');
 }
 
 // Serve uploaded images
@@ -323,46 +328,53 @@ async function initializeDataFiles() {
 // Authentication Routes
 // ===================================
 
-// Google OAuth Routes
-app.get('/api/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+// Google OAuth Routes (only enabled if OAuth is configured)
+if (GOOGLE_OAUTH_ENABLED) {
+  app.get('/api/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
 
-app.get('/api/auth/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  async (req, res) => {
-    try {
-      // Store user in session
-      req.session.userId = req.user.id;
-      req.session.userRole = req.user.role;
-      
-      // Save session to file
-      const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
-      sessionsData.sessions.push({
-        sessionId: req.sessionID,
-        userId: req.user.id,
-        createdAt: new Date().toISOString()
-      });
-      await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
-      
-      // Check if user needs approval
-      if (req.user.status === 'pending') {
-        // Redirect to a pending approval page
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/pending-approval`);
-      } else if (req.user.status === 'approved' || req.user.role === 'admin') {
-        // Redirect to dashboard
-        const redirectUrl = req.user.role === 'admin' ? '/admin' : '/dashboard';
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}${redirectUrl}`);
-      } else {
-        // Rejected or other status
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=account_not_approved`);
+  app.get('/api/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login' }),
+    async (req, res) => {
+      try {
+        // Store user in session
+        req.session.userId = req.user.id;
+        req.session.userRole = req.user.role;
+        
+        // Save session to file
+        const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
+        sessionsData.sessions.push({
+          sessionId: req.sessionID,
+          userId: req.user.id,
+          createdAt: new Date().toISOString()
+        });
+        await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+        
+        // Check if user needs approval
+        if (req.user.status === 'pending') {
+          // Redirect to a pending approval page
+          res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/pending-approval`);
+        } else if (req.user.status === 'approved' || req.user.role === 'admin') {
+          // Redirect to dashboard
+          const redirectUrl = req.user.role === 'admin' ? '/admin' : '/dashboard';
+          res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}${redirectUrl}`);
+        } else {
+          // Rejected or other status
+          res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=account_not_approved`);
+        }
+      } catch (error) {
+        console.error('Google callback error:', error);
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
       }
-    } catch (error) {
-      console.error('Google callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
     }
-  }
-);
+  );
+}
+
+// API endpoint to check if Google OAuth is enabled
+app.get('/api/auth/google-enabled', (req, res) => {
+  res.json({ enabled: GOOGLE_OAUTH_ENABLED });
+});
 
 // Register
 app.post('/api/auth/register', async (req, res) => {

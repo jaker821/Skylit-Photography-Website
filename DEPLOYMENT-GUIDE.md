@@ -83,15 +83,22 @@ Click **"Edit"** next to your component, then scroll to **"Environment Variables
 
 Add the following variables:
 
-| Variable Name | Value | Type |
-|--------------|--------|------|
-| `NODE_ENV` | `production` | Plain Text |
-| `PORT` | `8080` | Plain Text |
-| `SESSION_SECRET` | `[Generate Random String]` | **Secret** |
-| `GOOGLE_CLIENT_ID` | `[Your Google Client ID]` | **Secret** |
-| `GOOGLE_CLIENT_SECRET` | `[Your Google Client Secret]` | **Secret** |
-| `GOOGLE_CALLBACK_URL` | `${APP_URL}/api/auth/google/callback` | Plain Text |
-| `FRONTEND_URL` | `${APP_URL}` | Plain Text |
+| Variable Name | Value | Type | Required? |
+|--------------|--------|------|-----------|
+| `NODE_ENV` | `production` | Plain Text | **✅ Required** |
+| `PORT` | `8080` | Plain Text | **✅ Required** |
+| `SESSION_SECRET` | `[Generate Random String]` | **Secret** | **✅ Required** |
+| `FRONTEND_URL` | `${APP_URL}` | Plain Text | **✅ Required** |
+
+**Google OAuth Variables (OPTIONAL - Currently Disabled):**
+
+| Variable Name | Value | Type | Required? |
+|--------------|--------|------|-----------|
+| `GOOGLE_CLIENT_ID` | `[Your Google Client ID]` | **Secret** | ⚠️ Optional |
+| `GOOGLE_CLIENT_SECRET` | `[Your Google Client Secret]` | **Secret** | ⚠️ Optional |
+| `GOOGLE_CALLBACK_URL` | `${APP_URL}/api/auth/google/callback` | Plain Text | ⚠️ Optional |
+
+> **Note:** Google OAuth is currently disabled. You can skip these variables and enable Google sign-in later if needed.
 
 #### 🔑 How to Generate SESSION_SECRET:
 Run this command in your terminal:
@@ -123,7 +130,12 @@ Click **"Next"**
 
 ---
 
-## ⚙️ Part 3: Update Google OAuth Settings
+## ⚙️ Part 3: Update Google OAuth Settings (OPTIONAL - Skip for Now)
+
+> **Note:** Google OAuth is currently disabled. You can skip this section and enable it later if needed.
+
+<details>
+<summary>Click to expand Google OAuth setup instructions (for future use)</summary>
 
 After your app is deployed, you'll get a URL like: `https://your-app-name.ondigitalocean.app`
 
@@ -137,6 +149,14 @@ After your app is deployed, you'll get a URL like: `https://your-app-name.ondigi
 5. Under **"Authorized redirect URIs"**:
    - Add: `https://your-app-name.ondigitalocean.app/api/auth/google/callback`
 6. Click **"Save"**
+
+### Enable in DigitalOcean:
+
+1. Go to your app settings → Environment Variables
+2. Add the three Google OAuth variables listed in Part 2
+3. Redeploy your app
+
+</details>
 
 ---
 
@@ -187,9 +207,10 @@ You can watch the deployment progress in the **DigitalOcean dashboard** → **Yo
 - Make sure `PORT` is set to `8080`
 
 ### Google OAuth Not Working?
+**Note:** Google OAuth is currently disabled by default.
+- To enable: Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables
 - Verify your callback URL matches exactly
 - Check that your DigitalOcean app URL is in Google's authorized origins
-- Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct
 
 ### CORS Errors?
 - The app is configured to allow your DigitalOcean URL automatically

@@ -51,7 +51,9 @@ FRONTEND_URL=http://localhost:3000
 | `NODE_ENV` | Environment mode | `development` or `production` |
 | `SESSION_SECRET` | Secret key for session encryption | Generated random string |
 
-### Optional (for Google OAuth):
+### Optional (for Google OAuth - Currently Disabled):
+
+**Note:** Google OAuth is currently disabled. You can enable it later by adding these variables.
 
 | Variable | Description | Where to Get |
 |----------|-------------|--------------|
@@ -59,6 +61,8 @@ FRONTEND_URL=http://localhost:3000
 | `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret | Google Cloud Console |
 | `GOOGLE_CALLBACK_URL` | OAuth callback URL | `http://localhost:5000/api/auth/google/callback` (dev) |
 | `FRONTEND_URL` | Frontend application URL | `http://localhost:3000` (dev) |
+
+**To enable Google OAuth:** Simply add the Google credentials to your `.env` file and restart the server.
 
 ---
 

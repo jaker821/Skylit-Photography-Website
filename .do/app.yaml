@@ -15,6 +15,7 @@ services:
     routes:
       - path: /
     envs:
+      # Required Environment Variables
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -22,14 +23,16 @@ services:
       - key: SESSION_SECRET
         value: YOUR_SESSION_SECRET_HERE
         type: SECRET
-      - key: GOOGLE_CLIENT_ID
-        value: YOUR_GOOGLE_CLIENT_ID
-        type: SECRET
-      - key: GOOGLE_CLIENT_SECRET
-        value: YOUR_GOOGLE_CLIENT_SECRET
-        type: SECRET
-      - key: GOOGLE_CALLBACK_URL
-        value: ${APP_URL}/api/auth/google/callback
       - key: FRONTEND_URL
         value: ${APP_URL}
+      # Google OAuth (OPTIONAL - Currently disabled)
+      # Uncomment these lines when you're ready to enable Google sign-in
+      # - key: GOOGLE_CLIENT_ID
+      #   value: YOUR_GOOGLE_CLIENT_ID
+      #   type: SECRET
+      # - key: GOOGLE_CLIENT_SECRET
+      #   value: YOUR_GOOGLE_CLIENT_SECRET
+      #   type: SECRET
+      # - key: GOOGLE_CALLBACK_URL
+      #   value: ${APP_URL}/api/auth/google/callback
 
