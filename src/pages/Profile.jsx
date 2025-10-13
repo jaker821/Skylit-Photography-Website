@@ -38,13 +38,19 @@ const Profile = () => {
       const response = await fetch(`${API_URL}/profile`, {
         credentials: 'include'
       })
-      const data = await response.json()
       
-      if (response.ok) {
-        setProfileData(data.user)
-        setEmailForm({ email: data.user.email })
-        setPhoneForm({ phone: data.user.phone || '' })
+      if (!response.ok) {
+        console.error('Profile fetch failed:', response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error details:', errorData)
+        setLoading(false)
+        return
       }
+      
+      const data = await response.json()
+      setProfileData(data.user)
+      setEmailForm({ email: data.user.email })
+      setPhoneForm({ phone: data.user.phone || '' })
     } catch (error) {
       console.error('Error fetching profile:', error)
     } finally {
