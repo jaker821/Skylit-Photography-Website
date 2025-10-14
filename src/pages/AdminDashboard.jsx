@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   
@@ -639,7 +641,12 @@ const AdminDashboard = () => {
                 ) : (
                   <div className="sessions-grid">
                     {pendingSessions.map(session => (
-                      <div key={session.id} className="session-card">
+                      <div 
+                        key={session.id} 
+                        className="session-card" 
+                        onClick={() => navigate(`/admin/session/${session.id}`)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="session-card-header">
                           <h4>{session.clientName}</h4>
                           <span className="status-badge status-pending">Pending</span>
@@ -654,7 +661,10 @@ const AdminDashboard = () => {
                         <div className="session-card-actions">
                           <button 
                             className="btn btn-primary btn-full"
-                            onClick={() => handleConfirmSession(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleConfirmSession(session.id)
+                            }}
                           >
                             ✓ Confirm & Book
                           </button>
@@ -677,7 +687,12 @@ const AdminDashboard = () => {
                 ) : (
                   <div className="sessions-grid">
                     {quotedSessions.map(session => (
-                      <div key={session.id} className="session-card quoted">
+                      <div 
+                        key={session.id} 
+                        className="session-card quoted"
+                        onClick={() => navigate(`/admin/session/${session.id}`)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="session-card-header">
                           <h4>{session.clientName}</h4>
                           <span className="status-badge status-quoted">Quoted</span>
@@ -691,11 +706,22 @@ const AdminDashboard = () => {
                         <div className="session-card-actions">
                           <button 
                             className="btn btn-primary btn-full"
-                            onClick={() => handleBookQuote(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleBookQuote(session.id)
+                            }}
                           >
                             ✓ Client Approved - Book It
                           </button>
-                          <button className="btn-small btn-secondary">Edit Quote</button>
+                          <button 
+                            className="btn-small btn-secondary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/admin/session/${session.id}?edit=true`)
+                            }}
+                          >
+                            ✏️ Edit Quote
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -715,7 +741,12 @@ const AdminDashboard = () => {
                 ) : (
                   <div className="sessions-grid">
                     {bookedSessions.map(session => (
-                      <div key={session.id} className="session-card booked">
+                      <div 
+                        key={session.id} 
+                        className="session-card booked"
+                        onClick={() => navigate(`/admin/session/${session.id}`)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="session-card-header">
                           <h4>{session.clientName}</h4>
                           <span className="status-badge status-booked">Booked</span>
@@ -730,11 +761,22 @@ const AdminDashboard = () => {
                         <div className="session-card-actions">
                           <button 
                             className="btn btn-primary btn-full"
-                            onClick={() => handleShowInvoiceForm(session)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleShowInvoiceForm(session)
+                            }}
                           >
                             💰 Create Invoice
                           </button>
-                          <button className="btn-small btn-secondary">Edit Details</button>
+                          <button 
+                            className="btn-small btn-secondary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/admin/session/${session.id}?edit=true`)
+                            }}
+                          >
+                            ✏️ Edit Details
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -754,7 +796,12 @@ const AdminDashboard = () => {
                 ) : (
                   <div className="sessions-grid">
                     {invoicedSessions.map(session => (
-                      <div key={session.id} className="session-card invoiced">
+                      <div 
+                        key={session.id} 
+                        className="session-card invoiced"
+                        onClick={() => navigate(`/admin/session/${session.id}`)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="session-card-header">
                           <h4>{session.clientName}</h4>
                           <span className="status-badge status-invoiced">Invoiced</span>
@@ -765,8 +812,21 @@ const AdminDashboard = () => {
                           {session.invoiceId && <p><strong>Invoice #:</strong> {session.invoiceId}</p>}
                         </div>
                         <div className="session-card-actions">
-                          <button className="btn-small btn-secondary">View Invoice</button>
-                          <button className="btn-small btn-info">View Details</button>
+                          <button 
+                            className="btn-small btn-secondary"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            📄 View Invoice
+                          </button>
+                          <button 
+                            className="btn-small btn-info"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/admin/session/${session.id}`)
+                            }}
+                          >
+                            👁️ View Details
+                          </button>
                         </div>
                       </div>
                     ))}

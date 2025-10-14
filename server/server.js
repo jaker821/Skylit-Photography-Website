@@ -778,6 +778,25 @@ app.get('/api/bookings', async (req, res) => {
   }
 });
 
+// Get single booking by ID (admin only)
+app.get('/api/bookings/:id', requireAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    
+    const booking = bookingsData.bookings.find(b => b.id === bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    res.json({ booking });
+  } catch (error) {
+    console.error('Get booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create booking (users and admin)
 app.post('/api/bookings', async (req, res) => {
   try {
@@ -848,6 +867,30 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
     res.json({ success: true, booking: bookingsData.bookings[bookingIndex] });
   } catch (error) {
     console.error('Update booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update booking status (admin only)
+app.put('/api/bookings/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const bookingId = parseInt(req.params.id);
+    const { status } = req.body;
+    
+    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
+    
+    if (bookingIndex === -1) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    bookingsData.bookings[bookingIndex].status = status;
+    
+    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    
+    res.json({ success: true, booking: bookingsData.bookings[bookingIndex] });
+  } catch (error) {
+    console.error('Update booking status error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

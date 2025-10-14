@@ -16,6 +16,7 @@ import PendingApproval from './pages/PendingApproval'
 import Profile from './pages/Profile'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
+import SessionDetail from './pages/SessionDetail'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -57,6 +58,14 @@ function App() {
                   element={
                     <ProtectedRoute adminOnly>
                       <AdminDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/admin/session/:id" 
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <SessionDetail />
                     </ProtectedRoute>
                   } 
                 />
