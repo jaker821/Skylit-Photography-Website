@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 const fs = require('fs').promises;
 const path = require('path');
+const db = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -496,10 +497,8 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    const usersData = await readJSONFile(USERS_FILE);
-    
     // Check if email already exists
-    const existingUser = usersData.users.find(u => u.email === email);
+    const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
@@ -508,20 +507,18 @@ app.post('/api/auth/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user with pending approval status
-    const newUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      phone,
-      password: hashedPassword, // Securely hashed with bcrypt
-      role: 'user',
-      status: 'pending', // pending, approved, rejected
-      authMethod: 'email',
-      createdAt: new Date().toISOString()
-    };
-
-    usersData.users.push(newUser);
-    await writeJSONFile(USERS_FILE, usersData);
+    const result = await db.run(
+      `INSERT INTO users (email, password_hash, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        email,
+        hashedPassword,
+        'user',
+        'pending',
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
 
     res.json({
       success: true,
@@ -542,15 +539,14 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password required' });
     }
 
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.email === email);
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Verify password with bcrypt
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -1175,8 +1171,45 @@ app.delete('/api/expenses/:id', requireAdmin, async (req, res) => {
 // Get all shoots and categories
 app.get('/api/portfolio', async (req, res) => {
   try {
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    res.json(shootsData);
+    // Get all shoots with their photos
+    const shoots = await db.all(`
+      SELECT s.*, 
+             json_group_array(
+               json_object(
+                 'id', p.id,
+                 'original_name', p.original_name,
+                 'filename', p.filename,
+                 'display_url', p.display_url,
+                 'download_url', p.download_url,
+                 'display_key', p.display_key,
+                 'download_key', p.download_key,
+                 'original_size', p.original_size,
+                 'compressed_size', p.compressed_size,
+                 'has_high_res', p.has_high_res,
+                 'uploaded_at', p.uploaded_at
+               )
+             ) as photos
+      FROM shoots s
+      LEFT JOIN photos p ON s.id = p.shoot_id
+      GROUP BY s.id
+      ORDER BY s.created_at DESC
+    `);
+
+    // Get all categories
+    const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
+
+    // Process shoots to parse JSON fields
+    const processedShoots = shoots.map(shoot => ({
+      ...shoot,
+      authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
+      downloadStats: db.parseJSONField(shoot.download_stats) || {},
+      photos: db.parseJSONField(shoot.photos) || []
+    }));
+
+    res.json({
+      shoots: processedShoots,
+      categories: categories.map(c => c.name)
+    });
   } catch (error) {
     console.error('Get portfolio error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -2127,15 +2160,103 @@ if (process.env.NODE_ENV === 'production') {
 // Start Server
 // ===================================
 
-initializeDataFiles().then(() => {
-  app.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`📁 Data stored in: ${DATA_DIR}`);
-    console.log(`📸 Uploads stored in: ${path.join(__dirname, 'uploads')}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
-}).catch(error => {
-  console.error('Failed to initialize server:', error);
-  process.exit(1);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Initialize database
+    await db.init();
+    
+    // Check if we need to migrate existing JSON data
+    const existingData = await checkForExistingData();
+    
+    if (existingData) {
+      console.log('🔄 Found existing JSON data - running migration...');
+      const { migrateToSQLite } = require('./migrate-to-sqlite');
+      
+      // Run migrations
+      await migrateToSQLite.migrateUsers();
+      await migrateToSQLite.migrateShoots();
+      await migrateToSQLite.migrateBookings();
+      await migrateToSQLite.migrateInvoices();
+      await migrateToSQLite.migrateExpenses();
+      await migrateToSQLite.migratePricing();
+      
+      console.log('✅ Migration completed');
+    } else {
+      // Create default admin if no users exist
+      const adminCount = await db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
+      if (adminCount.count === 0) {
+        console.log('⚠️  No admin users found - creating default admin account');
+        
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@skylit.com';
+        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
+        
+        await db.run(
+          `INSERT INTO users (email, password_hash, role, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            adminEmail,
+            hashedPassword,
+            'admin',
+            'approved',
+            new Date().toISOString(),
+            new Date().toISOString()
+          ]
+        );
+        
+        console.log('✅ Default admin account created');
+        console.log(`📧 Email: ${adminEmail}`);
+        console.log(`🔑 Password: ${adminPassword}`);
+        console.log('⚠️  Please change this password after first login!');
+      }
+      
+      // Initialize pricing categories
+      const categoryCount = await db.get('SELECT COUNT(*) as count FROM pricing_categories');
+      if (categoryCount.count === 0) {
+        const defaultCategories = [
+          "Weddings", "Engagements", "Portraits", "Family", "Newborn", 
+          "Maternity", "Couples", "Cars", "Motorcycles", "Animals", 
+          "Events", "Lifestyle", "Fashion", "Headshots", "Real Estate", 
+          "Products", "Nature", "Other"
+        ];
+        
+        for (const category of defaultCategories) {
+          await db.run('INSERT INTO pricing_categories (name) VALUES (?)', [category]);
+        }
+        console.log('✅ Default pricing categories created');
+      }
+    }
+    
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on http://localhost:${PORT}`);
+      console.log(`🗄️  Database: SQLite (${db.dbPath})`);
+      console.log(`📸 Uploads stored in: ${path.join(__dirname, 'uploads')}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+    
+  } catch (error) {
+    console.error('Failed to initialize server:', error);
+    process.exit(1);
+  }
+}
+
+// Check if there's existing JSON data to migrate
+async function checkForExistingData() {
+  try {
+    await fs.access(USERS_FILE);
+    return true;
+  } catch (error) {
+    try {
+      await fs.access(SHOOTS_FILE);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+}
+
+// Start the server
+startServer();
 
