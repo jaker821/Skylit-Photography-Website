@@ -258,22 +258,36 @@ async function writeJSONFile(filePath, data) {
 async function initializeDataFiles() {
   await ensureDataDirectory();
   
-  // Initialize users file with hashed password
-  const hashedPassword = await bcrypt.hash('admin123', 10); // 10 salt rounds
-  const defaultUsers = {
-    users: [
-      {
-        id: 1,
-        email: 'admin@skylit.com',
-        password: hashedPassword, // Hashed with bcrypt
-        name: 'Alina Suedbeck',
-        role: 'admin',
-        authMethod: 'email',
-        createdAt: new Date().toISOString()
-      }
-    ]
-  };
-  await readJSONFile(USERS_FILE, defaultUsers);
+  // Initialize users file - only create default admin if file doesn't exist
+  try {
+    // Try to read existing users file
+    await fs.access(USERS_FILE);
+    console.log('✅ Users file exists - preserving existing data');
+  } catch (error) {
+    // File doesn't exist - create with default admin
+    console.log('⚠️  Users file not found - creating default admin account');
+    
+    // Use environment variables for admin credentials if available
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@skylit.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    
+    const defaultUsers = {
+      users: [
+        {
+          id: 1,
+          email: adminEmail,
+          password: hashedPassword,
+          name: 'Alina Suedbeck',
+          role: 'admin',
+          authMethod: 'email',
+          createdAt: new Date().toISOString()
+        }
+      ]
+    };
+    await writeJSONFile(USERS_FILE, defaultUsers);
+    console.log(`✅ Default admin created: ${adminEmail}`);
+  }
 
   // Initialize pricing file
   const defaultPricing = {
