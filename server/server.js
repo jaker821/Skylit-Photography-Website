@@ -147,6 +147,14 @@ let storage;
 
 if (SPACES_ENABLED) {
   console.log('✅ DigitalOcean Spaces is ENABLED');
+  console.log('📦 Spaces Config:', {
+    endpoint: process.env.SPACES_ENDPOINT,
+    bucket: process.env.SPACES_BUCKET,
+    region: process.env.SPACES_REGION || 'us-east-1',
+    cdnUrl: process.env.SPACES_CDN_URL || 'Not set',
+    hasAccessKey: !!process.env.SPACES_ACCESS_KEY,
+    hasSecretKey: !!process.env.SPACES_SECRET_KEY
+  });
   
   // Configure AWS S3 client for DigitalOcean Spaces
   s3Client = new AWS.S3({
@@ -643,9 +651,19 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
+  console.log('🔐 Admin check:', {
+    sessionID: req.sessionID,
+    userId: req.session?.userId,
+    userRole: req.session?.userRole,
+    hasSession: !!req.session
+  });
+  
   if (!req.session.userId || req.session.userRole !== 'admin') {
+    console.log('❌ Admin access denied');
     return res.status(403).json({ error: 'Admin access required' });
   }
+  
+  console.log('✅ Admin access granted');
   next();
 }
 
@@ -1279,8 +1297,28 @@ app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
 });
 
 // Upload photos to shoot (admin only)
-app.post('/api/portfolio/shoots/:id/photos', requireAdmin, upload.array('photos', 20), async (req, res) => {
+app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
+  // Multer middleware with error handling
+  upload.array('photos', 20)(req, res, (err) => {
+    if (err) {
+      console.error('❌ Multer upload error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      });
+      return res.status(500).json({ 
+        error: 'File upload failed', 
+        details: err.message,
+        spacesEnabled: SPACES_ENABLED 
+      });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
+    console.log('✅ Files uploaded successfully:', req.files?.length || 0);
+    
     const shootId = parseInt(req.params.id);
     const shootsData = await readJSONFile(SHOOTS_FILE);
     
@@ -1303,10 +1341,12 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, upload.array('photos'
           photoUrl = file.location; // Direct S3 URL from multer-s3
         }
         photoKey = file.key; // S3 key for deletion
+        console.log('📸 Photo uploaded to Spaces:', photoKey);
       } else {
         // Local storage
         photoUrl = `/uploads/${file.filename}`;
         photoKey = file.filename;
+        console.log('📸 Photo uploaded locally:', photoKey);
       }
       
       return {
@@ -1322,10 +1362,14 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, upload.array('photos'
     shootsData.shoots[shootIndex].photos.push(...newPhotos);
     await writeJSONFile(SHOOTS_FILE, shootsData);
     
+    console.log('✅ Photos saved to database');
     res.json({ success: true, photos: newPhotos });
   } catch (error) {
-    console.error('Upload photos error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Upload photos error:', error);
+    res.status(500).json({ 
+      error: 'Server error', 
+      details: error.message 
+    });
   }
 });
 
