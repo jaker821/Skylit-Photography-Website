@@ -170,11 +170,12 @@ if (SPACES_ENABLED) {
   storage = multerS3({
     s3: s3Client,
     bucket: process.env.SPACES_BUCKET,
-    acl: 'public-read', // Make files publicly readable
+    // Note: Removed ACL setting - bucket-level permissions will apply
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       const filename = uniqueSuffix + path.extname(file.originalname);
+      console.log('🔑 Uploading to bucket:', process.env.SPACES_BUCKET, 'File:', `portfolio/${filename}`);
       // Store in portfolio folder
       cb(null, `portfolio/${filename}`);
     },
