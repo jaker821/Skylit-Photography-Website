@@ -2194,7 +2194,7 @@ async function startServer() {
         
         await db.run(
           `INSERT INTO users (email, password_hash, role, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             adminEmail,
             hashedPassword,
