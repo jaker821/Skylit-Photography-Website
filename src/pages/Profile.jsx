@@ -273,26 +273,28 @@ const Profile = () => {
         <div className="profile-info-card">
           <div className="profile-avatar">
             {profileData.profilePicture ? (
-              <img src={profileData.profilePicture} alt={profileData.name} />
+              <img src={profileData.profilePicture} alt={profileData.email} />
             ) : (
               <div className="avatar-placeholder">
-                {profileData.name.charAt(0).toUpperCase()}
+                {profileData.email ? profileData.email.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
           </div>
           <div className="profile-details">
-            <h2>{profileData.name}</h2>
+            <h2>{profileData.email}</h2>
             <p className="profile-email">{profileData.email}</p>
             <p className="profile-role">
               <span className={`role-badge ${profileData.role}`}>
                 {profileData.role === 'admin' ? '👑 Administrator' : '👤 User'}
               </span>
             </p>
-            {profileData.authMethod === 'google' && (
-              <p className="auth-method">
-                <span className="status-badge status-google">Signed in with Google</span>
-              </p>
-            )}
+            <p className="profile-status">
+              <span className={`status-badge status-${profileData.status}`}>
+                {profileData.status === 'approved' ? '✅ Approved' : 
+                 profileData.status === 'pending' ? '⏳ Pending Approval' : 
+                 '❌ Rejected'}
+              </span>
+            </p>
           </div>
         </div>
 

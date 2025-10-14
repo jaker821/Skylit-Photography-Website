@@ -625,17 +625,15 @@ app.get('/api/auth/session', async (req, res) => {
       return res.status(401).json({ authenticated: false });
     }
 
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.id === req.session.userId);
+    const user = await db.get('SELECT id, email, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
 
     if (!user) {
       return res.status(401).json({ authenticated: false });
     }
 
-    const { password: _, ...userWithoutPassword } = user;
     res.json({
       authenticated: true,
-      user: userWithoutPassword
+      user: user
     });
   } catch (error) {
     console.error('Session check error:', error);
