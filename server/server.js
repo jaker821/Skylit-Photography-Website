@@ -625,7 +625,7 @@ app.get('/api/auth/session', async (req, res) => {
       return res.status(401).json({ authenticated: false });
     }
 
-    const user = await db.get('SELECT id, email, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
+    const user = await db.get('SELECT id, email, phone, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
 
     if (!user) {
       return res.status(401).json({ authenticated: false });
@@ -1258,22 +1258,33 @@ app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Title and category are required' });
     }
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const result = await db.run(
+      `INSERT INTO shoots (title, description, category, date, authorized_emails, download_stats, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        title,
+        description || '',
+        category,
+        date || new Date().toISOString(),
+        db.stringifyJSONField([]), // authorized_emails
+        db.stringifyJSONField({}), // download_stats
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
     
-    // Generate new ID
-    const maxId = Math.max(...shootsData.shoots.map(s => s.id), 0);
     const newShoot = {
-      id: maxId + 1,
+      id: result.id,
       title,
       description: description || '',
       category,
       date: date || new Date().toISOString(),
       photos: [],
-      createdAt: new Date().toISOString()
+      authorizedEmails: [],
+      downloadStats: {},
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    
-    shootsData.shoots.unshift(newShoot);
-    await writeJSONFile(SHOOTS_FILE, shootsData);
     
     res.json({ success: true, shoot: newShoot });
   } catch (error) {
@@ -1286,24 +1297,76 @@ app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
 app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const updates = req.body;
+    const { title, description, category, date } = req.body;
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    // Build update query dynamically
+    const updateFields = [];
+    const updateValues = [];
     
-    if (shootIndex === -1) {
+    if (title !== undefined) {
+      updateFields.push('title = ?');
+      updateValues.push(title);
+    }
+    if (description !== undefined) {
+      updateFields.push('description = ?');
+      updateValues.push(description);
+    }
+    if (category !== undefined) {
+      updateFields.push('category = ?');
+      updateValues.push(category);
+    }
+    if (date !== undefined) {
+      updateFields.push('date = ?');
+      updateValues.push(date);
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    updateFields.push('updated_at = ?');
+    updateValues.push(new Date().toISOString());
+    updateValues.push(shootId);
+    
+    const result = await db.run(
+      `UPDATE shoots SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    shootsData.shoots[shootIndex] = {
-      ...shootsData.shoots[shootIndex],
-      ...updates,
-      id: shootId // Prevent ID from being changed
+    // Get updated shoot
+    const updatedShoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shootId]);
+    
+    const shoot = {
+      id: updatedShoot.id,
+      title: updatedShoot.title,
+      description: updatedShoot.description,
+      category: updatedShoot.category,
+      date: updatedShoot.date,
+      photos: photos.map(photo => ({
+        id: photo.id,
+        original_name: photo.original_name,
+        filename: photo.filename,
+        display_url: photo.display_url,
+        download_url: photo.download_url,
+        display_key: photo.display_key,
+        download_key: photo.download_key,
+        original_size: photo.original_size,
+        compressed_size: photo.compressed_size,
+        has_high_res: photo.has_high_res,
+        uploaded_at: photo.uploaded_at
+      })),
+      authorizedEmails: db.parseJSONField(updatedShoot.authorized_emails) || [],
+      downloadStats: db.parseJSONField(updatedShoot.download_stats) || {},
+      createdAt: updatedShoot.created_at,
+      updatedAt: updatedShoot.updated_at
     };
     
-    await writeJSONFile(SHOOTS_FILE, shootsData);
-    
-    res.json({ success: true, shoot: shootsData.shoots[shootIndex] });
+    res.json({ success: true, shoot });
   } catch (error) {
     console.error('Update shoot error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1314,29 +1377,43 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
 app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
     
-    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    // Get shoot and photos from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
+    const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shootId]);
+    
     // Delete associated photos from storage
-    for (const photo of shoot.photos) {
+    for (const photo of photos) {
       try {
         if (SPACES_ENABLED && s3Client) {
-          // Delete from DigitalOcean Spaces
-          const deleteParams = {
-            Bucket: process.env.SPACES_BUCKET,
-            Key: photo.key || photo.filename || path.basename(photo.url)
-          };
-          await s3Client.deleteObject(deleteParams).promise();
-          console.log(`Deleted from Spaces: ${photo.key || photo.filename}`);
+          // Delete compressed version
+          if (photo.display_key) {
+            await s3Client.deleteObject({
+              Bucket: process.env.SPACES_BUCKET,
+              Key: photo.display_key
+            }).promise();
+            console.log(`Deleted compressed from Spaces: ${photo.display_key}`);
+          }
+          
+          // Delete original version if it exists
+          if (photo.download_key) {
+            await s3Client.deleteObject({
+              Bucket: process.env.SPACES_BUCKET,
+              Key: photo.download_key
+            }).promise();
+            console.log(`Deleted original from Spaces: ${photo.download_key}`);
+          }
         } else {
           // Delete from local filesystem
-          const photoPath = path.join(__dirname, 'uploads', path.basename(photo.url));
-          await fs.unlink(photoPath);
-          console.log(`Deleted from local storage: ${path.basename(photo.url)}`);
+          if (photo.filename) {
+            const photoPath = path.join(__dirname, 'uploads', photo.filename);
+            await fs.unlink(photoPath);
+            console.log(`Deleted from local storage: ${photo.filename}`);
+          }
         }
       } catch (err) {
         console.error('Error deleting photo:', err);
@@ -1344,8 +1421,15 @@ app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
       }
     }
     
-    shootsData.shoots = shootsData.shoots.filter(s => s.id !== shootId);
-    await writeJSONFile(SHOOTS_FILE, shootsData);
+    // Delete photos from database
+    await db.run('DELETE FROM photos WHERE shoot_id = ?', [shootId]);
+    
+    // Delete shoot from database
+    const result = await db.run('DELETE FROM shoots WHERE id = ?', [shootId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -1378,10 +1462,10 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
     console.log('✅ Files received:', req.files?.length || 0);
     
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
     
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
-    if (shootIndex === -1) {
+    // Check if shoot exists in database
+    const shoot = await db.get('SELECT id FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
@@ -1441,22 +1525,39 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
         compressedSize = originalSize;
       }
       
+      // Insert photo into database
+      const result = await db.run(
+        `INSERT INTO photos (shoot_id, original_name, filename, display_url, download_url, display_key, download_key, original_size, compressed_size, has_high_res, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          shootId,
+          file.originalname,
+          filename,
+          displayUrl,
+          downloadUrl,
+          displayKey,
+          downloadKey,
+          originalSize,
+          compressedSize,
+          true, // hasHighRes
+          new Date().toISOString()
+        ]
+      );
+      
       newPhotos.push({
-        id: Date.now() + Math.random(),
-        displayUrl: displayUrl,      // Compressed version for web display
-        downloadUrl: downloadUrl,     // Original for downloads
-        displayKey: displayKey,       // S3 key for compressed
-        downloadKey: downloadKey,     // S3 key for original
-        originalName: file.originalname,
-        originalSize: originalSize,
-        compressedSize: compressedSize,
-        uploadedAt: new Date().toISOString(),
-        hasHighRes: true  // Track if high-res still exists
+        id: result.id,
+        original_name: file.originalname,
+        filename: filename,
+        display_url: displayUrl,      // Compressed version for web display
+        download_url: downloadUrl,     // Original for downloads
+        display_key: displayKey,       // S3 key for compressed
+        download_key: downloadKey,     // S3 key for original
+        original_size: originalSize,
+        compressed_size: compressedSize,
+        has_high_res: true,
+        uploaded_at: new Date().toISOString()
       });
     }
-    
-    shootsData.shoots[shootIndex].photos.push(...newPhotos);
-    await writeJSONFile(SHOOTS_FILE, shootsData);
     
     console.log(`✅ ${newPhotos.length} photos saved to database`);
     res.json({ 
@@ -1477,52 +1578,47 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
 app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.shootId);
-    const photoId = parseFloat(req.params.photoId);
+    const photoId = parseInt(req.params.photoId);
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
-    
-    if (shootIndex === -1) {
-      return res.status(404).json({ error: 'Shoot not found' });
+    // Get photo from database
+    const photo = await db.get('SELECT * FROM photos WHERE id = ? AND shoot_id = ?', [photoId, shootId]);
+    if (!photo) {
+      return res.status(404).json({ error: 'Photo not found' });
     }
     
-    const photo = shootsData.shoots[shootIndex].photos.find(p => p.id === photoId);
-    if (photo) {
-      // Delete BOTH versions from storage
-      try {
-        if (SPACES_ENABLED && s3Client) {
-          // Delete compressed version
-          if (photo.displayKey) {
-            await s3Client.deleteObject({
-              Bucket: process.env.SPACES_BUCKET,
-              Key: photo.displayKey
-            }).promise();
-            console.log(`Deleted compressed: ${photo.displayKey}`);
-          }
-          
-          // Delete original version (if exists)
-          if (photo.downloadKey && photo.hasHighRes) {
-            await s3Client.deleteObject({
-              Bucket: process.env.SPACES_BUCKET,
-              Key: photo.downloadKey
-            }).promise();
-            console.log(`Deleted original: ${photo.downloadKey}`);
-          }
-        } else {
-          // Delete from local filesystem
-          const photoPath = path.join(__dirname, 'uploads', photo.filename || path.basename(photo.displayUrl));
-          await fs.unlink(photoPath);
-          console.log(`Deleted from local storage`);
+    // Delete BOTH versions from storage
+    try {
+      if (SPACES_ENABLED && s3Client) {
+        // Delete compressed version
+        if (photo.display_key) {
+          await s3Client.deleteObject({
+            Bucket: process.env.SPACES_BUCKET,
+            Key: photo.display_key
+          }).promise();
+          console.log(`Deleted compressed: ${photo.display_key}`);
         }
-      } catch (err) {
-        console.error('Error deleting file:', err);
-        // Continue anyway to remove from database
+        
+        // Delete original version (if exists)
+        if (photo.download_key && photo.has_high_res) {
+          await s3Client.deleteObject({
+            Bucket: process.env.SPACES_BUCKET,
+            Key: photo.download_key
+          }).promise();
+          console.log(`Deleted original: ${photo.download_key}`);
+        }
+      } else {
+        // Delete from local filesystem
+        const photoPath = path.join(__dirname, 'uploads', photo.filename);
+        await fs.unlink(photoPath);
+        console.log(`Deleted from local storage`);
       }
-      
-      // Remove from shoot
-      shootsData.shoots[shootIndex].photos = shootsData.shoots[shootIndex].photos.filter(p => p.id !== photoId);
-      await writeJSONFile(SHOOTS_FILE, shootsData);
+    } catch (err) {
+      console.error('Error deleting file:', err);
+      // Continue anyway to remove from database
     }
+    
+    // Remove from database
+    await db.run('DELETE FROM photos WHERE id = ?', [photoId]);
     
     res.json({ success: true });
   } catch (error) {
@@ -1983,7 +2079,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
     console.log('Profile request - Session ID:', req.sessionID);
     console.log('Profile request - User ID from session:', req.session.userId);
     
-    const user = await db.get('SELECT id, email, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
+    const user = await db.get('SELECT id, email, phone, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
     
     if (!user) {
       console.error('User not found in database. Session userId:', req.session.userId);
@@ -2014,22 +2110,21 @@ app.put('/api/profile/update-email', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
     
-    const usersData = await readJSONFile(USERS_FILE);
-    
     // Check if email is already taken by another user
-    const existingUser = usersData.users.find(u => u.email === email && u.id !== req.session.userId);
+    const existingUser = await db.get('SELECT id FROM users WHERE email = ? AND id != ?', [email, req.session.userId]);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already in use' });
     }
     
     // Update user email
-    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
-    if (userIndex === -1) {
+    const result = await db.run(
+      'UPDATE users SET email = ?, updated_at = ? WHERE id = ?',
+      [email, new Date().toISOString(), req.session.userId]
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    usersData.users[userIndex].email = email;
-    await writeJSONFile(USERS_FILE, usersData);
     
     res.json({ success: true, message: 'Email updated successfully' });
   } catch (error) {
@@ -2043,15 +2138,15 @@ app.put('/api/profile/update-phone', requireAuth, async (req, res) => {
   try {
     const { phone } = req.body;
     
-    const usersData = await readJSONFile(USERS_FILE);
-    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
+    // Update user phone number
+    const result = await db.run(
+      'UPDATE users SET phone = ?, updated_at = ? WHERE id = ?',
+      [phone || '', new Date().toISOString(), req.session.userId]
+    );
     
-    if (userIndex === -1) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    usersData.users[userIndex].phone = phone || '';
-    await writeJSONFile(USERS_FILE, usersData);
     
     res.json({ success: true, message: 'Phone number updated successfully' });
   } catch (error) {
@@ -2073,30 +2168,36 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 6 characters' });
     }
     
-    const usersData = await readJSONFile(USERS_FILE);
-    const userIndex = usersData.users.findIndex(u => u.id === req.session.userId);
+    // Get user from database
+    const user = await db.get('SELECT password_hash FROM users WHERE id = ?', [req.session.userId]);
     
-    if (userIndex === -1) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    const user = usersData.users[userIndex];
-    
     // Check if user has a password (Google OAuth users might not)
-    if (!user.password) {
+    if (!user.password_hash) {
       return res.status(400).json({ error: 'Cannot change password for Google-authenticated accounts' });
     }
     
     // Verify current password with bcrypt
-    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
     if (!passwordMatch) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
     
     // Hash new password before storing
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    usersData.users[userIndex].password = hashedPassword;
-    await writeJSONFile(USERS_FILE, usersData);
+    
+    // Update password in database
+    const result = await db.run(
+      'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
+      [hashedPassword, new Date().toISOString(), req.session.userId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {

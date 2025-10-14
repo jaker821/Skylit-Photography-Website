@@ -35,6 +35,7 @@ class Database {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        phone TEXT,
         role TEXT DEFAULT 'user',
         status TEXT DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -153,6 +154,13 @@ class Database {
 
     for (const indexSQL of indexes) {
       await this.run(indexSQL);
+    }
+
+    // Add phone column if it doesn't exist (for existing databases)
+    try {
+      await this.run('ALTER TABLE users ADD COLUMN phone TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
     }
   }
 
