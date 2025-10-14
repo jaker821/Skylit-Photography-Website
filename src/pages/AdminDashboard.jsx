@@ -34,6 +34,10 @@ const AdminDashboard = () => {
   const [selectedSession, setSelectedSession] = useState(null)
   const [editingPackage, setEditingPackage] = useState(null)
   const [editingAddOn, setEditingAddOn] = useState(null)
+  
+  // Upload progress state
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [isUploading, setIsUploading] = useState(false)
 
   useEffect(() => {
     fetchAllData()
@@ -268,32 +272,60 @@ const AdminDashboard = () => {
     }
   }
 
-  // Upload photos to shoot
+  // Upload photos to shoot with progress tracking
   const handlePhotoUpload = async (shootId, files) => {
     const formData = new FormData()
     Array.from(files).forEach(file => {
       formData.append('photos', file)
     })
     
-    try {
-      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/photos`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
+    setIsUploading(true)
+    setUploadProgress(0)
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100)
+          setUploadProgress(percentComplete)
+        }
       })
       
-      if (response.ok) {
-        await fetchShoots()
-        alert('Photos uploaded successfully!')
-      } else {
-        const error = await response.json()
-        alert(`Upload failed: ${error.error || 'Unknown error'}`)
-        console.error('Upload error:', error)
-      }
-    } catch (error) {
-      console.error('Error uploading photos:', error)
-      alert('Network error uploading photos. Check console for details.')
-    }
+      // Handle completion
+      xhr.addEventListener('load', async () => {
+        setIsUploading(false)
+        setUploadProgress(0)
+        
+        if (xhr.status >= 200 && xhr.status < 300) {
+          await fetchShoots()
+          alert('Photos uploaded successfully!')
+          resolve()
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText)
+            alert(`Upload failed: ${error.error || 'Unknown error'}`)
+          } catch {
+            alert('Upload failed: Unknown error')
+          }
+          reject(new Error('Upload failed'))
+        }
+      })
+      
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        setIsUploading(false)
+        setUploadProgress(0)
+        alert('Network error uploading photos. Check console for details.')
+        reject(new Error('Network error'))
+      })
+      
+      // Send request
+      xhr.open('POST', `${API_URL}/portfolio/shoots/${shootId}/photos`)
+      xhr.withCredentials = true
+      xhr.send(formData)
+    })
   }
 
   // Delete photo from shoot
@@ -861,6 +893,8 @@ const AdminDashboard = () => {
                 onBack={() => setSelectedShoot(null)}
                 onPhotoUpload={(files) => handlePhotoUpload(selectedShoot.id, files)}
                 onPhotoDelete={(photoId) => handleDeletePhoto(selectedShoot.id, photoId)}
+                isUploading={isUploading}
+                uploadProgress={uploadProgress}
               />
             ) : (
               <div className="shoots-grid">
@@ -1588,12 +1622,92 @@ const ShootForm = ({ categories, onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, isUploading, uploadProgress }) => {
+  const [authorizedEmails, setAuthorizedEmails] = React.useState([])
+  const [newEmail, setNewEmail] = React.useState('')
+  const [showAccessControl, setShowAccessControl] = React.useState(false)
+  const [loadingEmails, setLoadingEmails] = React.useState(false)
+  
+  // Fetch authorized emails when component mounts or shoot changes
+  React.useEffect(() => {
+    fetchAuthorizedEmails()
+  }, [shoot.id])
+  
+  const fetchAuthorizedEmails = async () => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}/authorized-emails`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAuthorizedEmails(data.authorizedEmails || [])
+      }
+    } catch (error) {
+      console.error('Error fetching authorized emails:', error)
+    }
+  }
+  
+  const handleAddEmail = async (e) => {
+    e.preventDefault()
+    if (!newEmail.trim()) return
+    
+    setLoadingEmails(true)
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}/authorized-emails`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newEmail.trim() })
+      })
+      
+      if (response.ok) {
+        await fetchAuthorizedEmails()
+        setNewEmail('')
+        alert('Email added successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to add email: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error adding email:', error)
+      alert('Network error adding email')
+    } finally {
+      setLoadingEmails(false)
+    }
+  }
+  
+  const handleRemoveEmail = async (email) => {
+    if (!confirm(`Remove access for ${email}?`)) return
+    
+    setLoadingEmails(true)
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}/authorized-emails/${encodeURIComponent(email)}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        await fetchAuthorizedEmails()
+        alert('Email removed successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to remove email: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error removing email:', error)
+      alert('Network error removing email')
+    } finally {
+      setLoadingEmails(false)
+    }
+  }
+  
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
       onPhotoUpload(e.target.files)
     }
   }
+  
+  const hasHighResPhotos = shoot.photos.some(p => p.hasHighRes)
   
   return (
     <div className="shoot-detail">
@@ -1608,12 +1722,34 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete }) => {
             accept="image/*"
             onChange={handleFileChange}
             style={{ display: 'none' }}
+            disabled={isUploading}
           />
-          <label htmlFor="photo-upload" className="btn btn-primary">
-            + Upload Photos
+          <label 
+            htmlFor="photo-upload" 
+            className={`btn btn-primary ${isUploading ? 'disabled' : ''}`}
+            style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
+          >
+            {isUploading ? 'Uploading...' : '+ Upload Photos'}
           </label>
         </div>
       </div>
+      
+      {/* Upload Progress Bar */}
+      {isUploading && (
+        <div className="upload-progress-container">
+          <div className="upload-progress-bar">
+            <div 
+              className="upload-progress-fill" 
+              style={{ width: `${uploadProgress}%` }}
+            >
+              <span className="upload-progress-text">{uploadProgress}%</span>
+            </div>
+          </div>
+          <p className="upload-status-text">
+            Uploading and compressing photos... This may take a moment.
+          </p>
+        </div>
+      )}
       
       <div className="shoot-meta">
         <p><strong>Category:</strong> {shoot.category}</p>
@@ -1621,6 +1757,71 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete }) => {
         <p><strong>Photos:</strong> {shoot.photos.length}</p>
         {shoot.description && <p><strong>Description:</strong> {shoot.description}</p>}
       </div>
+      
+      {/* Access Control Section */}
+      {hasHighResPhotos && (
+        <div className="access-control-section">
+          <div className="access-control-header">
+            <h3>🔐 High-Res Download Access</h3>
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowAccessControl(!showAccessControl)}
+            >
+              {showAccessControl ? 'Hide' : 'Manage Access'}
+            </button>
+          </div>
+          
+          {showAccessControl && (
+            <div className="access-control-content">
+              <p className="access-control-description">
+                Add user emails to grant access to download high-resolution photos from this shoot.
+                Users must be logged in with a matching email address.
+              </p>
+              
+              <form onSubmit={handleAddEmail} className="add-email-form">
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="form-input"
+                  disabled={loadingEmails}
+                  required
+                />
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={loadingEmails}
+                >
+                  {loadingEmails ? 'Adding...' : '+ Add Email'}
+                </button>
+              </form>
+              
+              <div className="authorized-emails-list">
+                <h4>Authorized Users ({authorizedEmails.length})</h4>
+                {authorizedEmails.length === 0 ? (
+                  <p className="no-emails-message">No users have access yet. Add emails above.</p>
+                ) : (
+                  <ul className="emails-list">
+                    {authorizedEmails.map(email => (
+                      <li key={email} className="email-item">
+                        <span className="email-address">{email}</span>
+                        <button
+                          onClick={() => handleRemoveEmail(email)}
+                          className="btn btn-danger btn-sm"
+                          disabled={loadingEmails}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="photos-grid">
         {shoot.photos.map(photo => {
