@@ -162,7 +162,7 @@ if (SPACES_ENABLED) {
     accessKeyId: process.env.SPACES_ACCESS_KEY,
     secretAccessKey: process.env.SPACES_SECRET_KEY,
     region: process.env.SPACES_REGION || 'us-east-1', // Spaces doesn't strictly need region, but SDK requires it
-    s3ForcePathStyle: false, // Use virtual-hosted-style URLs
+    s3ForcePathStyle: true, // IMPORTANT: Use path-style URLs for DigitalOcean Spaces (nyc1.digitaloceanspaces.com/bucket-name)
     signatureVersion: 'v4'
   });
 
