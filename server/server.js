@@ -1892,10 +1892,8 @@ app.post('/api/portfolio/categories', requireAdmin, async (req, res) => {
 // Get all users (admin only)
 app.get('/api/users', requireAdmin, async (req, res) => {
   try {
-    const usersData = await readJSONFile(USERS_FILE);
-    // Return users without passwords
-    const usersWithoutPasswords = usersData.users.map(({ password, ...user }) => user);
-    res.json({ users: usersWithoutPasswords });
+    const users = await db.all('SELECT id, email, role, status, created_at, updated_at FROM users ORDER BY created_at DESC');
+    res.json({ users });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1905,10 +1903,7 @@ app.get('/api/users', requireAdmin, async (req, res) => {
 // Get pending users (admin only)
 app.get('/api/users/pending', requireAdmin, async (req, res) => {
   try {
-    const usersData = await readJSONFile(USERS_FILE);
-    const pendingUsers = usersData.users
-      .filter(u => u.status === 'pending')
-      .map(({ password, ...user }) => user);
+    const pendingUsers = await db.all('SELECT id, email, role, status, created_at, updated_at FROM users WHERE status = ? ORDER BY created_at DESC', ['pending']);
     res.json({ users: pendingUsers });
   } catch (error) {
     console.error('Get pending users error:', error);
@@ -1920,16 +1915,15 @@ app.get('/api/users/pending', requireAdmin, async (req, res) => {
 app.put('/api/users/:id/approve', requireAdmin, async (req, res) => {
   try {
     const userId = req.params.id;
-    const usersData = await readJSONFile(USERS_FILE);
-    const userIndex = usersData.users.findIndex(u => u.id === userId);
     
-    if (userIndex === -1) {
+    const result = await db.run(
+      'UPDATE users SET status = ?, updated_at = ? WHERE id = ?',
+      ['approved', new Date().toISOString(), userId]
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    usersData.users[userIndex].status = 'approved';
-    usersData.users[userIndex].approvedAt = new Date().toISOString();
-    await writeJSONFile(USERS_FILE, usersData);
     
     res.json({ success: true, message: 'User approved' });
   } catch (error) {
@@ -1942,16 +1936,15 @@ app.put('/api/users/:id/approve', requireAdmin, async (req, res) => {
 app.put('/api/users/:id/reject', requireAdmin, async (req, res) => {
   try {
     const userId = req.params.id;
-    const usersData = await readJSONFile(USERS_FILE);
-    const userIndex = usersData.users.findIndex(u => u.id === userId);
     
-    if (userIndex === -1) {
+    const result = await db.run(
+      'UPDATE users SET status = ?, updated_at = ? WHERE id = ?',
+      ['rejected', new Date().toISOString(), userId]
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
-    usersData.users[userIndex].status = 'rejected';
-    usersData.users[userIndex].rejectedAt = new Date().toISOString();
-    await writeJSONFile(USERS_FILE, usersData);
     
     res.json({ success: true, message: 'User rejected' });
   } catch (error) {
@@ -1992,8 +1985,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
     console.log('Profile request - Session ID:', req.sessionID);
     console.log('Profile request - User ID from session:', req.session.userId);
     
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.id === req.session.userId);
+    const user = await db.get('SELECT id, email, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
     
     if (!user) {
       console.error('User not found in database. Session userId:', req.session.userId);
@@ -2002,9 +1994,7 @@ app.get('/api/profile', requireAuth, async (req, res) => {
     
     console.log('Profile retrieved successfully for user:', user.email);
     
-    // Return user without password
-    const { password, ...userWithoutPassword } = user;
-    res.json({ user: userWithoutPassword });
+    res.json({ user });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Server error' });
