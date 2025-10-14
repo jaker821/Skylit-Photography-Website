@@ -6,6 +6,7 @@ const Portfolio = () => {
   const [shoots, setShoots] = useState([])
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadedImages, setLoadedImages] = useState(new Set())
 
   useEffect(() => {
     fetchPortfolio()
@@ -46,6 +47,11 @@ const Portfolio = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Handle image load event
+  const handleImageLoad = (photoId) => {
+    setLoadedImages(prev => new Set(prev).add(photoId))
   }
 
   // Filter shoots: only show those with photos, and match category filter
@@ -95,38 +101,50 @@ const Portfolio = () => {
               <p>No portfolio items yet. Admin can add shoots from the dashboard!</p>
             </div>
           ) : (
-            filteredShoots.map((shoot) => 
-              shoot.photos.map((photo, photoIndex) => {
-                // Handle both Spaces URLs (full CDN URLs) and local URLs
-                const photoSrc = photo.url.startsWith('http') 
-                  ? photo.url  // Spaces CDN URL - use as-is
-                  : `${API_URL.replace('/api', '')}${photo.url}`; // Local URL - prepend server URL
-                
-                return (
-                  <div 
-                    key={`${shoot.id}-${photo.id}`} 
-                    className="portfolio-item"
-                    style={{ animationDelay: `${photoIndex * 0.05}s` }}
-                  >
-                    <div className="portfolio-image-container">
-                      <img 
-                        src={photoSrc} 
-                        alt={`${shoot.title} - Photo ${photoIndex + 1}`}
-                        className="portfolio-image"
-                        loading="lazy"
-                      />
-                      <div className="portfolio-overlay">
-                        <h3>{shoot.title}</h3>
-                        <p>{shoot.category}</p>
-                        {shoot.date && (
-                          <p className="shoot-date">{new Date(shoot.date).toLocaleDateString()}</p>
-                        )}
+            (() => {
+              let imageCount = 0;
+              return filteredShoots.map((shoot) => 
+                shoot.photos.map((photo, photoIndex) => {
+                  imageCount++;
+                  const isPriority = imageCount <= 6; // First 6 images load immediately
+                  
+                  // Handle both new dual storage format and legacy format
+                  const photoSrc = photo.displayUrl || photo.url; // New format first, fallback to legacy
+                  
+                  // Check if URL is absolute or relative
+                  const finalPhotoSrc = photoSrc.startsWith('http') 
+                    ? photoSrc  // CDN URL - use as-is
+                    : `${API_URL.replace('/api', '')}${photoSrc}`; // Local URL - prepend server URL
+                  
+                  const isLoaded = loadedImages.has(photo.id);
+                  
+                  return (
+                    <div 
+                      key={`${shoot.id}-${photo.id}`} 
+                      className="portfolio-item"
+                    >
+                      <div className={`portfolio-image-container ${isLoaded ? 'image-loaded' : ''}`}>
+                        <img 
+                          src={finalPhotoSrc} 
+                          alt={`${shoot.title} - Photo ${photoIndex + 1}`}
+                          className={`portfolio-image ${isLoaded ? 'loaded' : ''}`}
+                          loading={isPriority ? "eager" : "lazy"}
+                          onLoad={() => handleImageLoad(photo.id)}
+                          decoding="async"
+                        />
+                        <div className="portfolio-overlay">
+                          <h3>{shoot.title}</h3>
+                          <p>{shoot.category}</p>
+                          {shoot.date && (
+                            <p className="shoot-date">{new Date(shoot.date).toLocaleDateString()}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )
+                  );
+                })
+              );
+            })()
           )}
         </div>
       </div>

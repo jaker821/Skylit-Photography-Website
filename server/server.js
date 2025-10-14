@@ -7,6 +7,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const AWS = require('aws-sdk');
+const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 const fs = require('fs').promises;
 const path = require('path');
@@ -210,10 +211,10 @@ if (SPACES_ENABLED) {
   });
 }
 
-// Configure multer for file uploads
+// Configure multer for file uploads - use memory storage for processing
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  storage: SPACES_ENABLED ? multer.memoryStorage() : storage, // Memory storage for compression, disk for local
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit for originals
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -226,6 +227,31 @@ const upload = multer({
     }
   }
 });
+
+// Helper function to upload buffer to Spaces
+async function uploadBufferToSpaces(buffer, folder, filename, contentType = 'image/jpeg') {
+  if (!SPACES_ENABLED || !s3Client) {
+    throw new Error('Spaces not configured');
+  }
+  
+  const key = `${folder}/${filename}`;
+  const params = {
+    Bucket: process.env.SPACES_BUCKET,
+    Key: key,
+    Body: buffer,
+    ACL: 'public-read',
+    ContentType: contentType
+  };
+  
+  try {
+    await s3Client.upload(params).promise();
+    const cdnUrl = process.env.SPACES_CDN_URL;
+    return cdnUrl ? `${cdnUrl}/${key}` : `https://${process.env.SPACES_BUCKET}.${process.env.SPACES_ENDPOINT}/${key}`;
+  } catch (error) {
+    console.error('Error uploading to Spaces:', error);
+    throw error;
+  }
+}
 
 // Data file paths
 const DATA_DIR = path.join(__dirname, 'data');
@@ -1297,7 +1323,7 @@ app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// Upload photos to shoot (admin only)
+// Upload photos to shoot (admin only) - WITH DUAL STORAGE
 app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
   // Multer middleware with error handling
   upload.array('photos', 20)(req, res, (err) => {
@@ -1318,7 +1344,7 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
   });
 }, async (req, res) => {
   try {
-    console.log('✅ Files uploaded successfully:', req.files?.length || 0);
+    console.log('✅ Files received:', req.files?.length || 0);
     
     const shootId = parseInt(req.params.id);
     const shootsData = await readJSONFile(SHOOTS_FILE);
@@ -1328,43 +1354,85 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    // Add uploaded photos to shoot
-    const newPhotos = req.files.map(file => {
-      let photoUrl;
-      let photoKey;
+    const newPhotos = [];
+    
+    // Process each photo with dual storage
+    for (const file of req.files) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      const filename = `${uniqueSuffix}${ext}`;
+      
+      let displayUrl, downloadUrl, displayKey, downloadKey;
+      let originalSize = file.size;
+      let compressedSize = 0;
       
       if (SPACES_ENABLED) {
-        // Use the CDN URL if available, otherwise use the direct Spaces URL
-        const cdnUrl = process.env.SPACES_CDN_URL;
-        if (cdnUrl) {
-          photoUrl = `${cdnUrl}/${file.key}`;
-        } else {
-          photoUrl = file.location; // Direct S3 URL from multer-s3
+        try {
+          console.log(`📸 Processing ${file.originalname}...`);
+          
+          // 1. Upload ORIGINAL to Spaces (originals/ folder)
+          const originalBuffer = file.buffer;
+          downloadUrl = await uploadBufferToSpaces(originalBuffer, 'originals', filename);
+          downloadKey = `originals/${filename}`;
+          console.log(`   ✅ Original uploaded: ${downloadKey}`);
+          
+          // 2. Create COMPRESSED version using Sharp
+          const compressedBuffer = await sharp(originalBuffer)
+            .resize(1920, null, { 
+              withoutEnlargement: true,
+              fit: 'inside'
+            })
+            .jpeg({ 
+              quality: 85,
+              progressive: true,
+              mozjpeg: true
+            })
+            .toBuffer();
+          
+          compressedSize = compressedBuffer.length;
+          console.log(`   ✅ Compressed: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB (${Math.round(compressedSize / originalSize * 100)}%)`);
+          
+          // 3. Upload COMPRESSED to Spaces (portfolio/ folder)
+          displayUrl = await uploadBufferToSpaces(compressedBuffer, 'portfolio', filename);
+          displayKey = `portfolio/${filename}`;
+          console.log(`   ✅ Compressed uploaded: ${displayKey}`);
+          
+        } catch (error) {
+          console.error(`❌ Error processing ${file.originalname}:`, error);
+          throw error;
         }
-        photoKey = file.key; // S3 key for deletion
-        console.log('📸 Photo uploaded to Spaces:', photoKey);
       } else {
-        // Local storage
-        photoUrl = `/uploads/${file.filename}`;
-        photoKey = file.filename;
-        console.log('📸 Photo uploaded locally:', photoKey);
+        // Local storage - just save as-is (no compression for local dev)
+        displayUrl = `/uploads/${filename}`;
+        downloadUrl = displayUrl; // Same file for local
+        displayKey = filename;
+        downloadKey = filename;
+        compressedSize = originalSize;
       }
       
-      return {
+      newPhotos.push({
         id: Date.now() + Math.random(),
-        url: photoUrl,
-        key: photoKey, // Store key for deletion
-        filename: file.filename || path.basename(file.key || ''),
+        displayUrl: displayUrl,      // Compressed version for web display
+        downloadUrl: downloadUrl,     // Original for downloads
+        displayKey: displayKey,       // S3 key for compressed
+        downloadKey: downloadKey,     // S3 key for original
         originalName: file.originalname,
-        uploadedAt: new Date().toISOString()
-      };
-    });
+        originalSize: originalSize,
+        compressedSize: compressedSize,
+        uploadedAt: new Date().toISOString(),
+        hasHighRes: true  // Track if high-res still exists
+      });
+    }
     
     shootsData.shoots[shootIndex].photos.push(...newPhotos);
     await writeJSONFile(SHOOTS_FILE, shootsData);
     
-    console.log('✅ Photos saved to database');
-    res.json({ success: true, photos: newPhotos });
+    console.log(`✅ ${newPhotos.length} photos saved to database`);
+    res.json({ 
+      success: true, 
+      photos: newPhotos,
+      message: `${newPhotos.length} photos uploaded successfully with dual storage`
+    });
   } catch (error) {
     console.error('❌ Upload photos error:', error);
     res.status(500).json({ 
@@ -1374,7 +1442,7 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
   }
 });
 
-// Delete photo from shoot (admin only)
+// Delete photo from shoot (admin only) - UPDATED for dual storage
 app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.shootId);
@@ -1389,21 +1457,31 @@ app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async
     
     const photo = shootsData.shoots[shootIndex].photos.find(p => p.id === photoId);
     if (photo) {
-      // Delete file from storage
+      // Delete BOTH versions from storage
       try {
         if (SPACES_ENABLED && s3Client) {
-          // Delete from DigitalOcean Spaces
-          const deleteParams = {
-            Bucket: process.env.SPACES_BUCKET,
-            Key: photo.key || photo.filename // Use key if available, fallback to filename
-          };
-          await s3Client.deleteObject(deleteParams).promise();
-          console.log(`Deleted from Spaces: ${photo.key || photo.filename}`);
+          // Delete compressed version
+          if (photo.displayKey) {
+            await s3Client.deleteObject({
+              Bucket: process.env.SPACES_BUCKET,
+              Key: photo.displayKey
+            }).promise();
+            console.log(`Deleted compressed: ${photo.displayKey}`);
+          }
+          
+          // Delete original version (if exists)
+          if (photo.downloadKey && photo.hasHighRes) {
+            await s3Client.deleteObject({
+              Bucket: process.env.SPACES_BUCKET,
+              Key: photo.downloadKey
+            }).promise();
+            console.log(`Deleted original: ${photo.downloadKey}`);
+          }
         } else {
           // Delete from local filesystem
-          const photoPath = path.join(__dirname, 'uploads', photo.filename);
+          const photoPath = path.join(__dirname, 'uploads', photo.filename || path.basename(photo.displayUrl));
           await fs.unlink(photoPath);
-          console.log(`Deleted from local storage: ${photo.filename}`);
+          console.log(`Deleted from local storage`);
         }
       } catch (err) {
         console.error('Error deleting file:', err);
@@ -1418,6 +1496,334 @@ app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async
     res.json({ success: true });
   } catch (error) {
     console.error('Delete photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Email Management & Download Routes
+// ===================================
+
+// Add authorized emails to shoot (admin only)
+app.post('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const { emails } = req.body;
+    
+    if (!emails || !Array.isArray(emails) || emails.length === 0) {
+      return res.status(400).json({ error: 'Emails array required' });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const invalidEmails = emails.filter(email => !emailRegex.test(email));
+    if (invalidEmails.length > 0) {
+      return res.status(400).json({ 
+        error: 'Invalid email format', 
+        invalidEmails 
+      });
+    }
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Initialize authorizedEmails array if doesn't exist
+    if (!shootsData.shoots[shootIndex].authorizedEmails) {
+      shootsData.shoots[shootIndex].authorizedEmails = [];
+    }
+    
+    // Add new emails (avoid duplicates)
+    const currentEmails = shootsData.shoots[shootIndex].authorizedEmails;
+    const newEmails = emails.filter(email => !currentEmails.includes(email.toLowerCase()));
+    shootsData.shoots[shootIndex].authorizedEmails.push(...newEmails.map(e => e.toLowerCase()));
+    
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ 
+      success: true, 
+      authorizedEmails: shootsData.shoots[shootIndex].authorizedEmails,
+      added: newEmails.length
+    });
+  } catch (error) {
+    console.error('Add authorized emails error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Remove authorized email from shoot (admin only)
+app.delete('/api/portfolio/shoots/:id/authorized-emails/:email', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const emailToRemove = req.params.email.toLowerCase();
+    
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    if (!shootsData.shoots[shootIndex].authorizedEmails) {
+      shootsData.shoots[shootIndex].authorizedEmails = [];
+    }
+    
+    shootsData.shoots[shootIndex].authorizedEmails = 
+      shootsData.shoots[shootIndex].authorizedEmails.filter(email => email !== emailToRemove);
+    
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    res.json({ 
+      success: true, 
+      authorizedEmails: shootsData.shoots[shootIndex].authorizedEmails
+    });
+  } catch (error) {
+    console.error('Remove authorized email error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get authorized emails for shoot (admin only)
+app.get('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    res.json({ 
+      authorizedEmails: shoot.authorizedEmails || [],
+      shootTitle: shoot.title
+    });
+  } catch (error) {
+    console.error('Get authorized emails error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Check if current user has access to shoot (any authenticated user)
+app.get('/api/portfolio/shoots/:id/has-access', requireAuth, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Admin always has access
+    if (req.session.userRole === 'admin') {
+      return res.json({ hasAccess: true, isAdmin: true });
+    }
+    
+    // Get user email
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.id === req.session.userId);
+    
+    if (!user) {
+      return res.json({ hasAccess: false });
+    }
+    
+    // Check if user email is in authorized list
+    const authorizedEmails = shoot.authorizedEmails || [];
+    const hasAccess = authorizedEmails.includes(user.email.toLowerCase());
+    
+    res.json({ 
+      hasAccess,
+      hasHighRes: shoot.photos?.some(p => p.hasHighRes) || false
+    });
+  } catch (error) {
+    console.error('Check access error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Download high-res photo (authenticated users with permission)
+app.get('/api/photos/:photoId/download', requireAuth, async (req, res) => {
+  try {
+    const photoId = parseFloat(req.params.photoId);
+    
+    // Find the photo and its shoot
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    let targetShoot = null;
+    let targetPhoto = null;
+    
+    for (const shoot of shootsData.shoots) {
+      const photo = shoot.photos.find(p => p.id === photoId);
+      if (photo) {
+        targetShoot = shoot;
+        targetPhoto = photo;
+        break;
+      }
+    }
+    
+    if (!targetShoot || !targetPhoto) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    // Check if high-res exists
+    if (!targetPhoto.hasHighRes) {
+      return res.status(410).json({ 
+        error: 'High-resolution version no longer available',
+        deletedAt: targetShoot.highResDeletedAt
+      });
+    }
+    
+    // Check permissions
+    const isAdmin = req.session.userRole === 'admin';
+    
+    if (!isAdmin) {
+      // Get user email
+      const usersData = await readJSONFile(USERS_FILE);
+      const user = usersData.users.find(u => u.id === req.session.userId);
+      
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+      
+      // Check if user is authorized
+      const authorizedEmails = targetShoot.authorizedEmails || [];
+      if (!authorizedEmails.includes(user.email.toLowerCase())) {
+        return res.status(403).json({ error: 'Not authorized to download this photo' });
+      }
+    }
+    
+    // Track download
+    if (!targetShoot.downloadStats) {
+      targetShoot.downloadStats = { totalDownloads: 0, downloadHistory: [] };
+    }
+    
+    const usersData = await readJSONFile(USERS_FILE);
+    const user = usersData.users.find(u => u.id === req.session.userId);
+    
+    targetShoot.downloadStats.totalDownloads++;
+    targetShoot.downloadStats.downloadHistory.push({
+      photoId: photoId,
+      userEmail: user?.email || 'unknown',
+      downloadedAt: new Date().toISOString()
+    });
+    
+    // Keep only last 100 downloads
+    if (targetShoot.downloadStats.downloadHistory.length > 100) {
+      targetShoot.downloadStats.downloadHistory = 
+        targetShoot.downloadStats.downloadHistory.slice(-100);
+    }
+    
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    console.log(`📥 Download: ${user?.email} downloaded photo ${photoId} from shoot "${targetShoot.title}"`);
+    
+    // Redirect to download URL
+    res.redirect(targetPhoto.downloadUrl);
+  } catch (error) {
+    console.error('Download photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete high-res versions for a shoot (admin only)
+app.delete('/api/portfolio/shoots/:id/originals', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
+    
+    if (shootIndex === -1) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    const shoot = shootsData.shoots[shootIndex];
+    let deletedCount = 0;
+    let freedSpace = 0;
+    
+    // Delete original files from Spaces
+    if (SPACES_ENABLED && s3Client) {
+      for (const photo of shoot.photos) {
+        if (photo.hasHighRes && photo.downloadKey) {
+          try {
+            await s3Client.deleteObject({
+              Bucket: process.env.SPACES_BUCKET,
+              Key: photo.downloadKey
+            }).promise();
+            
+            freedSpace += photo.originalSize || 0;
+            deletedCount++;
+            console.log(`🗑️  Deleted original: ${photo.downloadKey}`);
+          } catch (err) {
+            console.error(`Error deleting ${photo.downloadKey}:`, err);
+          }
+        }
+      }
+    }
+    
+    // Update all photos to mark high-res as deleted
+    shoot.photos.forEach(photo => {
+      photo.hasHighRes = false;
+      photo.downloadUrl = null; // Clear download URL
+    });
+    
+    // Record deletion
+    shoot.highResDeletedAt = new Date().toISOString();
+    
+    await writeJSONFile(SHOOTS_FILE, shootsData);
+    
+    console.log(`✅ Deleted ${deletedCount} original files, freed ${(freedSpace / 1024 / 1024).toFixed(2)}MB`);
+    
+    res.json({ 
+      success: true,
+      deletedCount,
+      freedSpaceMB: (freedSpace / 1024 / 1024).toFixed(2),
+      message: `Deleted ${deletedCount} high-resolution files`
+    });
+  } catch (error) {
+    console.error('Delete originals error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get storage statistics (admin only)
+app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
+  try {
+    const shootsData = await readJSONFile(SHOOTS_FILE);
+    
+    let totalPhotos = 0;
+    let totalOriginalSize = 0;
+    let totalCompressedSize = 0;
+    let photosWithHighRes = 0;
+    let shootsWithHighRes = 0;
+    
+    shootsData.shoots.forEach(shoot => {
+      const hasHighRes = shoot.photos?.some(p => p.hasHighRes) || false;
+      if (hasHighRes) shootsWithHighRes++;
+      
+      shoot.photos?.forEach(photo => {
+        totalPhotos++;
+        totalOriginalSize += photo.originalSize || 0;
+        totalCompressedSize += photo.compressedSize || 0;
+        if (photo.hasHighRes) photosWithHighRes++;
+      });
+    });
+    
+    res.json({
+      totalPhotos,
+      totalShoots: shootsData.shoots.length,
+      shootsWithHighRes,
+      photosWithHighRes,
+      totalOriginalSizeMB: (totalOriginalSize / 1024 / 1024).toFixed(2),
+      totalCompressedSizeMB: (totalCompressedSize / 1024 / 1024).toFixed(2),
+      totalStorageMB: ((totalOriginalSize + totalCompressedSize) / 1024 / 1024).toFixed(2),
+      compressionRatio: totalOriginalSize > 0 ? 
+        ((totalCompressedSize / totalOriginalSize) * 100).toFixed(1) + '%' : 'N/A'
+    });
+  } catch (error) {
+    console.error('Get storage stats error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

@@ -1624,18 +1624,31 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete }) => {
       
       <div className="photos-grid">
         {shoot.photos.map(photo => {
-          // Handle both Spaces URLs (full CDN URLs) and local URLs
-          const photoSrc = photo.url.startsWith('http') 
-            ? photo.url  // Spaces CDN URL - use as-is
-            : `${API_URL.replace('/api', '')}${photo.url}`; // Local URL - prepend server URL
+          // Handle both new dual storage format and legacy format
+          const photoSrc = photo.displayUrl || photo.url; // New format first, fallback to legacy
+          
+          // Check if URL is absolute or relative
+          const finalPhotoSrc = photoSrc.startsWith('http') 
+            ? photoSrc  // CDN URL - use as-is
+            : `${API_URL.replace('/api', '')}${photoSrc}`; // Local URL - prepend server URL
           
           return (
             <div key={photo.id} className="photo-item">
-              <img src={photoSrc} alt={photo.originalName} />
+              <img src={finalPhotoSrc} alt={photo.originalName} />
+              <div className="photo-info">
+                {photo.compressedSize && (
+                  <span className="file-size">
+                    {(photo.compressedSize / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                )}
+                {photo.hasHighRes && (
+                  <span className="high-res-badge">✓ High-Res</span>
+                )}
+              </div>
               <button 
                 className="delete-photo-btn"
                 onClick={() => {
-                  if (window.confirm('Delete this photo?')) {
+                  if (window.confirm('Delete this photo? (Both compressed and original will be deleted)')) {
                     onPhotoDelete(photo.id)
                   }
                 }}
