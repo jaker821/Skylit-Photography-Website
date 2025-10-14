@@ -20,26 +20,13 @@
   --cream-white: #F8EEDB;              /* RGB(248, 238, 219) - Cream white */
   --cream-white-dark: #F0E4C8;         /* Slightly darker cream */
   
-  /* Neutral Colors - DARK THEME */
-  --background-dark: #1a1a1a;          /* Main dark background */
-  --background-darker: #0f0f0f;        /* Even darker */
-  --card-background: #2a2a2a;          /* Card/component backgrounds */
-  --card-background-light: #353535;    /* Lighter cards */
-  
-  --text-light: #F8EEDB;               /* Light text (cream) for dark backgrounds */
-  --text-white: #ffffff;               /* White text for dark backgrounds */
-  --text-dark: #1a1a1a;                /* Dark text for light backgrounds */
-  --text-gray: #9e9e9e;                /* Gray text */
-  
-  --border-light: rgba(223, 208, 143, 0.2);  /* Gold-tinted borders */
-  --border-dark: rgba(78, 46, 58, 0.2);      /* Purple-tinted borders */
-  
-  /* Legacy color variables (for compatibility) */
-  --white: #ffffff;                    /* White for text on dark backgrounds */
-  --black: #1a1a1a;                    /* Black for text on light backgrounds */
-  --gray: #b0b0b0;                     /* Gray for secondary text on dark backgrounds */
-  --dark-gray: #9e9e9e;                /* Darker gray for tertiary text */
-  --text-color: #F8EEDB;               /* Default text color (cream) */
+  /* Neutral Colors */
+  --white: #ffffff;
+  --off-white: #F8EEDB;                /* Using cream white */
+  --light-gray: #f5f5f5;
+  --gray: #9e9e9e;
+  --dark-gray: #424242;
+  --black: #1a1a1a;
   
   /* Semantic Colors */
   --success: #4caf50;
@@ -64,21 +51,36 @@
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
   
-  /* Shadows - For dark theme */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.7);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.8);
-  
-  /* Glows - For hover effects */
-  --glow-gold: 0 0 20px rgba(223, 208, 143, 0.4);
-  --glow-purple: 0 0 20px rgba(78, 46, 58, 0.4);
+  /* Shadows */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
   
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 20px;
+}
+
+/* ===================================
+   Dark Mode Color Overrides
+   =================================== */
+[data-theme='dark'] {
+  /* Background Colors */
+  --white: #1a1a1a;
+  --off-white: #202020;
+  --light-gray: #2a2a2a;
+  --gray: #b0b0b0;
+  --dark-gray: #e0e0e0;
+  --black: #ffffff;
+  
+  /* Adjust shadows for dark mode */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.7);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.8);
 }
 
 /* ===================================
@@ -98,8 +100,8 @@ body {
   font-family: var(--font-body);
   font-weight: 400;
   font-style: italic;
-  color: var(--text-light);              /* LIGHT text on DARK background */
-  background-color: var(--background-dark);  /* DARK background */
+  color: var(--black);
+  background-color: var(--white);
   line-height: 1.6;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -126,7 +128,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   font-style: italic;
   line-height: 1.2;
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK backgrounds */
+  color: var(--primary-purple-dark);
 }
 
 a {
@@ -283,12 +285,11 @@ img {
   right: -100%;
   width: 300px;
   height: calc(100vh - 70px);
-  background: var(--card-background);
+  background: var(--white);
   box-shadow: var(--shadow-xl);
   transition: right var(--transition-normal);
   z-index: 999;
   overflow-y: auto;
-  border-left: 1px solid var(--border-light);
 }
 
 .nav-menu.active {
@@ -344,7 +345,7 @@ img {
 
 .nav-links a {
   display: block;
-  color: var(--text-light);
+  color: var(--dark-gray);
   font-weight: 500;
   font-size: 1rem;
   padding: var(--spacing-md) var(--spacing-xl);
@@ -354,15 +355,15 @@ img {
 }
 
 .nav-links a:hover {
-  background: rgba(223, 208, 143, 0.1);
-  color: var(--accent-gold-light);
+  background: var(--cream-white);
+  color: var(--primary-purple);
   border-left-color: var(--accent-gold);
 }
 
 .nav-links a.active {
-  background: linear-gradient(90deg, rgba(223, 208, 143, 0.15), transparent);
-  color: var(--accent-gold-light);
-  border-left-color: var(--accent-gold);
+  background: linear-gradient(90deg, rgba(78, 46, 58, 0.1), transparent);
+  color: var(--primary-purple);
+  border-left-color: var(--primary-purple);
   font-weight: 600;
 }
 
@@ -380,7 +381,6 @@ img {
   transition: all var(--transition-fast);
   border-left: 3px solid transparent;
   font-family: var(--font-body);
-  font-style: italic;
 }
 
 .nav-logout-btn:hover {
@@ -475,6 +475,35 @@ img {
   transform: rotate(180deg) scale(0.95);
 }
 
+/* Navbar stays dark in both modes */
+[data-theme='dark'] .navbar {
+  background: rgba(26, 26, 26, 0.95);
+  border-bottom: 1px solid rgba(223, 208, 143, 0.2);
+}
+
+[data-theme='dark'] .navbar.scrolled {
+  background: rgba(26, 26, 26, 0.98);
+}
+
+[data-theme='dark'] .nav-menu {
+  background: var(--light-gray);
+  border-left: 1px solid var(--accent-gold-dark);
+}
+
+[data-theme='dark'] .nav-links a {
+  color: var(--black);
+}
+
+[data-theme='dark'] .nav-links a:hover {
+  background: var(--off-white);
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .nav-links a.active {
+  background: linear-gradient(90deg, rgba(223, 208, 143, 0.15), transparent);
+  color: var(--accent-gold-light);
+  border-left-color: var(--accent-gold);
+}
 
 /* ===================================
    Buttons
@@ -503,24 +532,22 @@ img {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
-  border: 2px solid var(--accent-gold);
-  color: var(--text-dark);               /* DARK text on LIGHT gold background */
-  font-weight: 700;
-  box-shadow: var(--glow-gold);
+  background: transparent;
+  border: 2px solid var(--primary-purple);
+  color: var(--primary-purple-dark);
+  font-weight: 600;
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(135deg, var(--accent-gold-light), var(--accent-gold-lighter));
-  color: var(--text-dark);
+  background: var(--primary-purple);
+  color: var(--white);
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(223, 208, 143, 0.6);
-  border-color: var(--accent-gold-lighter);
+  box-shadow: 0 6px 12px rgba(78, 46, 58, 0.3);
 }
 
 .btn-text {
   background: transparent;
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple);
   padding: 0;
   font-weight: 600;
 }
@@ -568,7 +595,7 @@ img {
   background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
   color: var(--white);
   padding: var(--spacing-2xl) 0 var(--spacing-md);
-  margin-top: 0;  /* Removed margin - pages handle their own bottom spacing */
+  margin-top: var(--spacing-2xl);
 }
 
 .footer-content {
@@ -739,12 +766,12 @@ img {
   text-align: center;
   padding: var(--spacing-2xl) var(--spacing-md);
   background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
-  color: var(--cream-white);
+  color: var(--white);
 }
 
 .page-title {
   font-size: 3rem;
-  color: var(--accent-gold-light);
+  color: var(--white);
   margin-bottom: var(--spacing-sm);
 }
 
@@ -761,14 +788,13 @@ img {
   font-size: 2.5rem;
   text-align: center;
   margin-bottom: var(--spacing-sm);
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple);
 }
 
 .section-subtitle {
   text-align: center;
   font-size: 1.1rem;
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.9;
+  color: var(--gray);
   margin-bottom: var(--spacing-xl);
 }
 
@@ -777,7 +803,7 @@ img {
    =================================== */
 .featured-work {
   padding: var(--spacing-2xl) 0;
-  background: var(--background-darker);  /* DARK background */
+  background: var(--cream-white);
 }
 
 .featured-grid {
@@ -825,12 +851,11 @@ img {
 .featured-item h3 {
   font-size: 1.5rem;
   margin-bottom: var(--spacing-xs);
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple);
 }
 
 .featured-item p {
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.9;
+  color: var(--gray);
 }
 
 /* ===================================
@@ -856,8 +881,7 @@ img {
   margin-bottom: var(--spacing-md);
   font-size: 1.05rem;
   line-height: 1.8;
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.95;
+  color: var(--dark-gray);
 }
 
 .about-preview-image .image-placeholder {
@@ -878,7 +902,7 @@ img {
    =================================== */
 .services-overview {
   padding: var(--spacing-2xl) 0;
-  background: var(--background-dark);    /* DARK background for darker overall look */
+  background: var(--cream-white-dark);
 }
 
 .services-grid {
@@ -889,36 +913,32 @@ img {
 }
 
 .service-card {
-  background: var(--card-background);    /* DARK background */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   text-align: center;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
-  border: 1px solid var(--border-light);
 }
 
 .service-card:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-lg), var(--glow-gold);
-  border-color: var(--accent-gold);
+  box-shadow: var(--shadow-lg);
 }
 
 .service-icon {
   font-size: 3rem;
   margin-bottom: var(--spacing-md);
-  color: var(--accent-gold);             /* LIGHT gold on DARK background */
 }
 
 .service-card h3 {
   font-size: 1.3rem;
   margin-bottom: var(--spacing-sm);
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple);
 }
 
 .service-card p {
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.9;
+  color: var(--gray);
 }
 
 /* ===================================
@@ -926,36 +946,34 @@ img {
    =================================== */
 .cta-section {
   padding: var(--spacing-2xl) 0;
-  background: var(--background-dark);    /* BLACK background - separates from purple footer */
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-light));
   color: var(--white);
   text-align: center;
-  border-top: 3px solid var(--accent-gold);  /* Gold top border for visual separation */
 }
 
 .cta-section h2 {
   font-size: 2.5rem;
-  color: var(--accent-gold-light);     /* GOLD heading instead of white */
+  color: var(--white);
   margin-bottom: var(--spacing-md);
 }
 
 .cta-section p {
   font-size: 1.2rem;
   margin-bottom: var(--spacing-xl);
-  color: var(--cream-white);           /* CREAM text */
   opacity: 0.95;
 }
 
 .cta-section .btn-primary {
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));  /* GOLD button */
+  background: var(--white);
   color: var(--black);
-  border: 2px solid var(--accent-gold);
+  border: 2px solid var(--white);
 }
 
 .cta-section .btn-primary:hover {
-  background: linear-gradient(135deg, var(--accent-gold-light), var(--accent-gold-lighter));
+  background: var(--cream-white);
   color: var(--black);
   transform: translateY(-3px);
-  box-shadow: var(--glow-gold);
+  box-shadow: 0 10px 20px rgba(255, 255, 255, 0.4);
 }
 
 /* ===================================
@@ -963,7 +981,7 @@ img {
    =================================== */
 .portfolio-page {
   min-height: 100vh;
-  background: var(--background-dark);    /* DARK background */
+  background: var(--cream-white);
 }
 
 .portfolio-filters {
@@ -977,9 +995,9 @@ img {
 
 .filter-btn {
   padding: 10px 24px;
-  border: 2px solid var(--accent-gold);
+  border: 2px solid var(--primary-purple-light);
   background: transparent;
-  color: var(--accent-gold-light);
+  color: var(--primary-purple);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
@@ -989,10 +1007,9 @@ img {
 
 .filter-btn:hover,
 .filter-btn.active {
-  background: var(--accent-gold);
-  color: var(--black);
+  background: var(--primary-purple);
+  color: var(--white);
   transform: translateY(-2px);
-  box-shadow: var(--glow-gold);
 }
 
 .portfolio-grid {
@@ -1057,7 +1074,7 @@ img {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(to top, rgba(196, 181, 107, 0.95), transparent);  /* Gold overlay */
+  background: linear-gradient(to top, rgba(61, 26, 82, 0.95), transparent);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1098,8 +1115,7 @@ img {
    =================================== */
 .pricing-page {
   min-height: 100vh;
-  background: var(--cream-white);    /* CREAM background */
-  padding-bottom: var(--spacing-2xl);  /* Ensure cream extends to footer */
+  background: var(--cream-white);
 }
 
 .pricing-grid {
@@ -1112,26 +1128,23 @@ img {
 }
 
 .pricing-card {
-  background: var(--black);    /* BLACK background */
+  background: var(--white);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl);
   box-shadow: var(--shadow-md);
   transition: all var(--transition-normal);
   position: relative;
-  border: 2px solid var(--accent-gold-dark);
+  border: 2px solid transparent;
 }
 
 .pricing-card:hover {
   transform: translateY(-10px);
-  box-shadow: var(--shadow-xl), var(--glow-gold);
-  border-color: var(--accent-gold);
+  box-shadow: var(--shadow-xl);
 }
 
 .pricing-card.recommended {
   border-color: var(--accent-gold);
   transform: scale(1.05);
-  background: linear-gradient(135deg, var(--black), #2a2a2a);
-  box-shadow: var(--shadow-lg), var(--glow-gold);
 }
 
 .pricing-card.recommended:hover {
@@ -1154,21 +1167,20 @@ img {
   font-size: 2rem;
   text-align: center;
   margin-bottom: var(--spacing-md);
-  color: var(--accent-gold-light);       /* LIGHT gold on BLACK background */
+  color: var(--primary-purple);
 }
 
 .package-price {
   font-size: 3rem;
   font-weight: 700;
   text-align: center;
-  color: var(--accent-gold);             /* LIGHT gold on BLACK background */
+  color: var(--accent-gold);
   margin-bottom: var(--spacing-xs);
 }
 
 .package-duration {
   text-align: center;
-  color: var(--cream-white);             /* CREAM on BLACK background */
-  opacity: 0.9;
+  color: var(--gray);
   margin-bottom: var(--spacing-lg);
   font-size: 1.1rem;
 }
@@ -1183,8 +1195,7 @@ img {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-sm);
-  color: var(--cream-white);             /* CREAM on BLACK background */
-  opacity: 0.95;
+  color: var(--dark-gray);
 }
 
 .check-icon {
@@ -1208,23 +1219,21 @@ img {
 }
 
 .addon-item {
-  background: var(--black);              /* BLACK background */
+  background: var(--white);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
   text-align: center;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .addon-item:hover {
-  box-shadow: var(--shadow-md), var(--glow-gold);
+  box-shadow: var(--shadow-md);
   transform: translateY(-3px);
-  border-color: var(--accent-gold);
 }
 
 .addon-item h4 {
-  color: var(--accent-gold-light);       /* LIGHT gold on BLACK background */
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-sm);
 }
 
@@ -1233,16 +1242,6 @@ img {
   font-weight: 700;
   font-size: 1.2rem;
 }
-
-/* Pricing page specific overrides for cream background */
-.pricing-page .section-title {
-  color: var(--primary-purple-dark);    /* DARK purple on CREAM background */
-}
-
-.pricing-page .section-subtitle {
-  color: var(--primary-purple);         /* Purple on CREAM background */
-}
-
 
 .special-packages {
   max-width: 900px;
@@ -1279,11 +1278,6 @@ img {
   margin-bottom: var(--spacing-xl);
 }
 
-/* Pricing page specific: dark text on cream background */
-.pricing-page .payment-info h3 {
-  color: var(--primary-purple-dark);    /* DARK purple on CREAM background */
-}
-
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1291,29 +1285,20 @@ img {
 }
 
 .info-item {
-  background: var(--black);              /* BLACK background */
+  background: var(--white);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  border: 2px solid var(--accent-gold-dark);
-  text-align: left;
-  display: flex;
-  flex-direction: column;
 }
 
 .info-item h4 {
-  color: var(--accent-gold-light);       /* LIGHT gold on BLACK background */
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-sm);
-  font-size: 1.2rem;
-  font-weight: 600;
-  text-align: left;
 }
 
 .info-item p {
-  color: var(--cream-white);             /* CREAM on BLACK background */
+  color: var(--dark-gray);
   line-height: 1.6;
-  text-align: left;
-  margin: 0;
 }
 
 /* ===================================
@@ -1321,12 +1306,12 @@ img {
    =================================== */
 .about-page {
   min-height: 100vh;
-  background: var(--background-dark);    /* DARK background */
+  background: var(--cream-white);
 }
 
 .about-intro {
   padding: var(--spacing-2xl) 0;
-  background: transparent;               /* No separate background - cleaner look */
+  background: var(--white);
 }
 
 .about-content {
@@ -1347,15 +1332,14 @@ img {
 .lead-text {
   font-size: 1.2rem;
   font-weight: 500;
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple-light);
   margin-bottom: var(--spacing-md);
 }
 
 .about-text-section p {
   margin-bottom: var(--spacing-md);
   line-height: 1.8;
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.95;
+  color: var(--dark-gray);
 }
 
 .about-image-placeholder {
@@ -1376,7 +1360,6 @@ img {
   padding: var(--spacing-2xl) 0;
   max-width: 1200px;
   margin: 0 auto;
-  background: transparent;
 }
 
 .philosophy-grid {
@@ -1384,41 +1367,36 @@ img {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: var(--spacing-xl);
   padding: 0 var(--spacing-md);
-  margin-top: var(--spacing-xl);
+  margin-top: var(--spacing-2xl);
 }
 
 .philosophy-item {
   text-align: center;
   padding: var(--spacing-xl);
-  background: var(--card-background);
+  background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-normal);
-  border: 2px solid var(--border-light);  /* Subtle border for philosophy */
 }
 
 .philosophy-item:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-md), var(--glow-gold);
-  border-color: var(--accent-gold);
+  box-shadow: var(--shadow-md);
 }
 
 .philosophy-icon {
   font-size: 3rem;
   margin-bottom: var(--spacing-md);
-  color: var(--accent-gold);
 }
 
 .philosophy-item h3 {
-  color: var(--accent-gold-light);
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-sm);
-  font-size: 1.3rem;
 }
 
 .philosophy-item p {
-  color: var(--cream-white);
+  color: var(--dark-gray);
   line-height: 1.6;
-  opacity: 0.9;
 }
 
 .experience-section {
@@ -1452,8 +1430,6 @@ img {
 /* Specialties Section */
 .specialties-section {
   padding: var(--spacing-2xl) 0;
-  max-width: 1200px;
-  margin: 0 auto;
 }
 
 .specialties-grid {
@@ -1461,35 +1437,21 @@ img {
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: var(--spacing-xl);
   margin-top: var(--spacing-xl);
-  padding: 0 var(--spacing-md);
 }
 
 .specialty-item {
   text-align: center;
-  padding: var(--spacing-xl);
-  background: var(--card-background);    /* Dark card background - matches philosophy */
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-normal);
-  border: 2px solid var(--accent-gold-dark);  /* Gold border - slightly different from philosophy */
-}
-
-.specialty-item:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-md), var(--glow-gold);
-  border-color: var(--accent-gold);
+  padding: var(--spacing-lg);
 }
 
 .specialty-item h3 {
   margin-bottom: var(--spacing-md);
-  color: var(--accent-gold-light);
-  font-size: 1.3rem;
+  color: var(--primary-purple);
 }
 
 .specialty-item p {
-  color: var(--cream-white);
+  color: var(--text-color);
   line-height: 1.6;
-  opacity: 0.9;
 }
 
 .stat-number {
@@ -1508,22 +1470,19 @@ img {
   max-width: 900px;
   margin: var(--spacing-2xl) auto;
   padding: var(--spacing-xl) var(--spacing-md);
-  background: var(--card-background);    /* Dark background for consistency */
+  background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 2px solid var(--border-light);
 }
 
 .equipment-section h3 {
   margin-bottom: var(--spacing-md);
   text-align: center;
-  color: var(--accent-gold-light);       /* Gold heading */
 }
 
 .equipment-section p {
   line-height: 1.8;
-  color: var(--cream-white);             /* Cream text on dark background */
-  opacity: 0.9;
+  color: var(--dark-gray);
 }
 
 .about-cta {
@@ -1555,8 +1514,7 @@ img {
    =================================== */
 .contact-page {
   min-height: 100vh;
-  background: var(--cream-white);        /* CREAM background - matches pricing page */
-  padding-bottom: var(--spacing-2xl);
+  background: var(--cream-white);
 }
 
 .contact-content {
@@ -1571,20 +1529,19 @@ img {
 .contact-form-section h2,
 .contact-info-section h2 {
   margin-bottom: var(--spacing-md);
-  color: var(--primary-purple-dark);     /* DARK purple on CREAM background */
+  color: var(--primary-purple);
 }
 
 .contact-form-section p {
   margin-bottom: var(--spacing-lg);
-  color: var(--primary-purple);          /* Purple text on cream background */
+  color: var(--gray);
 }
 
 .contact-form {
-  background: var(--black);              /* BLACK background - matches pricing cards */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .form-group {
@@ -1595,7 +1552,7 @@ img {
   display: block;
   margin-bottom: var(--spacing-xs);
   font-weight: 600;
-  color: var(--accent-gold-light);       /* LIGHT gold on BLACK background */
+  color: var(--primary-purple);
 }
 
 .form-group input,
@@ -1603,22 +1560,18 @@ img {
 .form-group textarea {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--light-gray);
   border-radius: var(--radius-md);
   font-family: var(--font-body);
   font-size: 1rem;
-  background: var(--card-background-light);  /* Dark input background */
-  color: var(--cream-white);                 /* Cream text */
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: var(--accent-gold);
-  background: var(--card-background);
-  box-shadow: var(--glow-gold);
+  border-color: var(--primary-purple);
 }
 
 .form-row {
@@ -1651,39 +1604,30 @@ img {
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-xl);
   padding: var(--spacing-lg);
-  background: var(--black);              /* BLACK background - matches pricing cards */
+  background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .contact-info-item:hover {
-  box-shadow: var(--shadow-md), var(--glow-gold);
+  box-shadow: var(--shadow-md);
   transform: translateX(5px);
-  border-color: var(--accent-gold);
 }
 
 .info-icon {
   font-size: 2rem;
   flex-shrink: 0;
-  color: var(--accent-gold);             /* Gold icons */
 }
 
 .info-content h3 {
   margin-bottom: var(--spacing-xs);
   font-size: 1.2rem;
-  color: var(--accent-gold-light);       /* Gold headings on black background */
-}
-
-.info-content p {
-  color: var(--cream-white);             /* Cream text on black background */
 }
 
 .small-text {
   font-size: 0.85rem;
-  color: var(--cream-white);
-  opacity: 0.8;
+  color: var(--gray);
 }
 
 .social-media-section {
@@ -1774,7 +1718,7 @@ img {
 
 .login-subtitle {
   text-align: center;
-  color: #5a5a5a;                /* Darker gray for better readability on white */
+  color: var(--gray);
   margin-bottom: var(--spacing-xl);
 }
 
@@ -1797,7 +1741,7 @@ img {
 }
 
 .demo-credentials {
-  background: #f5f5f5;               /* Light gray background */
+  background: var(--light-gray);
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
   margin-top: var(--spacing-lg);
@@ -1811,7 +1755,7 @@ img {
 
 .demo-credentials p {
   margin-bottom: var(--spacing-xs);
-  color: #4a4a4a;                    /* Darker gray for readability */
+  color: var(--dark-gray);
 }
 
 /* Login/Register Footer Links */
@@ -1827,30 +1771,7 @@ img {
 
 .login-footer p {
   margin: 0;
-  color: #5a5a5a;                    /* Darker gray for readability on white */
-}
-
-/* Login/Register Form Labels - Override for white background */
-.login-page .form-group label,
-.register-page .form-group label {
-  color: var(--primary-purple);      /* Purple labels on white background */
-}
-
-.login-page .form-group input,
-.login-page .form-group select,
-.register-page .form-group input,
-.register-page .form-group select {
-  background: #f9f9f9;               /* Light gray background */
-  color: #2a2a2a;                    /* Dark text */
-  border: 2px solid #e0e0e0;
-}
-
-.login-page .form-group input:focus,
-.login-page .form-group select:focus,
-.register-page .form-group input:focus,
-.register-page .form-group select:focus {
-  border-color: var(--accent-gold);
-  background: #ffffff;
+  color: var(--dark-gray);
 }
 
 /* Success Card (Registration Success) */
@@ -1958,15 +1879,10 @@ img {
 /* ===================================
    Dashboard Styles
    =================================== */
-.user-dashboard {
-  min-height: calc(100vh - 80px);
-  background: var(--background-dark);  /* DARK theme background for user dashboard */
-}
-
+.user-dashboard,
 .admin-dashboard {
   min-height: calc(100vh - 80px);
-  background: var(--cream-white);      /* CREAM background - matches pricing/contact */
-  padding-bottom: var(--spacing-2xl);
+  background: linear-gradient(135deg, #f5f1ed 0%, #e8dfd6 100%);
 }
 
 .dashboard-header {
@@ -2001,18 +1917,16 @@ img {
 }
 
 .booking-form-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
   margin-bottom: var(--spacing-xl);
   animation: fadeIn 0.3s ease-out;
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .booking-form-card h2 {
   margin-bottom: var(--spacing-lg);
-  color: var(--accent-gold-light);       /* Gold heading on purple */
 }
 
 .booking-form {
@@ -2023,7 +1937,7 @@ img {
 
 .bookings-section h2 {
   margin-bottom: var(--spacing-lg);
-  color: var(--primary-purple-dark);   /* Dark purple on cream background */
+  color: var(--primary-purple);
 }
 
 .bookings-grid {
@@ -2033,18 +1947,16 @@ img {
 }
 
 .booking-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-lg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   transition: all var(--transition-normal);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .booking-card:hover {
-  box-shadow: var(--shadow-lg), var(--glow-gold);
+  box-shadow: var(--shadow-lg);
   transform: translateY(-5px);
-  border-color: var(--accent-gold);
 }
 
 .booking-header {
@@ -2057,7 +1969,7 @@ img {
 }
 
 .booking-header h3 {
-  color: var(--accent-gold-light);       /* Gold on purple background */
+  color: var(--primary-purple);
 }
 
 .status-badge {
@@ -2102,8 +2014,7 @@ img {
   align-items: center;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.95;
+  color: var(--dark-gray);
 }
 
 .detail-icon {
@@ -2135,15 +2046,14 @@ img {
 
 .account-info-section h2 {
   margin-bottom: var(--spacing-lg);
-  color: var(--primary-purple-dark);   /* Dark purple on cream background */
+  color: var(--primary-purple);
 }
 
 .info-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .info-row {
@@ -2159,12 +2069,11 @@ img {
 
 .info-label {
   font-weight: 600;
-  color: var(--accent-gold-light);       /* LIGHT gold on DARK background */
+  color: var(--primary-purple);
 }
 
 .info-value {
-  color: var(--text-light);              /* LIGHT cream on DARK background */
-  opacity: 0.9;
+  color: var(--dark-gray);
 }
 
 /* ===================================
@@ -2180,7 +2089,7 @@ img {
   display: flex;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-xl);
-  border-bottom: 2px solid rgba(78, 46, 58, 0.2);
+  border-bottom: 2px solid var(--light-gray);
   flex-wrap: wrap;
 }
 
@@ -2197,17 +2106,12 @@ img {
   font-family: var(--font-body);
 }
 
-/* Admin Dashboard tabs on cream background */
-.admin-dashboard .tab-btn {
-  color: #6a6a6a;                      /* Darker gray on cream */
-}
-
 .tab-btn:hover {
   color: var(--primary-purple);
 }
 
 .tab-btn.active {
-  color: var(--primary-purple-dark);   /* Darker purple for cream background */
+  color: var(--primary-purple);
   border-bottom-color: var(--accent-gold);
 }
 
@@ -2228,61 +2132,6 @@ img {
   color: var(--primary-purple);
 }
 
-/* Admin Dashboard specific overrides for cream background */
-.admin-dashboard {
-  color: var(--black);                 /* Default black text on cream */
-}
-
-.admin-dashboard .section-header h2 {
-  color: var(--primary-purple-dark);   /* Dark purple on cream */
-}
-
-.admin-dashboard .section-title {
-  color: var(--primary-purple-dark);   /* Dark purple on cream */
-}
-
-.admin-dashboard .section-subtitle {
-  color: var(--primary-purple);        /* Purple on cream */
-}
-
-.admin-dashboard h2,
-.admin-dashboard h3 {
-  color: var(--primary-purple-dark);   /* Dark purple headings on cream */
-}
-
-.admin-dashboard p,
-.admin-dashboard label,
-.admin-dashboard span {
-  color: var(--black);                 /* Black text on cream background */
-}
-
-/* Only headings inside cards should be light colored */
-.admin-dashboard .stat-card h3,
-.admin-dashboard .booking-card h3,
-.admin-dashboard .session-card h4,
-.admin-dashboard .table-container h3,
-.admin-dashboard .form-card h3,
-.admin-dashboard .recent-activity h3,
-.admin-dashboard .booking-form-card h2,
-.admin-dashboard .info-card h3 {
-  color: var(--accent-gold-light);     /* Gold on purple cards */
-}
-
-/* Text inside purple cards should be light colored */
-.admin-dashboard .stat-card p,
-.admin-dashboard .stat-card span,
-.admin-dashboard .booking-card p,
-.admin-dashboard .session-card p,
-.admin-dashboard .session-card span,
-.admin-dashboard .form-card p,
-.admin-dashboard .form-card label,
-.admin-dashboard .recent-activity p,
-.admin-dashboard .booking-form-card p,
-.admin-dashboard .booking-form-card label,
-.admin-dashboard .info-card p {
-  color: var(--cream-white);           /* Cream text on purple cards */
-}
-
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -2291,19 +2140,17 @@ img {
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  border-left: 5px solid var(--accent-gold);
-  border: 2px solid var(--accent-gold-dark);
+  box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
+  border-left: 5px solid var(--primary-purple);
   transition: all var(--transition-normal);
 }
 
 .stat-card:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-lg), var(--glow-gold);
-  border-color: var(--accent-gold);
+  box-shadow: 0 8px 20px rgba(78, 46, 58, 0.25);
 }
 
 .stat-card.revenue {
@@ -2323,26 +2170,24 @@ img {
 }
 
 .stat-card h3 {
-  color: var(--white);                   /* White text on purple background */
+  color: var(--dark-gray);
   font-size: 0.9rem;
   font-weight: 600;
   text-transform: uppercase;
   margin-bottom: var(--spacing-sm);
   letter-spacing: 0.5px;
-  opacity: 0.9;
 }
 
 .stat-value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--accent-gold-light);       /* Gold on purple background */
+  color: var(--primary-purple-dark);
   margin-bottom: var(--spacing-xs);
 }
 
 .stat-change {
   font-size: 0.85rem;
-  color: var(--cream-white);
-  opacity: 0.8;
+  color: var(--gray);
 }
 
 .stat-change.positive {
@@ -2350,16 +2195,15 @@ img {
 }
 
 .recent-activity {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .recent-activity h3 {
   margin-bottom: var(--spacing-lg);
-  color: var(--accent-gold-light);       /* Gold on purple background */
+  color: var(--primary-purple);
 }
 
 .activity-list {
@@ -2373,52 +2217,48 @@ img {
   justify-content: space-between;
   align-items: center;
   padding: var(--spacing-md);
-  background: rgba(0, 0, 0, 0.2);        /* Subtle dark overlay for activity items */
+  background: var(--off-white);
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
-  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .activity-item:hover {
-  background: rgba(223, 208, 143, 0.15);
+  background: var(--light-gray);
   transform: translateX(5px);
-  border-color: var(--accent-gold);
 }
 
 .activity-info h4 {
-  color: var(--accent-gold-light);       /* Gold on purple background */
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-xs);
   font-size: 1rem;
 }
 
 .activity-info p {
-  color: var(--white);                   /* White on purple background */
+  color: var(--gray);
   font-size: 0.9rem;
-  opacity: 0.9;
 }
 
 .form-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   margin-bottom: var(--spacing-xl);
   animation: fadeIn 0.3s ease-out;
-  border: 2px solid var(--accent-gold-dark);
 }
 
 .form-card h3 {
   margin-bottom: var(--spacing-lg);
-  color: var(--accent-gold-light);       /* Gold heading on purple */
+  color: var(--primary-purple);
 }
 
 .table-container {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
+  background: var(--white);
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
   overflow-x: auto;
-  border: 2px solid var(--accent-gold-dark);
+  border: 1px solid rgba(78, 46, 58, 0.1);
 }
 
 .data-table {
@@ -2427,7 +2267,7 @@ img {
 }
 
 .data-table thead {
-  background: rgba(0, 0, 0, 0.3);        /* Darker overlay for thead on purple card */
+  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
   color: var(--white);
 }
 
@@ -2441,8 +2281,8 @@ img {
 
 .data-table td {
   padding: var(--spacing-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--cream-white);             /* Cream text on purple background */
+  border-bottom: 1px solid var(--light-gray);
+  color: var(--black);
   font-weight: 500;
 }
 
@@ -3144,7 +2984,7 @@ img {
   align-items: center;
   gap: var(--spacing-sm);
   font-size: 1.5rem;
-  color: var(--primary-purple-dark);   /* Dark purple on cream background */
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-xs);
 }
 
@@ -3166,30 +3006,34 @@ img {
 }
 
 .session-card {
-  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));  /* PURPLE gradient */
-  border: 2px solid var(--accent-gold-dark);
+  background: var(--white);
+  border: 2px solid rgba(78, 46, 58, 0.2);
   border-radius: var(--radius-md);
   padding: var(--spacing-lg);
   transition: all var(--transition-normal);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 8px rgba(78, 46, 58, 0.08);
 }
 
 .session-card:hover {
   transform: translateY(-5px);
-  box-shadow: var(--shadow-md), var(--glow-gold);
-  border-color: var(--accent-gold);
+  box-shadow: 0 6px 16px rgba(78, 46, 58, 0.2);
+  border-color: var(--primary-purple);
 }
 
 .session-card.quoted {
-  border-left: 5px solid var(--accent-gold);
+  border-left: 5px solid var(--accent-gold-dark);
+  background: linear-gradient(90deg, rgba(223, 208, 143, 0.05) 0%, var(--white) 10%);
 }
 
 .session-card.booked {
-  border-left: 5px solid var(--primary-purple-light);
+  border-left: 5px solid var(--primary-purple);
+  background: linear-gradient(90deg, rgba(78, 46, 58, 0.05) 0%, var(--white) 10%);
 }
 
 .session-card.invoiced {
   border-left: 5px solid #4caf50;
+  background: linear-gradient(90deg, rgba(76, 175, 80, 0.05) 0%, var(--white) 10%);
+  opacity: 0.95;
 }
 
 .session-card-header {
@@ -3203,7 +3047,7 @@ img {
 
 .session-card-header h4 {
   margin: 0;
-  color: var(--accent-gold-light);       /* Gold heading on purple */
+  color: var(--primary-purple-dark);
   font-size: 1.2rem;
   font-weight: 700;
 }
@@ -3215,12 +3059,12 @@ img {
 .session-card-body p {
   margin: var(--spacing-xs) 0;
   font-size: 0.95rem;
-  color: var(--white);                   /* White text on purple */
+  color: var(--black);
   font-weight: 500;
 }
 
 .session-card-body strong {
-  color: var(--accent-gold-light);       /* Light gold for labels */
+  color: var(--primary-purple-dark);
   margin-right: var(--spacing-xs);
   font-weight: 700;
 }
@@ -3255,11 +3099,540 @@ img {
   border: 2px solid var(--accent-gold);
 }
 
-
 /* ===================================
-   Legacy Theme Selectors Removed
-   Website now uses single dark theme
+   Dark Mode Specific Styles
    =================================== */
+[data-theme='dark'] .hero {
+  background: linear-gradient(135deg, #0a0a0a 0%, var(--primary-purple-dark) 100%);
+}
+
+[data-theme='dark'] .cta-section h2 {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .cta-section p {
+  color: var(--cream-white);
+}
+
+[data-theme='dark'] .cta-section .btn-primary {
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+  color: var(--black);
+  border: 2px solid var(--accent-gold);
+}
+
+[data-theme='dark'] .cta-section .btn-primary:hover {
+  background: linear-gradient(135deg, var(--accent-gold-light), var(--accent-gold));
+  color: var(--black);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(223, 208, 143, 0.5);
+}
+
+[data-theme='dark'] .page-header {
+  background: linear-gradient(135deg, #0a0a0a, var(--primary-purple-dark));
+}
+
+[data-theme='dark'] .footer {
+  background: linear-gradient(135deg, #0a0a0a, var(--primary-purple-dark));
+  border-top: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+[data-theme='dark'] .featured-work,
+[data-theme='dark'] .services-overview,
+[data-theme='dark'] .portfolio-page,
+[data-theme='dark'] .pricing-page,
+[data-theme='dark'] .about-page,
+[data-theme='dark'] .contact-page,
+[data-theme='dark'] .user-dashboard,
+[data-theme='dark'] .admin-dashboard {
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+}
+
+[data-theme='dark'] .shoot-meta {
+  background: var(--white);
+  border: 1px solid var(--light-gray);
+}
+
+[data-theme='dark'] .shoot-meta p {
+  color: var(--black);
+}
+
+[data-theme='dark'] .shoot-meta strong {
+  color: var(--accent-gold-dark);
+}
+
+[data-theme='dark'] .no-photos {
+  color: var(--primary-purple-dark);
+  font-weight: 600;
+}
+
+[data-theme='dark'] .section-title,
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] h4 {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .service-card,
+[data-theme='dark'] .pricing-card,
+[data-theme='dark'] .info-card,
+[data-theme='dark'] .booking-card,
+[data-theme='dark'] .stat-card,
+[data-theme='dark'] .form-card,
+[data-theme='dark'] .table-container,
+[data-theme='dark'] .upload-card,
+[data-theme='dark'] .portfolio-manage,
+[data-theme='dark'] .recent-activity,
+[data-theme='dark'] .contact-form,
+[data-theme='dark'] .contact-info-item,
+[data-theme='dark'] .addon-item,
+[data-theme='dark'] .equipment-section,
+[data-theme='dark'] .philosophy-item {
+  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+  color: var(--black);
+  border: 2px solid rgba(223, 208, 143, 0.3);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Stat Cards Specific Styling in Dark Mode */
+[data-theme='dark'] .stat-card {
+  background: linear-gradient(135deg, #f8f4ed 0%, #f0e9db 100%);
+  border: 2px solid rgba(78, 46, 58, 0.2);
+  border-left: 5px solid var(--primary-purple);
+}
+
+[data-theme='dark'] .stat-card.revenue {
+  border-left-color: var(--success);
+}
+
+[data-theme='dark'] .stat-card.expenses {
+  border-left-color: var(--error);
+}
+
+[data-theme='dark'] .stat-card.pending {
+  border-left-color: var(--warning);
+}
+
+[data-theme='dark'] .stat-card.profit {
+  border-left-color: var(--accent-gold);
+}
+
+[data-theme='dark'] .stat-card h3 {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .stat-value {
+  color: var(--primary-purple-dark);
+}
+
+/* Login/Register Pages - Keep Light Mode Appearance */
+[data-theme='dark'] .login-page,
+[data-theme='dark'] .register-page {
+  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
+}
+
+[data-theme='dark'] .login-card {
+  background: var(--white);
+  color: var(--black);
+  border: none;
+  box-shadow: var(--shadow-xl);
+}
+
+[data-theme='dark'] .login-title {
+  color: var(--primary-purple);
+}
+
+[data-theme='dark'] .login-subtitle {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .login-footer p {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .login-footer a,
+[data-theme='dark'] .login-footer p a {
+  color: var(--accent-gold);
+}
+
+[data-theme='dark'] .forgot-password {
+  color: var(--primary-purple);
+}
+
+[data-theme='dark'] .forgot-password:hover {
+  color: var(--accent-gold);
+}
+
+[data-theme='dark'] .demo-credentials {
+  background: var(--light-gray);
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .demo-credentials h4 {
+  color: var(--primary-purple);
+}
+
+[data-theme='dark'] .demo-credentials p {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .login-page .form-group input,
+[data-theme='dark'] .register-page .form-group input,
+[data-theme='dark'] .login-page .form-group select,
+[data-theme='dark'] .register-page .form-group select {
+  background: var(--white);
+  color: var(--black);
+  border: 1px solid var(--light-gray);
+}
+
+[data-theme='dark'] .login-page .form-group input::placeholder,
+[data-theme='dark'] .register-page .form-group input::placeholder {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .login-page .form-group label,
+[data-theme='dark'] .register-page .form-group label {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .login-page .error-message,
+[data-theme='dark'] .register-page .error-message {
+  color: var(--error);
+  background: rgba(220, 53, 69, 0.1);
+}
+
+[data-theme='dark'] .success-card {
+  background: var(--white);
+  color: var(--black);
+}
+
+[data-theme='dark'] .success-card h2 {
+  color: var(--primary-purple);
+}
+
+[data-theme='dark'] .success-card p {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .success-card .success-message {
+  color: var(--primary-purple);
+}
+
+[data-theme='dark'] .success-card .success-submessage {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .success-card .redirect-message {
+  color: var(--accent-gold-dark);
+}
+
+[data-theme='dark'] .login-page .btn-google,
+[data-theme='dark'] .register-page .btn-google {
+  background: white;
+  color: #444;
+  border: 1px solid #ddd;
+}
+
+[data-theme='dark'] .login-page .btn-google:hover,
+[data-theme='dark'] .register-page .btn-google:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
+}
+
+[data-theme='dark'] .login-page .divider,
+[data-theme='dark'] .register-page .divider {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .login-page .divider::before,
+[data-theme='dark'] .login-page .divider::after,
+[data-theme='dark'] .register-page .divider::before,
+[data-theme='dark'] .register-page .divider::after {
+  border-bottom-color: var(--light-gray);
+}
+
+[data-theme='dark'] .login-page .btn-primary,
+[data-theme='dark'] .register-page .btn-primary {
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-light));
+  color: var(--white);
+  border: none;
+}
+
+[data-theme='dark'] .login-page .btn-primary:hover,
+[data-theme='dark'] .register-page .btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
+  transform: translateY(-2px);
+}
+
+[data-theme='dark'] .form-group input,
+[data-theme='dark'] .form-group select,
+[data-theme='dark'] .form-group textarea {
+  background: var(--off-white);
+  color: var(--black);
+  border-color: var(--light-gray);
+}
+
+[data-theme='dark'] .form-group input::placeholder,
+[data-theme='dark'] .form-group textarea::placeholder {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .data-table thead {
+  background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+}
+
+[data-theme='dark'] .data-table th {
+  color: var(--accent-gold-light);
+  border-bottom: 2px solid var(--accent-gold);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+
+[data-theme='dark'] .data-table td {
+  color: var(--black);
+}
+
+[data-theme='dark'] .data-table tbody tr:hover {
+  background: var(--light-gray);
+}
+
+[data-theme='dark'] .activity-item {
+  background: var(--light-gray);
+}
+
+[data-theme='dark'] .activity-item:hover {
+  background: var(--off-white);
+}
+
+[data-theme='dark'] .tab-btn {
+  color: var(--gray);
+  border-bottom-color: transparent;
+}
+
+[data-theme='dark'] .tab-btn:hover {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .tab-btn.active {
+  color: var(--accent-gold-light);
+  border-bottom-color: var(--accent-gold);
+}
+
+[data-theme='dark'] .filter-btn {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .filter-btn:hover,
+[data-theme='dark'] .filter-btn.active {
+  background: var(--primary-purple);
+  color: var(--white);
+}
+
+[data-theme='dark'] .portfolio-overlay {
+  background: linear-gradient(to top, rgba(10, 10, 10, 0.95), transparent);
+}
+
+[data-theme='dark'] .demo-credentials {
+  background: var(--light-gray);
+}
+
+[data-theme='dark'] .btn-google {
+  background: var(--light-gray);
+  color: var(--dark-gray);
+  border-color: var(--dark-gray);
+}
+
+[data-theme='dark'] .btn-google:hover {
+  background: var(--off-white);
+  border-color: var(--accent-gold);
+}
+
+[data-theme='dark'] .divider::before,
+[data-theme='dark'] .divider::after {
+  border-bottom-color: var(--dark-gray);
+}
+
+[data-theme='dark'] .pending-icon {
+  background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+}
+
+[data-theme='dark'] .info-text,
+[data-theme='dark'] .section-subtitle,
+[data-theme='dark'] p {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .about-preview-text p,
+[data-theme='dark'] .about-text-section p,
+[data-theme='dark'] .philosophy-item p,
+[data-theme='dark'] .equipment-section p,
+[data-theme='dark'] .info-item p,
+[data-theme='dark'] .faq-item p,
+[data-theme='dark'] .service-card p,
+[data-theme='dark'] .featured-item p {
+  color: var(--gray);
+}
+
+[data-theme='dark'] .special-package-card {
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-light));
+  border: 1px solid var(--accent-gold);
+}
+
+[data-theme='dark'] .expense-summary {
+  background: linear-gradient(135deg, var(--accent-gold-dark), var(--accent-gold));
+}
+
+[data-theme='dark'] .experience-section {
+  background: linear-gradient(135deg, #0a0a0a, var(--primary-purple-dark));
+}
+
+[data-theme='dark'] .specialty-item h3 {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .social-media-section {
+  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
+  border: 1px solid var(--accent-gold);
+}
+
+[data-theme='dark'] .file-upload-area {
+  border-color: var(--accent-gold);
+  background: var(--off-white);
+}
+
+[data-theme='dark'] .file-upload-area:hover {
+  border-color: var(--accent-gold-light);
+  background: var(--light-gray);
+}
+
+[data-theme='dark'] .portfolio-admin-item {
+  background: var(--light-gray);
+}
+
+[data-theme='dark'] .booking-header {
+  border-bottom-color: var(--light-gray);
+}
+
+[data-theme='dark'] .info-row {
+  border-bottom-color: var(--light-gray);
+}
+
+
+/* Ensure buttons remain visible in dark mode */
+[data-theme='dark'] .btn-primary {
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-light));
+  color: var(--white);
+}
+
+[data-theme='dark'] .btn-secondary {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .btn-secondary:hover {
+  background: var(--accent-gold);
+  color: var(--white);
+}
+
+[data-theme='dark'] .btn-text {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .btn-text:hover {
+  color: var(--accent-gold);
+}
+
+[data-theme='dark'] .status-badge {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Pricing Management Dark Mode */
+[data-theme='dark'] .pricing-section {
+  background: var(--off-white);
+}
+
+[data-theme='dark'] .pricing-package-card {
+  background: var(--light-gray);
+  border-color: var(--dark-gray);
+}
+
+[data-theme='dark'] .pricing-package-card.recommended {
+  background: linear-gradient(135deg, rgba(223, 208, 143, 0.15), rgba(42, 42, 42, 1));
+  border-color: var(--accent-gold);
+}
+
+[data-theme='dark'] .pricing-package-card h3 {
+  color: var(--accent-gold);
+}
+
+[data-theme='dark'] .package-features-list li {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .addon-row {
+  background: var(--light-gray);
+  border-color: var(--dark-gray);
+}
+
+[data-theme='dark'] .addon-info h4 {
+  color: var(--accent-gold);
+}
+
+[data-theme='dark'] .checkbox-label {
+  color: var(--dark-gray);
+}
+
+/* Sessions Workflow Dark Mode */
+[data-theme='dark'] .session-section {
+  background: var(--off-white);
+}
+
+[data-theme='dark'] .session-section-title {
+  color: var(--accent-gold-light);
+}
+
+[data-theme='dark'] .session-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 100%);
+  border: 2px solid rgba(223, 208, 143, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .session-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  border-color: var(--accent-gold);
+}
+
+[data-theme='dark'] .session-card-header {
+  border-bottom-color: rgba(78, 46, 58, 0.15);
+}
+
+[data-theme='dark'] .session-card-header h4 {
+  color: var(--primary-purple-dark);
+}
+
+[data-theme='dark'] .session-card-body p {
+  color: var(--black);
+}
+
+[data-theme='dark'] .session-card-body strong {
+  color: var(--accent-gold-dark);
+}
+
+[data-theme='dark'] .session-card-actions {
+  border-top-color: rgba(78, 46, 58, 0.15);
+}
+
+[data-theme='dark'] .form-description {
+  color: var(--dark-gray);
+}
+
+[data-theme='dark'] .invoice-form {
+  border-color: var(--accent-gold);
+  background: var(--off-white);
+}
 
 /* ===================================
    Responsive Design
@@ -3798,7 +4171,7 @@ img {
 }
 
 .users-section h3 {
-  color: var(--primary-purple-dark);   /* Dark purple on cream background */
+  color: var(--primary-purple);
   margin-bottom: var(--spacing-lg);
   display: flex;
   align-items: center;

@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/images/logo.png'
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { isAuthenticated, isAdmin, logout } = useAuth()
-  const { theme, toggleTheme } = useTheme()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -43,17 +41,8 @@ const Navbar = () => {
           </div>
         </Link>
 
-        {/* Right side: Theme toggle & Hamburger menu */}
+        {/* Right side: Hamburger menu */}
         <div className="nav-right">
-          <button 
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-
           <button 
             className="mobile-menu-toggle"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

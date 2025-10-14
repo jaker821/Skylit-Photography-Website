@@ -183,11 +183,11 @@ const SessionDetail = () => {
           <div className="header-actions">
             {!editMode && (
               <button className="btn btn-primary" onClick={() => setEditMode(true)}>
-                ✏️ Edit
+                Edit
               </button>
             )}
             <button className="btn btn-danger" onClick={handleDelete}>
-              🗑️ Delete
+              Delete
             </button>
           </div>
         </div>
@@ -270,7 +270,7 @@ const SessionDetail = () => {
 
               <div className="form-actions">
                 <button className="btn btn-primary" onClick={handleUpdate}>
-                  💾 Save Changes
+                  Save Changes
                 </button>
                 <button className="btn btn-secondary" onClick={() => {
                   setEditMode(false)
@@ -287,7 +287,7 @@ const SessionDetail = () => {
             <div className="session-info-grid">
               {/* Client Information */}
               <div className="info-card">
-                <h3>👤 Client Information</h3>
+                <h3>Client Information</h3>
                 <div className="info-item">
                   <strong>Name:</strong>
                   <span>{session.name}</span>
@@ -304,7 +304,7 @@ const SessionDetail = () => {
 
               {/* Session Details */}
               <div className="info-card">
-                <h3>📸 Session Details</h3>
+                <h3>Session Details</h3>
                 <div className="info-item">
                   <strong>Session Type:</strong>
                   <span>{session.sessionType}</span>
@@ -321,7 +321,7 @@ const SessionDetail = () => {
 
               {/* Financial Information */}
               <div className="info-card">
-                <h3>💰 Financial Details</h3>
+                <h3>Financial Details</h3>
                 <div className="info-item">
                   <strong>Package:</strong>
                   <span>{session.package || 'Not specified'}</span>
@@ -340,14 +340,14 @@ const SessionDetail = () => {
             {/* Notes Section */}
             {session.notes && (
               <div className="notes-section">
-                <h3>📝 Notes</h3>
+                <h3>Notes</h3>
                 <p>{session.notes}</p>
               </div>
             )}
 
             {/* Status Actions */}
             <div className="status-actions-section">
-              <h3>🔄 Status Actions</h3>
+              <h3>Status Actions</h3>
               <div className="action-buttons">
                 {session.status === 'pending' && (
                   <>
@@ -355,13 +355,13 @@ const SessionDetail = () => {
                       className="btn btn-success"
                       onClick={() => handleStatusChange('booked')}
                     >
-                      ✅ Confirm & Book
+                      Confirm & Book
                     </button>
                     <button 
                       className="btn btn-warning"
                       onClick={() => handleStatusChange('quoted')}
                     >
-                      💵 Send Quote
+                      Send Quote
                     </button>
                   </>
                 )}
@@ -371,7 +371,7 @@ const SessionDetail = () => {
                     className="btn btn-success"
                     onClick={() => handleStatusChange('booked')}
                   >
-                    ✅ Client Approved - Book It
+                    Client Approved - Book It
                   </button>
                 )}
 
@@ -380,13 +380,13 @@ const SessionDetail = () => {
                     className="btn btn-primary"
                     onClick={handleCreateInvoice}
                   >
-                    📄 Create Invoice
+                    Create Invoice
                   </button>
                 )}
 
                 {session.status === 'invoiced' && (
                   <div className="invoiced-message">
-                    ✅ Session completed and invoiced
+                    Session completed and invoiced
                   </div>
                 )}
               </div>
@@ -394,10 +394,10 @@ const SessionDetail = () => {
 
             {/* Timeline */}
             <div className="timeline-section">
-              <h3>📅 Session Timeline</h3>
+              <h3>Session Timeline</h3>
               <div className="timeline">
                 <div className="timeline-item completed">
-                  <div className="timeline-marker">✓</div>
+                  <div className="timeline-marker"></div>
                   <div className="timeline-content">
                     <strong>Session Created</strong>
                     <span>{new Date(session.createdAt).toLocaleString()}</span>
@@ -406,7 +406,7 @@ const SessionDetail = () => {
 
                 {session.status !== 'pending' && (
                   <div className="timeline-item completed">
-                    <div className="timeline-marker">✓</div>
+                    <div className="timeline-marker"></div>
                     <div className="timeline-content">
                       <strong>
                         {session.status === 'quoted' ? 'Quote Sent' : 
@@ -420,7 +420,7 @@ const SessionDetail = () => {
 
                 {session.status === 'invoiced' && (
                   <div className="timeline-item completed">
-                    <div className="timeline-marker">✓</div>
+                    <div className="timeline-marker"></div>
                     <div className="timeline-content">
                       <strong>Invoice Created</strong>
                       <span>Session completed</span>

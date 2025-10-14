@@ -43,16 +43,17 @@
   margin-bottom: var(--spacing-xl);
 }
 
-.info-card {
-  background: var(--white);
+/* Override App.css purple cards for Session Detail page */
+.session-detail-page .info-card {
+  background: var(--white) !important;
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
   border: 1px solid rgba(78, 46, 58, 0.1);
 }
 
-.info-card h3 {
-  color: var(--primary-purple-dark);
+.session-detail-page .info-card h3 {
+  color: var(--primary-purple-dark) !important;
   margin-bottom: var(--spacing-lg);
   font-size: 1.3rem;
   border-bottom: 2px solid var(--accent-gold);
@@ -70,13 +71,13 @@
   border-bottom: none;
 }
 
-.info-item strong {
-  color: var(--dark-gray);
+.session-detail-page .info-item strong {
+  color: var(--dark-gray) !important;
   font-weight: 600;
 }
 
-.info-item span {
-  color: var(--black);
+.session-detail-page .info-item span {
+  color: var(--black) !important;
   text-align: right;
 }
 
@@ -86,8 +87,8 @@
   color: var(--accent-gold-dark);
 }
 
-.notes-section {
-  background: var(--white);
+.session-detail-page .notes-section {
+  background: var(--white) !important;
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
@@ -95,19 +96,19 @@
   margin-bottom: var(--spacing-xl);
 }
 
-.notes-section h3 {
-  color: var(--primary-purple-dark);
+.session-detail-page .notes-section h3 {
+  color: var(--primary-purple-dark) !important;
   margin-bottom: var(--spacing-md);
   font-size: 1.3rem;
 }
 
-.notes-section p {
-  color: var(--dark-gray);
+.session-detail-page .notes-section p {
+  color: var(--dark-gray) !important;
   line-height: 1.6;
 }
 
-.status-actions-section {
-  background: var(--white);
+.session-detail-page .status-actions-section {
+  background: var(--white) !important;
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
@@ -115,8 +116,8 @@
   margin-bottom: var(--spacing-xl);
 }
 
-.status-actions-section h3 {
-  color: var(--primary-purple-dark);
+.session-detail-page .status-actions-section h3 {
+  color: var(--primary-purple-dark) !important;
   margin-bottom: var(--spacing-lg);
   font-size: 1.3rem;
 }
@@ -137,8 +138,8 @@
   border: 2px solid var(--success);
 }
 
-.timeline-section {
-  background: var(--white);
+.session-detail-page .timeline-section {
+  background: var(--white) !important;
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: 0 4px 12px rgba(78, 46, 58, 0.15);
@@ -146,8 +147,8 @@
   margin-bottom: var(--spacing-xl);
 }
 
-.timeline-section h3 {
-  color: var(--primary-purple-dark);
+.session-detail-page .timeline-section h3 {
+  color: var(--primary-purple-dark) !important;
   margin-bottom: var(--spacing-lg);
   font-size: 1.3rem;
 }
@@ -199,20 +200,52 @@
   color: var(--white);
 }
 
-.timeline-content strong {
+.session-detail-page .timeline-content strong {
   display: block;
-  color: var(--primary-purple-dark);
+  color: var(--primary-purple-dark) !important;
   font-size: 1.1rem;
   margin-bottom: var(--spacing-xs);
 }
 
-.timeline-content span {
-  color: var(--gray);
+.session-detail-page .timeline-content span {
+  color: var(--gray) !important;
   font-size: 0.9rem;
 }
 
 .session-edit-form {
   margin-top: var(--spacing-xl);
+}
+
+/* Override App.css for form-card in Session Detail */
+.session-detail-page .form-card {
+  background: var(--white) !important;
+  border: 1px solid rgba(78, 46, 58, 0.1) !important;
+}
+
+.session-detail-page .form-card h3 {
+  color: var(--primary-purple-dark) !important;
+}
+
+.session-detail-page .form-card label {
+  color: var(--primary-purple) !important;
+}
+
+.session-detail-page .form-card input,
+.session-detail-page .form-card textarea,
+.session-detail-page .form-card select {
+  background: var(--cream-white) !important;
+  color: var(--black) !important;
+  border: 2px solid var(--accent-gold-dark) !important;
+  box-shadow: 0 2px 8px rgba(78, 46, 58, 0.1);
+  transition: all var(--transition-normal);
+}
+
+.session-detail-page .form-card input:focus,
+.session-detail-page .form-card textarea:focus,
+.session-detail-page .form-card select:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 4px 12px rgba(196, 181, 107, 0.3);
+  outline: none;
 }
 
 .form-actions {

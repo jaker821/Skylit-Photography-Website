@@ -1,99 +1,109 @@
-# Color Customization Guide
+# Color Guide - Skylit Photography
 
-## Current Color Scheme
+## Single Dark Theme Color Scheme
 
-The website currently uses placeholder colors for the dark purple and gold theme. When you provide the exact RGB color codes, update the CSS variables in `src/App.css`.
+The website now uses a single, unified dark color scheme featuring purple, gold, cream, and black.
 
-## Where to Update Colors
+## Color Palette
 
-Open `src/App.css` and find the `:root` section at the top of the file (around line 6-20).
+### Primary Colors
 
-### Current Placeholder Colors
+**Purple**
+- `--primary-purple: #4E2E3A` - RGB(78, 46, 58) - Main purple
+- `--primary-purple-dark: #3A2229` - Darker variation
+- `--primary-purple-light: #6B4051` - Lighter variation
+- `--primary-purple-lighter: #8A5A6F` - Even lighter variation
 
+**Gold**
+- `--accent-gold: #DFD08F` - RGB(223, 208, 143) - Main gold
+- `--accent-gold-dark: #C4B56B` - Darker variation
+- `--accent-gold-light: #EBE0B3` - Lighter variation
+- `--accent-gold-lighter: #F3ECCE` - Even lighter variation
+
+**Cream**
+- `--cream-white: #F8EEDB` - RGB(248, 238, 219) - Main cream color
+- `--cream-white-dark: #F0E4C8` - Slightly darker cream
+
+### Dark Theme Colors
+
+**Backgrounds**
+- `--background-dark: #1a1a1a` - Main dark background
+- `--background-darker: #0f0f0f` - Darker sections
+- `--card-background: #2a2a2a` - Card backgrounds
+- `--card-background-light: #353535` - Lighter card backgrounds
+
+**Text**
+- `--text-primary: #F8EEDB` - Primary text (cream)
+- `--text-secondary: #b0b0b0` - Secondary text
+- `--text-dark: #1a1a1a` - For use on light backgrounds
+
+**Borders**
+- `--border-color: rgba(223, 208, 143, 0.2)` - Gold-tinted borders
+
+### Semantic Colors
+
+- `--success: #4caf50` - Success states
+- `--warning: #ff9800` - Warning states
+- `--error: #f44336` - Error states
+- `--info: #2196f3` - Info states
+
+## Color Usage
+
+### Headings
+- Color: `--accent-gold-light` (#EBE0B3)
+- Stand out against dark backgrounds
+
+### Body Text
+- Primary: `--text-primary` (cream #F8EEDB)
+- Secondary: `--text-secondary` (gray #b0b0b0)
+
+### Buttons
+- Primary: Purple gradient background with gold accents
+- Secondary: Gold background with dark text
+- Hover: Enhanced gold glow
+
+### Cards & Containers
+- Background: `--card-background` (#2a2a2a)
+- Border: `--border-color` (gold-tinted)
+- Hover: Gold border highlight
+
+### Navigation
+- Background: Dark with transparency
+- Links: Cream text
+- Active/Hover: Gold highlights
+- Logo: Gold gradient
+
+### Forms
+- Background: `--card-background-light`
+- Labels: Gold
+- Borders: Gold-tinted
+- Focus: Gold accent
+
+## Accessibility
+
+All color combinations meet WCAG AA standards:
+- Text contrast ratio: Minimum 4.5:1
+- Large text: Minimum 3:1
+- Interactive elements: Clearly distinguishable
+
+## Where Colors Are Defined
+
+All colors are CSS variables defined in `src/App.css` at the `:root` level (lines 6-46).
+
+## Updating Colors
+
+To change the color scheme:
+
+1. Open `src/App.css`
+2. Find the `:root` section
+3. Update the CSS variable values
+4. Save and refresh - all changes apply site-wide!
+
+Example:
 ```css
 :root {
-  /* Primary Colors - Dark Purple */
-  --primary-purple: #3d1a52;           /* Main purple color */
-  --primary-purple-dark: #2b1139;      /* Darker shade for backgrounds */
-  --primary-purple-light: #5a2772;     /* Lighter shade for accents */
-  --primary-purple-lighter: #7c3b96;   /* Even lighter for hover states */
-  
-  /* Accent Colors - Gold */
-  --accent-gold: #d4af37;              /* Main gold color */
-  --accent-gold-dark: #b8941f;         /* Darker gold for contrast */
-  --accent-gold-light: #f0d86d;        /* Lighter gold for highlights */
-  --accent-gold-lighter: #f8e9a8;      /* Even lighter for backgrounds */
+  --accent-gold: #YOUR_NEW_COLOR;
 }
 ```
 
-## How to Convert RGB to Hex
-
-If you receive RGB values like `rgb(61, 26, 82)`, you can convert to hex:
-
-**Option 1: Online Converter**
-- Visit: https://www.rgbtohex.net/
-- Enter your RGB values
-- Copy the hex code
-
-**Option 2: Manual Calculation**
-- RGB(61, 26, 82) = #3D1A52
-- Each RGB value converts to two hex digits
-
-## Example Update
-
-If you receive:
-- **Dark Purple**: RGB(75, 30, 95) 
-- **Gold**: RGB(218, 165, 32)
-
-Update the CSS to:
-```css
-:root {
-  --primary-purple: #4b1e5f;
-  --accent-gold: #daa520;
-}
-```
-
-For the lighter and darker variations, you can:
-1. Use an online tool: https://coolors.co/
-2. Or I can generate them for you once you provide the main colors
-
-## Where Colors Are Used
-
-### Primary Purple
-- Navigation bar active links
-- Headings and titles
-- Buttons and CTAs
-- Footer background
-- Page headers
-
-### Gold
-- Logo gradient
-- Accent highlights
-- Button borders
-- Links on hover
-- Badge backgrounds
-
-## Need Help?
-
-Once you provide the RGB codes, I can:
-1. Generate all the color variations (light/dark shades)
-2. Update the entire color scheme automatically
-3. Ensure proper contrast for accessibility
-
-Just provide the colors in any format:
-- RGB: rgb(R, G, B)
-- Hex: #RRGGBB
-- Or even just a description/color name
-
-## Quick Reference
-
-**Files to update:**
-- `src/App.css` - Line 6-20 (main color variables)
-
-**After updating:**
-1. Save the file
-2. Refresh your browser
-3. The entire site will update with new colors automatically!
-
-All colors are controlled by CSS variables, so changing them once updates the entire website. 🎨
-
+The entire website will update automatically since all styles use these CSS variables.
