@@ -1623,21 +1623,28 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete }) => {
       </div>
       
       <div className="photos-grid">
-        {shoot.photos.map(photo => (
-          <div key={photo.id} className="photo-item">
-            <img src={`http://localhost:5000${photo.url}`} alt={photo.originalName} />
-            <button 
-              className="delete-photo-btn"
-              onClick={() => {
-                if (window.confirm('Delete this photo?')) {
-                  onPhotoDelete(photo.id)
-                }
-              }}
-            >
-              ×
-            </button>
-          </div>
-        ))}
+        {shoot.photos.map(photo => {
+          // Handle both Spaces URLs (full CDN URLs) and local URLs
+          const photoSrc = photo.url.startsWith('http') 
+            ? photo.url  // Spaces CDN URL - use as-is
+            : `${API_URL.replace('/api', '')}${photo.url}`; // Local URL - prepend server URL
+          
+          return (
+            <div key={photo.id} className="photo-item">
+              <img src={photoSrc} alt={photo.originalName} />
+              <button 
+                className="delete-photo-btn"
+                onClick={() => {
+                  if (window.confirm('Delete this photo?')) {
+                    onPhotoDelete(photo.id)
+                  }
+                }}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       </div>
       
       {shoot.photos.length === 0 && (

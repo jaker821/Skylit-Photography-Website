@@ -170,7 +170,7 @@ if (SPACES_ENABLED) {
   storage = multerS3({
     s3: s3Client,
     bucket: process.env.SPACES_BUCKET,
-    // Note: Removed ACL setting - bucket-level permissions will apply
+    acl: 'public-read', // Make uploaded files publicly readable
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req, file, cb) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);

@@ -96,29 +96,36 @@ const Portfolio = () => {
             </div>
           ) : (
             filteredShoots.map((shoot) => 
-              shoot.photos.map((photo, photoIndex) => (
-                <div 
-                  key={`${shoot.id}-${photo.id}`} 
-                  className="portfolio-item"
-                  style={{ animationDelay: `${photoIndex * 0.05}s` }}
-                >
-                  <div className="portfolio-image-container">
-                    <img 
-                      src={`${API_URL.replace('/api', '')}${photo.url}`} 
-                      alt={`${shoot.title} - Photo ${photoIndex + 1}`}
-                      className="portfolio-image"
-                      loading="lazy"
-                    />
-                    <div className="portfolio-overlay">
-                      <h3>{shoot.title}</h3>
-                      <p>{shoot.category}</p>
-                      {shoot.date && (
-                        <p className="shoot-date">{new Date(shoot.date).toLocaleDateString()}</p>
-                      )}
+              shoot.photos.map((photo, photoIndex) => {
+                // Handle both Spaces URLs (full CDN URLs) and local URLs
+                const photoSrc = photo.url.startsWith('http') 
+                  ? photo.url  // Spaces CDN URL - use as-is
+                  : `${API_URL.replace('/api', '')}${photo.url}`; // Local URL - prepend server URL
+                
+                return (
+                  <div 
+                    key={`${shoot.id}-${photo.id}`} 
+                    className="portfolio-item"
+                    style={{ animationDelay: `${photoIndex * 0.05}s` }}
+                  >
+                    <div className="portfolio-image-container">
+                      <img 
+                        src={photoSrc} 
+                        alt={`${shoot.title} - Photo ${photoIndex + 1}`}
+                        className="portfolio-image"
+                        loading="lazy"
+                      />
+                      <div className="portfolio-overlay">
+                        <h3>{shoot.title}</h3>
+                        <p>{shoot.category}</p>
+                        {shoot.date && (
+                          <p className="shoot-date">{new Date(shoot.date).toLocaleDateString()}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )
           )}
         </div>

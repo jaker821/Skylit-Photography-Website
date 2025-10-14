@@ -49,10 +49,11 @@ CDN URL:   https://skylit-photography.nyc3.cdn.digitaloceanspaces.com
 
 ### 2.1 Generate Spaces Access Keys
 
-1. Go to **API** → **Spaces Keys** (left sidebar)
-2. Click **"Generate New Key"**
-3. **Name:** `skylit-photography-upload-key`
-4. Click **"Generate Key"**
+1. In the left sidebar, click **Spaces Object Storage**
+2. Click the **"Access Keys"** tab (or **"Manage Keys"**)
+3. Click **"Generate New Key"**
+4. **Name:** `skylit-photography-upload-key`
+5. Click **"Generate Key"**
 
 ### 2.2 Save Your Credentials
 

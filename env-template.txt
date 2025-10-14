@@ -1,0 +1,62 @@
+# ===================================
+# Copy this file to .env and fill in your actual values
+# ===================================
+
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# Session Secret (generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+SESSION_SECRET=your_random_session_secret_here
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+
+# ===================================
+# DigitalOcean Spaces Configuration
+# IMPORTANT: Replace ALL values below with your actual Spaces credentials
+# ===================================
+
+# The endpoint for your Space region
+# Examples: nyc3.digitaloceanspaces.com, sfo3.digitaloceanspaces.com, sgp1.digitaloceanspaces.com
+SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
+
+# Your Space region (must match the endpoint)
+# Examples: nyc3, sfo3, sgp1, fra1, ams3, lon1
+SPACES_REGION=nyc3
+
+# Your Space name (bucket name)
+# Find this in: https://cloud.digitalocean.com/spaces
+SPACES_BUCKET=your-bucket-name-here
+
+# Your Spaces Access Key
+# Find/create in: https://cloud.digitalocean.com/account/api/spaces
+# Starts with DO00...
+SPACES_ACCESS_KEY=your-access-key-here
+
+# Your Spaces Secret Key
+# Generated when you create the Access Key (only shown once!)
+SPACES_SECRET_KEY=your-secret-key-here
+
+# Your CDN URL
+# Format: https://[bucket-name].[region].cdn.digitaloceanspaces.com
+# Find in your Space settings
+SPACES_CDN_URL=https://your-bucket-name.nyc3.cdn.digitaloceanspaces.com
+
+# ===================================
+# EXAMPLE with real format (NOT real credentials):
+# ===================================
+# SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
+# SPACES_REGION=nyc3
+# SPACES_BUCKET=skylit-photography-2024
+# SPACES_ACCESS_KEY=DO00ABC123XYZ456789
+# SPACES_SECRET_KEY=aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789
+# SPACES_CDN_URL=https://skylit-photography-2024.nyc3.cdn.digitaloceanspaces.com
+
+# ===================================
+# Optional: Google OAuth (Currently disabled by default)
+# ===================================
+# GOOGLE_CLIENT_ID=your_google_client_id_here
+# GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+# GOOGLE_CALLBACK_URL=http://localhost:5000/api/auth/google/callback
+
