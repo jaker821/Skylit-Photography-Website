@@ -282,9 +282,15 @@ const AdminDashboard = () => {
       
       if (response.ok) {
         await fetchShoots()
+        alert('Photos uploaded successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Upload failed: ${error.error || 'Unknown error'}`)
+        console.error('Upload error:', error)
       }
     } catch (error) {
       console.error('Error uploading photos:', error)
+      alert('Network error uploading photos. Check console for details.')
     }
   }
 

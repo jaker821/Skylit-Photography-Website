@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/images/logo.png'
@@ -10,6 +10,7 @@ const Navbar = () => {
   const { isAuthenticated, isAdmin, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,6 +23,8 @@ const Navbar = () => {
   const handleLogout = () => {
     logout()
     setMobileMenuOpen(false)
+    navigate('/')
+    window.scrollTo(0, 0)
   }
 
   const closeMobileMenu = () => {
