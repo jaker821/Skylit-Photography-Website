@@ -34,8 +34,12 @@ class Database {
       `CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT,
         phone TEXT,
+        name TEXT,
+        google_id TEXT UNIQUE,
+        profile_picture TEXT,
+        auth_method TEXT DEFAULT 'local',
         role TEXT DEFAULT 'user',
         status TEXT DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -166,6 +170,28 @@ class Database {
       } else {
         console.error('Error adding phone column:', error);
         throw error;
+      }
+    }
+
+    // Add Google OAuth fields if they don't exist
+    const newFields = [
+      { name: 'name', type: 'TEXT' },
+      { name: 'google_id', type: 'TEXT UNIQUE' },
+      { name: 'profile_picture', type: 'TEXT' },
+      { name: 'auth_method', type: 'TEXT DEFAULT "local"' }
+    ];
+
+    for (const field of newFields) {
+      try {
+        await this.run(`ALTER TABLE users ADD COLUMN ${field.name} ${field.type}`);
+        console.log(`📱 Added ${field.name} column to users table`);
+      } catch (error) {
+        if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
+          console.log(`📱 ${field.name} column already exists, skipping...`);
+        } else {
+          console.error(`Error adding ${field.name} column:`, error);
+          throw error;
+        }
       }
     }
   }

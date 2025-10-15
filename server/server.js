@@ -68,8 +68,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
   try {
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.id === id);
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [id]);
     done(null, user);
   } catch (error) {
     done(error, null);
@@ -88,38 +87,41 @@ if (GOOGLE_OAUTH_ENABLED) {
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      const usersData = await readJSONFile(USERS_FILE);
-      
       // Check if user already exists by Google ID
-      let user = usersData.users.find(u => u.googleId === profile.id);
+      let user = await db.get('SELECT * FROM users WHERE google_id = ?', [profile.id]);
       
       if (!user) {
         // Check if user exists by email
-        user = usersData.users.find(u => u.email === profile.emails[0].value);
+        user = await db.get('SELECT * FROM users WHERE email = ?', [profile.emails[0].value]);
         
         if (user) {
           // Link Google account to existing user
-          user.googleId = profile.id;
-          user.profilePicture = profile.photos[0]?.value;
-          await writeJSONFile(USERS_FILE, usersData);
+          await db.run(
+            'UPDATE users SET google_id = ?, profile_picture = ?, updated_at = ? WHERE id = ?',
+            [profile.id, profile.photos[0]?.value || '', new Date().toISOString(), user.id]
+          );
+          user.google_id = profile.id;
+          user.profile_picture = profile.photos[0]?.value;
         } else {
           // Create new user with pending status
-          const newUser = {
-            id: Date.now().toString(),
-            googleId: profile.id,
-            name: profile.displayName,
-            email: profile.emails[0].value,
-            profilePicture: profile.photos[0]?.value,
-            phone: '', // Will need to be added later
-            role: 'user',
-            status: 'pending', // Requires admin approval
-            createdAt: new Date().toISOString(),
-            authMethod: 'google'
-          };
+          const result = await db.run(
+            `INSERT INTO users (google_id, name, email, profile_picture, phone, role, status, auth_method, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              profile.id,
+              profile.displayName,
+              profile.emails[0].value,
+              profile.photos[0]?.value || '',
+              '',
+              'user',
+              'pending',
+              'google',
+              new Date().toISOString(),
+              new Date().toISOString()
+            ]
+          );
           
-          usersData.users.push(newUser);
-          await writeJSONFile(USERS_FILE, usersData);
-          user = newUser;
+          user = await db.get('SELECT * FROM users WHERE id = ?', [result.id]);
         }
       }
       
@@ -776,10 +778,12 @@ app.post('/api/pricing/packages', requireAdmin, async (req, res) => {
 app.delete('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
   try {
     const packageId = parseInt(req.params.id);
-    const pricingData = await readJSONFile(PRICING_FILE);
 
-    pricingData.packages = pricingData.packages.filter(p => p.id !== packageId);
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const result = await db.run('DELETE FROM pricing_packages WHERE id = ?', [packageId]);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Package not found' });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -792,19 +796,20 @@ app.delete('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
 app.put('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
   try {
     const addonId = parseInt(req.params.id);
-    const updatedAddon = req.body;
+    const { name, description, price } = req.body;
 
-    const pricingData = await readJSONFile(PRICING_FILE);
-    const addonIndex = pricingData.addOns.findIndex(a => a.id === addonId);
+    const result = await db.run(
+      'UPDATE pricing_addons SET name = ?, description = ?, price = ?, updated_at = ? WHERE id = ?',
+      [name, description, price, new Date().toISOString(), addonId]
+    );
 
-    if (addonIndex === -1) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Add-on not found' });
     }
 
-    pricingData.addOns[addonIndex] = { ...pricingData.addOns[addonIndex], ...updatedAddon };
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const updatedAddon = await db.get('SELECT * FROM pricing_addons WHERE id = ?', [addonId]);
 
-    res.json({ success: true, addon: pricingData.addOns[addonIndex] });
+    res.json({ success: true, addon: updatedAddon });
   } catch (error) {
     console.error('Update add-on error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -814,15 +819,15 @@ app.put('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
 // Add add-on (admin only)
 app.post('/api/pricing/addons', requireAdmin, async (req, res) => {
   try {
-    const newAddon = req.body;
-    const pricingData = await readJSONFile(PRICING_FILE);
+    const { name, description, price } = req.body;
 
-    // Generate new ID
-    const maxId = Math.max(...pricingData.addOns.map(a => a.id), 0);
-    newAddon.id = maxId + 1;
+    const result = await db.run(
+      `INSERT INTO pricing_addons (name, description, price, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [name, description, price, new Date().toISOString(), new Date().toISOString()]
+    );
 
-    pricingData.addOns.push(newAddon);
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const newAddon = await db.get('SELECT * FROM pricing_addons WHERE id = ?', [result.id]);
 
     res.json({ success: true, addon: newAddon });
   } catch (error) {
@@ -835,10 +840,12 @@ app.post('/api/pricing/addons', requireAdmin, async (req, res) => {
 app.delete('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
   try {
     const addonId = parseInt(req.params.id);
-    const pricingData = await readJSONFile(PRICING_FILE);
 
-    pricingData.addOns = pricingData.addOns.filter(a => a.id !== addonId);
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const result = await db.run('DELETE FROM pricing_addons WHERE id = ?', [addonId]);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Add-on not found' });
+    }
 
     res.json({ success: true });
   } catch (error) {
@@ -858,12 +865,23 @@ app.get('/api/bookings', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
+    let bookings;
     
-    // Admin sees all bookings, users see only their own
-    const bookings = req.session.userRole === 'admin'
-      ? bookingsData.bookings
-      : bookingsData.bookings.filter(b => b.userId === req.session.userId);
+    if (req.session.userRole === 'admin') {
+      // Admin sees all bookings
+      bookings = await db.all(`
+        SELECT b.*, u.email as user_email, u.name as user_name
+        FROM bookings b
+        LEFT JOIN users u ON b.user_id = u.id
+        ORDER BY b.created_at DESC
+      `);
+    } else {
+      // Users see only their own bookings
+      bookings = await db.all(
+        'SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC',
+        [req.session.userId]
+      );
+    }
     
     res.json({ bookings });
   } catch (error) {
@@ -876,9 +894,8 @@ app.get('/api/bookings', async (req, res) => {
 app.get('/api/bookings/:id', requireAdmin, async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
     
-    const booking = bookingsData.bookings.find(b => b.id === bookingId);
+    const booking = await db.get('SELECT * FROM bookings WHERE id = ?', [bookingId]);
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -1210,6 +1227,8 @@ app.delete('/api/expenses/:id', requireAdmin, async (req, res) => {
 // Get all shoots and categories
 app.get('/api/portfolio', async (req, res) => {
   try {
+    console.log('📸 Portfolio request received');
+    
     // Get all shoots with their photos
     const shoots = await db.all(`
       SELECT s.*, 
@@ -1234,16 +1253,21 @@ app.get('/api/portfolio', async (req, res) => {
       ORDER BY s.created_at DESC
     `);
 
+    console.log(`📸 Found ${shoots.length} shoots in database`);
+
     // Get all categories
     const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
+    console.log(`📸 Found ${categories.length} categories in database`);
 
     // Process shoots to parse JSON fields
     const processedShoots = shoots.map(shoot => ({
       ...shoot,
       authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
       downloadStats: db.parseJSONField(shoot.download_stats) || {},
-      photos: db.parseJSONField(shoot.photos) || []
+      photos: shoot.photos ? JSON.parse(shoot.photos) : []
     }));
+
+    console.log('📸 Portfolio data processed successfully');
 
     res.json({
       shoots: processedShoots,
@@ -1307,15 +1331,20 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
 app.get('/api/portfolio/shoots/:id', async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
+    console.log(`📸 Single shoot request for ID: ${shootId}`);
     
     // Get shoot from database
     const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     if (!shoot) {
+      console.log(`📸 Shoot ${shootId} not found`);
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
+    console.log(`📸 Found shoot: ${shoot.title}`);
+    
     // Get photos for this shoot
     const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? ORDER BY uploaded_at DESC', [shootId]);
+    console.log(`📸 Found ${photos.length} photos for shoot ${shootId}`);
     
     // Format response to match expected structure
     const shootData = {
@@ -1343,6 +1372,7 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
       updatedAt: shoot.updated_at
     };
     
+    console.log(`📸 Returning shoot data for: ${shoot.title}`);
     res.json(shootData);
   } catch (error) {
     console.error('Get shoot error:', error);
