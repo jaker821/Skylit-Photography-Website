@@ -2367,6 +2367,65 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // ===================================
+// Admin Recovery Routes
+// ===================================
+
+// Emergency admin recovery endpoint (only works if no admin exists)
+app.post('/api/admin/recover', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+    
+    // Check if any admin users exist
+    const adminCount = await db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
+    
+    if (adminCount.count > 0) {
+      return res.status(403).json({ 
+        error: 'Admin recovery not available - admin users already exist',
+        message: 'This endpoint is only available when no admin users exist'
+      });
+    }
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Check if user exists
+    const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (existingUser) {
+      // Update existing user to admin
+      await db.run(
+        'UPDATE users SET password_hash = ?, role = ?, status = ?, updated_at = ? WHERE email = ?',
+        [hashedPassword, 'admin', 'approved', new Date().toISOString(), email]
+      );
+      
+      console.log(`🔧 Admin recovery: Promoted existing user ${email} to admin`);
+    } else {
+      // Create new admin user
+      await db.run(
+        `INSERT INTO users (email, password_hash, role, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [email, hashedPassword, 'admin', 'approved', new Date().toISOString(), new Date().toISOString()]
+      );
+      
+      console.log(`🔧 Admin recovery: Created new admin user ${email}`);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Admin account created/updated successfully',
+      email: email
+    });
+  } catch (error) {
+    console.error('Admin recovery error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
 // Start Server
 // ===================================
 
@@ -2393,10 +2452,10 @@ async function startServer() {
       
       console.log('✅ Migration completed');
     } else {
-      // Create default admin if no users exist
-      const adminCount = await db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
-      if (adminCount.count === 0) {
-        console.log('⚠️  No admin users found - creating default admin account');
+      // Only create default admin if NO users exist at all (not just no admin users)
+      const userCount = await db.get('SELECT COUNT(*) as count FROM users');
+      if (userCount.count === 0) {
+        console.log('⚠️  No users found - creating default admin account');
         
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@skylit.com';
         const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
@@ -2419,6 +2478,17 @@ async function startServer() {
         console.log(`📧 Email: ${adminEmail}`);
         console.log(`🔑 Password: ${adminPassword}`);
         console.log('⚠️  Please change this password after first login!');
+      } else {
+        console.log(`✅ Found ${userCount.count} existing users in database`);
+        
+        // Check if there are any admin users
+        const adminCount = await db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin']);
+        if (adminCount.count === 0) {
+          console.log('⚠️  WARNING: No admin users found in database');
+          console.log('   You may need to promote a user to admin or create a new admin account');
+        } else {
+          console.log(`✅ Found ${adminCount.count} admin user(s)`);
+        }
       }
       
       // Initialize pricing categories
