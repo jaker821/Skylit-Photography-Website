@@ -34,8 +34,9 @@ const Navbar = () => {
       <div className="nav-container">
         {/* Logo */}
         <Link to="/" className="logo" onClick={closeMobileMenu}>
+          <img src={logo} alt="Skylit Photography Logo" className="logo-image" />
           <div className="logo-text-container">
-            <span className="logo-text">📸 Skylit Photography</span>
+            <span className="logo-text">Skylit Photography</span>
             <span className="logo-subtitle">by Alina Suedbeck</span>
           </div>
         </Link>
