@@ -8,6 +8,27 @@ const Profile = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState(null)
+
+  // Helper function to format phone number
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return ''
+    
+    // Remove all non-digit characters
+    const digits = phone.replace(/\D/g, '')
+    
+    // If we have 10 digits, format as (xxx)xxx-xxxx
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6)}`
+    }
+    
+    // If we have 11 digits and starts with 1, format as (xxx)xxx-xxxx
+    if (digits.length === 11 && digits[0] === '1') {
+      return `(${digits.slice(1, 4)})${digits.slice(4, 7)}-${digits.slice(7)}`
+    }
+    
+    // Return original if it doesn't match expected patterns
+    return phone
+  }
   
   // Form states
   const [emailForm, setEmailForm] = useState({ email: '' })
@@ -354,7 +375,10 @@ const Profile = () => {
                     type="tel"
                     id="phone"
                     value={phoneForm.phone}
-                    onChange={(e) => setPhoneForm({ phone: e.target.value })}
+                    onChange={(e) => {
+                      const formatted = formatPhoneNumber(e.target.value)
+                      setPhoneForm({ phone: formatted })
+                    }}
                     placeholder="(555) 123-4567"
                   />
                 </div>

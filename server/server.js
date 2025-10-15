@@ -503,16 +503,20 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
+    // Format the phone number
+    const formattedPhone = formatPhoneNumber(phone);
+
     // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user with pending approval status
     const result = await db.run(
-      `INSERT INTO users (email, password_hash, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (email, password_hash, phone, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         email,
         hashedPassword,
+        formattedPhone,
         'user',
         'pending',
         new Date().toISOString(),
@@ -648,8 +652,20 @@ app.get('/api/auth/session', async (req, res) => {
 // Get all pricing data
 app.get('/api/pricing', async (req, res) => {
   try {
-    const pricingData = await readJSONFile(PRICING_FILE);
-    res.json(pricingData);
+    // Get categories from database
+    const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
+    
+    // Get packages from database
+    const packages = await db.all('SELECT * FROM pricing_packages ORDER BY id');
+    
+    // Get addons from database
+    const addOns = await db.all('SELECT * FROM pricing_addons ORDER BY id');
+    
+    res.json({
+      categories: categories.map(c => c.name),
+      packages: packages,
+      addOns: addOns
+    });
   } catch (error) {
     console.error('Get pricing error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -692,19 +708,29 @@ function requireAdmin(req, res, next) {
 app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
   try {
     const packageId = parseInt(req.params.id);
-    const updatedPackage = req.body;
+    const { name, description, price, features } = req.body;
 
-    const pricingData = await readJSONFile(PRICING_FILE);
-    const packageIndex = pricingData.packages.findIndex(p => p.id === packageId);
+    const result = await db.run(
+      `UPDATE pricing_packages 
+       SET name = ?, description = ?, price = ?, features = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        name,
+        description,
+        price,
+        db.stringifyJSONField(features || []),
+        new Date().toISOString(),
+        packageId
+      ]
+    );
 
-    if (packageIndex === -1) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Package not found' });
     }
 
-    pricingData.packages[packageIndex] = { ...pricingData.packages[packageIndex], ...updatedPackage };
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const updatedPackage = await db.get('SELECT * FROM pricing_packages WHERE id = ?', [packageId]);
 
-    res.json({ success: true, package: pricingData.packages[packageIndex] });
+    res.json({ success: true, package: updatedPackage });
   } catch (error) {
     console.error('Update package error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -714,15 +740,30 @@ app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
 // Add package (admin only)
 app.post('/api/pricing/packages', requireAdmin, async (req, res) => {
   try {
-    const newPackage = req.body;
-    const pricingData = await readJSONFile(PRICING_FILE);
+    const { name, description, price, features } = req.body;
 
-    // Generate new ID
-    const maxId = Math.max(...pricingData.packages.map(p => p.id), 0);
-    newPackage.id = maxId + 1;
+    const result = await db.run(
+      `INSERT INTO pricing_packages (name, description, price, features, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        description,
+        price,
+        db.stringifyJSONField(features || []),
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
 
-    pricingData.packages.push(newPackage);
-    await writeJSONFile(PRICING_FILE, pricingData);
+    const newPackage = {
+      id: result.id,
+      name,
+      description,
+      price,
+      features: features || [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     res.json({ success: true, package: newPackage });
   } catch (error) {
@@ -1218,13 +1259,44 @@ app.get('/api/portfolio', async (req, res) => {
 app.get('/api/portfolio/category/:category', async (req, res) => {
   try {
     const category = req.params.category;
-    const shootsData = await readJSONFile(SHOOTS_FILE);
     
-    const filteredShoots = category === 'all' 
-      ? shootsData.shoots 
-      : shootsData.shoots.filter(shoot => shoot.category.toLowerCase() === category.toLowerCase());
+    let shoots;
+    if (category === 'all') {
+      shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+    } else {
+      shoots = await db.all('SELECT * FROM shoots WHERE LOWER(category) = LOWER(?) ORDER BY created_at DESC', [category]);
+    }
     
-    res.json({ shoots: filteredShoots });
+    // Get photos for each shoot
+    const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
+      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      return {
+        id: shoot.id,
+        title: shoot.title,
+        description: shoot.description,
+        category: shoot.category,
+        date: shoot.date,
+        photos: photos.map(photo => ({
+          id: photo.id,
+          original_name: photo.original_name,
+          filename: photo.filename,
+          display_url: photo.display_url,
+          download_url: photo.download_url,
+          display_key: photo.display_key,
+          download_key: photo.download_key,
+          original_size: photo.original_size,
+          compressed_size: photo.compressed_size,
+          has_high_res: photo.has_high_res,
+          uploaded_at: photo.uploaded_at
+        })),
+        authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
+        downloadStats: db.parseJSONField(shoot.download_stats) || {},
+        createdAt: shoot.created_at,
+        updatedAt: shoot.updated_at
+      };
+    }));
+    
+    res.json({ shoots: shootsWithPhotos });
   } catch (error) {
     console.error('Get shoots by category error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1235,14 +1307,43 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
 app.get('/api/portfolio/shoots/:id', async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shoot = shootsData.shoots.find(s => s.id === shootId);
     
+    // Get shoot from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    res.json(shoot);
+    // Get photos for this shoot
+    const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? ORDER BY uploaded_at DESC', [shootId]);
+    
+    // Format response to match expected structure
+    const shootData = {
+      id: shoot.id,
+      title: shoot.title,
+      description: shoot.description,
+      category: shoot.category,
+      date: shoot.date,
+      photos: photos.map(photo => ({
+        id: photo.id,
+        original_name: photo.original_name,
+        filename: photo.filename,
+        display_url: photo.display_url,
+        download_url: photo.download_url,
+        display_key: photo.display_key,
+        download_key: photo.download_key,
+        original_size: photo.original_size,
+        compressed_size: photo.compressed_size,
+        has_high_res: photo.has_high_res,
+        uploaded_at: photo.uploaded_at
+      })),
+      authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
+      downloadStats: db.parseJSONField(shoot.download_stats) || {},
+      createdAt: shoot.created_at,
+      updatedAt: shoot.updated_at
+    };
+    
+    res.json(shootData);
   } catch (error) {
     console.error('Get shoot error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1651,28 +1752,28 @@ app.post('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req
       });
     }
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
-    
-    if (shootIndex === -1) {
+    // Get current shoot
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    // Initialize authorizedEmails array if doesn't exist
-    if (!shootsData.shoots[shootIndex].authorizedEmails) {
-      shootsData.shoots[shootIndex].authorizedEmails = [];
-    }
+    // Get current authorized emails
+    const currentEmails = db.parseJSONField(shoot.authorized_emails) || [];
     
     // Add new emails (avoid duplicates)
-    const currentEmails = shootsData.shoots[shootIndex].authorizedEmails;
     const newEmails = emails.filter(email => !currentEmails.includes(email.toLowerCase()));
-    shootsData.shoots[shootIndex].authorizedEmails.push(...newEmails.map(e => e.toLowerCase()));
+    const updatedEmails = [...currentEmails, ...newEmails.map(e => e.toLowerCase())];
     
-    await writeJSONFile(SHOOTS_FILE, shootsData);
+    // Update shoot with new authorized emails
+    await db.run(
+      'UPDATE shoots SET authorized_emails = ?, updated_at = ? WHERE id = ?',
+      [db.stringifyJSONField(updatedEmails), new Date().toISOString(), shootId]
+    );
     
     res.json({ 
       success: true, 
-      authorizedEmails: shootsData.shoots[shootIndex].authorizedEmails,
+      authorizedEmails: updatedEmails,
       added: newEmails.length
     });
   } catch (error) {
@@ -1687,25 +1788,25 @@ app.delete('/api/portfolio/shoots/:id/authorized-emails/:email', requireAdmin, a
     const shootId = parseInt(req.params.id);
     const emailToRemove = req.params.email.toLowerCase();
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
-    
-    if (shootIndex === -1) {
+    // Get current shoot
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    if (!shootsData.shoots[shootIndex].authorizedEmails) {
-      shootsData.shoots[shootIndex].authorizedEmails = [];
-    }
+    // Get current authorized emails
+    const currentEmails = db.parseJSONField(shoot.authorized_emails) || [];
+    const updatedEmails = currentEmails.filter(email => email !== emailToRemove);
     
-    shootsData.shoots[shootIndex].authorizedEmails = 
-      shootsData.shoots[shootIndex].authorizedEmails.filter(email => email !== emailToRemove);
-    
-    await writeJSONFile(SHOOTS_FILE, shootsData);
+    // Update shoot with updated authorized emails
+    await db.run(
+      'UPDATE shoots SET authorized_emails = ?, updated_at = ? WHERE id = ?',
+      [db.stringifyJSONField(updatedEmails), new Date().toISOString(), shootId]
+    );
     
     res.json({ 
       success: true, 
-      authorizedEmails: shootsData.shoots[shootIndex].authorizedEmails
+      authorizedEmails: updatedEmails
     });
   } catch (error) {
     console.error('Remove authorized email error:', error);
@@ -1717,15 +1818,16 @@ app.delete('/api/portfolio/shoots/:id/authorized-emails/:email', requireAdmin, a
 app.get('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shoot = shootsData.shoots.find(s => s.id === shootId);
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     
     if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
+    const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
+    
     res.json({ 
-      authorizedEmails: shoot.authorizedEmails || [],
+      authorizedEmails: authorizedEmails,
       shootTitle: shoot.title
     });
   } catch (error) {
@@ -1738,9 +1840,9 @@ app.get('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req,
 app.get('/api/portfolio/shoots/:id/has-access', requireAuth, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shoot = shootsData.shoots.find(s => s.id === shootId);
     
+    // Get shoot from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
@@ -1750,21 +1852,23 @@ app.get('/api/portfolio/shoots/:id/has-access', requireAuth, async (req, res) =>
       return res.json({ hasAccess: true, isAdmin: true });
     }
     
-    // Get user email
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.id === req.session.userId);
-    
+    // Get user email from database
+    const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
     if (!user) {
       return res.json({ hasAccess: false });
     }
     
     // Check if user email is in authorized list
-    const authorizedEmails = shoot.authorizedEmails || [];
+    const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
     const hasAccess = authorizedEmails.includes(user.email.toLowerCase());
+    
+    // Check if shoot has high-res photos
+    const photosWithHighRes = await db.get('SELECT COUNT(*) as count FROM photos WHERE shoot_id = ? AND has_high_res = 1', [shootId]);
+    const hasHighRes = photosWithHighRes.count > 0;
     
     res.json({ 
       hasAccess,
-      hasHighRes: shoot.photos?.some(p => p.hasHighRes) || false
+      hasHighRes
     });
   } catch (error) {
     console.error('Check access error:', error);
@@ -1775,31 +1879,23 @@ app.get('/api/portfolio/shoots/:id/has-access', requireAuth, async (req, res) =>
 // Download high-res photo (authenticated users with permission)
 app.get('/api/photos/:photoId/download', requireAuth, async (req, res) => {
   try {
-    const photoId = parseFloat(req.params.photoId);
+    const photoId = parseInt(req.params.photoId);
     
-    // Find the photo and its shoot
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    let targetShoot = null;
-    let targetPhoto = null;
-    
-    for (const shoot of shootsData.shoots) {
-      const photo = shoot.photos.find(p => p.id === photoId);
-      if (photo) {
-        targetShoot = shoot;
-        targetPhoto = photo;
-        break;
-      }
-    }
-    
-    if (!targetShoot || !targetPhoto) {
+    // Get photo and its shoot from database
+    const photo = await db.get('SELECT * FROM photos WHERE id = ?', [photoId]);
+    if (!photo) {
       return res.status(404).json({ error: 'Photo not found' });
     }
     
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [photo.shoot_id]);
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
     // Check if high-res exists
-    if (!targetPhoto.hasHighRes) {
+    if (!photo.has_high_res) {
       return res.status(410).json({ 
-        error: 'High-resolution version no longer available',
-        deletedAt: targetShoot.highResDeletedAt
+        error: 'High-resolution version no longer available'
       });
     }
     
@@ -1807,48 +1903,45 @@ app.get('/api/photos/:photoId/download', requireAuth, async (req, res) => {
     const isAdmin = req.session.userRole === 'admin';
     
     if (!isAdmin) {
-      // Get user email
-      const usersData = await readJSONFile(USERS_FILE);
-      const user = usersData.users.find(u => u.id === req.session.userId);
-      
+      // Get user email from database
+      const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
       if (!user) {
         return res.status(403).json({ error: 'User not found' });
       }
       
       // Check if user is authorized
-      const authorizedEmails = targetShoot.authorizedEmails || [];
+      const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
       if (!authorizedEmails.includes(user.email.toLowerCase())) {
         return res.status(403).json({ error: 'Not authorized to download this photo' });
       }
     }
     
     // Track download
-    if (!targetShoot.downloadStats) {
-      targetShoot.downloadStats = { totalDownloads: 0, downloadHistory: [] };
-    }
+    const downloadStats = db.parseJSONField(shoot.download_stats) || { totalDownloads: 0, downloadHistory: [] };
+    const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
     
-    const usersData = await readJSONFile(USERS_FILE);
-    const user = usersData.users.find(u => u.id === req.session.userId);
-    
-    targetShoot.downloadStats.totalDownloads++;
-    targetShoot.downloadStats.downloadHistory.push({
+    downloadStats.totalDownloads++;
+    downloadStats.downloadHistory.push({
       photoId: photoId,
       userEmail: user?.email || 'unknown',
       downloadedAt: new Date().toISOString()
     });
     
     // Keep only last 100 downloads
-    if (targetShoot.downloadStats.downloadHistory.length > 100) {
-      targetShoot.downloadStats.downloadHistory = 
-        targetShoot.downloadStats.downloadHistory.slice(-100);
+    if (downloadStats.downloadHistory.length > 100) {
+      downloadStats.downloadHistory = downloadStats.downloadHistory.slice(-100);
     }
     
-    await writeJSONFile(SHOOTS_FILE, shootsData);
+    // Update download stats in database
+    await db.run(
+      'UPDATE shoots SET download_stats = ?, updated_at = ? WHERE id = ?',
+      [db.stringifyJSONField(downloadStats), new Date().toISOString(), shoot.id]
+    );
     
-    console.log(`📥 Download: ${user?.email} downloaded photo ${photoId} from shoot "${targetShoot.title}"`);
+    console.log(`📥 Download: ${user?.email} downloaded photo ${photoId} from shoot "${shoot.title}"`);
     
     // Redirect to download URL
-    res.redirect(targetPhoto.downloadUrl);
+    res.redirect(photo.download_url);
   } catch (error) {
     console.error('Download photo error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -2133,22 +2226,50 @@ app.put('/api/profile/update-email', requireAuth, async (req, res) => {
   }
 });
 
+// Helper function to format phone number
+function formatPhoneNumber(phone) {
+  if (!phone) return '';
+  
+  // Remove all non-digit characters
+  const digits = phone.replace(/\D/g, '');
+  
+  // If we have 10 digits, format as (xxx)xxx-xxxx
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)})${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  
+  // If we have 11 digits and starts with 1, format as (xxx)xxx-xxxx
+  if (digits.length === 11 && digits[0] === '1') {
+    return `(${digits.slice(1, 4)})${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  
+  // Return original if it doesn't match expected patterns
+  return phone;
+}
+
 // Update phone
 app.put('/api/profile/update-phone', requireAuth, async (req, res) => {
   try {
     const { phone } = req.body;
     
+    // Format the phone number
+    const formattedPhone = formatPhoneNumber(phone);
+    
     // Update user phone number
     const result = await db.run(
       'UPDATE users SET phone = ?, updated_at = ? WHERE id = ?',
-      [phone || '', new Date().toISOString(), req.session.userId]
+      [formattedPhone, new Date().toISOString(), req.session.userId]
     );
     
     if (result.changes === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    res.json({ success: true, message: 'Phone number updated successfully' });
+    res.json({ 
+      success: true, 
+      message: 'Phone number updated successfully',
+      formattedPhone: formattedPhone
+    });
   } catch (error) {
     console.error('Update phone error:', error);
     res.status(500).json({ error: 'Server error' });
