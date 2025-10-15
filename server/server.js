@@ -1345,7 +1345,14 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
       downloadStats: db.parseJSONField(updatedShoot.download_stats) || {},
       createdAt: updatedShoot.created_at,
       updatedAt: updatedShoot.updated_at
-    });
+    };
+
+    res.json({ success: true, shoot });
+  } catch (error) {
+    console.error('Update shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // Delete shoot (admin only)
 app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
