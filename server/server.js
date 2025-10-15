@@ -258,15 +258,7 @@ async function uploadBufferToSpaces(buffer, folder, filename, contentType = 'ima
 
 // Data file paths
 const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const PRICING_FILE = path.join(DATA_DIR, 'pricing.json');
-const AUTH_SESSIONS_FILE = path.join(DATA_DIR, 'auth-sessions.json');
-const BOOKINGS_FILE = path.join(DATA_DIR, 'bookings.json');
-const SHOOTS_FILE = path.join(DATA_DIR, 'shoots.json');
-const INVOICES_FILE = path.join(DATA_DIR, 'invoices.json');
-const EXPENSES_FILE = path.join(DATA_DIR, 'expenses.json');
 
-// Ensure data directory exists
 async function ensureDataDirectory() {
   try {
     await fs.access(DATA_DIR);
@@ -276,167 +268,11 @@ async function ensureDataDirectory() {
 }
 
 // Read JSON file
-async function readJSONFile(filePath, defaultData = {}) {
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    // File doesn't exist, create it with default data
-    await fs.writeFile(filePath, JSON.stringify(defaultData, null, 2));
-    return defaultData;
-  }
-}
+// JSON file functions removed - now using database
 
-// Write JSON file
-async function writeJSONFile(filePath, data) {
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
-}
+// Initialize data files - REMOVED - Now using database only
 
-// Initialize data files
-async function initializeDataFiles() {
-  await ensureDataDirectory();
-  
-  // Initialize users file - only create default admin if file doesn't exist
-  try {
-    // Try to read existing users file
-    await fs.access(USERS_FILE);
-    console.log('✅ Users file exists - preserving existing data');
-  } catch (error) {
-    // File doesn't exist - create with default admin
-    console.log('⚠️  Users file not found - creating default admin account');
-    
-    // Use environment variables for admin credentials if available
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@skylit.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
-    
-    const defaultUsers = {
-      users: [
-        {
-          id: 1,
-          email: adminEmail,
-          password: hashedPassword,
-          name: 'Alina Suedbeck',
-          role: 'admin',
-          authMethod: 'email',
-          createdAt: new Date().toISOString()
-        }
-      ]
-    };
-    await writeJSONFile(USERS_FILE, defaultUsers);
-    console.log(`✅ Default admin created: ${adminEmail}`);
-  }
-
-  // Initialize pricing file
-  const defaultPricing = {
-    packages: [
-      {
-        id: 1,
-        name: 'Essential',
-        price: 350,
-        duration: '1 hour',
-        features: [
-          '1 hour photo session',
-          '1 location',
-          '30 edited high-resolution images',
-          'Online gallery',
-          'Personal printing rights',
-          '2 week delivery'
-        ],
-        recommended: false
-      },
-      {
-        id: 2,
-        name: 'Premium',
-        price: 650,
-        duration: '2 hours',
-        features: [
-          '2 hour photo session',
-          'Up to 2 locations',
-          '75 edited high-resolution images',
-          'Online gallery',
-          'Personal printing rights',
-          'Expedited 1 week delivery',
-          'Complimentary wardrobe consultation'
-        ],
-        recommended: true
-      },
-      {
-        id: 3,
-        name: 'Luxury',
-        price: 1200,
-        duration: 'Half day',
-        features: [
-          'Half day coverage (4 hours)',
-          'Multiple locations',
-          '150+ edited high-resolution images',
-          'Premium online gallery',
-          'Full printing rights',
-          'Expedited 1 week delivery',
-          'Pre-session consultation',
-          'Complimentary engagement session'
-        ],
-        recommended: false
-      }
-    ],
-    addOns: [
-      { id: 1, name: 'Additional Hour', price: 200 },
-      { id: 2, name: 'Rush Delivery (1 week)', price: 150 },
-      { id: 3, name: 'Second Photographer', price: 300 },
-      { id: 4, name: 'Printed Photo Album', price: 400 },
-      { id: 5, name: 'Canvas Print (16x20)', price: 150 },
-      { id: 6, name: 'USB with All Photos', price: 75 }
-    ]
-  };
-  await readJSONFile(PRICING_FILE, defaultPricing);
-
-  // Initialize auth sessions file
-  await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
-
-  // Initialize bookings/sessions file
-  const defaultBookings = {
-    bookings: []
-  };
-  await readJSONFile(BOOKINGS_FILE, defaultBookings);
-
-  // Initialize invoices file
-  const defaultInvoices = {
-    invoices: []
-  };
-  await readJSONFile(INVOICES_FILE, defaultInvoices);
-
-  // Initialize expenses file
-  const defaultExpenses = {
-    expenses: []
-  };
-  await readJSONFile(EXPENSES_FILE, defaultExpenses);
-
-  // Initialize shoots file
-  const defaultShoots = {
-    categories: [
-      'Weddings',
-      'Engagements', 
-      'Portraits',
-      'Family',
-      'Newborn',
-      'Maternity',
-      'Couples',
-      'Cars',
-      'Motorcycles',
-      'Animals',
-      'Events',
-      'Lifestyle',
-      'Fashion',
-      'Headshots',
-      'Real Estate',
-      'Products',
-      'Nature',
-      'Other'
-    ],
-    shoots: []
-  };
-  await readJSONFile(SHOOTS_FILE, defaultShoots);
-}
+// Initialize shoots file - REMOVED - Now using database only
 
 // ===================================
 // Authentication Routes
@@ -757,19 +593,11 @@ app.post('/api/pricing/packages', requireAdmin, async (req, res) => {
       ]
     );
 
-    const newPackage = {
-      id: result.id,
-      name,
-      description,
-      price,
-      features: features || [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    const newPackage = await db.get('SELECT * FROM pricing_packages WHERE id = ?', [result.id]);
 
     res.json({ success: true, package: newPackage });
   } catch (error) {
-    console.error('Add package error:', error);
+    console.error('Create package error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -921,31 +749,28 @@ app.post('/api/bookings', async (req, res) => {
       return res.status(400).json({ error: 'Session type and date required' });
     }
 
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
-    const usersData = await readJSONFile(USERS_FILE);
+    // Get user info from database
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
     
-    // Get user info
-    const user = usersData.users.find(u => u.id === req.session.userId);
+    const result = await db.run(
+      `INSERT INTO bookings (client_name, client_email, user_id, session_type, date, time, location, notes, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        clientName || user?.name || 'Unknown',
+        clientEmail || user?.email || 'unknown@email.com',
+        req.session.userId,
+        sessionType,
+        date,
+        time || '',
+        location || '',
+        notes || '',
+        'pending',
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
     
-    // Generate new ID
-    const maxId = Math.max(...bookingsData.bookings.map(b => b.id), 0);
-    const newBooking = {
-      id: maxId + 1,
-      userId: req.session.userId,
-      clientName: clientName || user.name,
-      clientEmail: clientEmail || user.email,
-      sessionType,
-      date,
-      time: time || '',
-      location: location || '',
-      notes: notes || '',
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      invoiceId: null
-    };
-    
-    bookingsData.bookings.unshift(newBooking);
-    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    const newBooking = await db.get('SELECT * FROM bookings WHERE id = ?', [result.id]);
     
     res.json({ success: true, booking: newBooking });
   } catch (error) {
@@ -960,22 +785,38 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
     const bookingId = parseInt(req.params.id);
     const updates = req.body;
     
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
-    const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
     
-    if (bookingIndex === -1) {
+    const allowedFields = ['client_name', 'client_email', 'session_type', 'date', 'time', 'location', 'notes', 'status'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        updateValues.push(value);
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    updateValues.push(new Date().toISOString()); // updated_at
+    updateValues.push(bookingId);
+    
+    const result = await db.run(
+      `UPDATE bookings SET ${updateFields.join(', ')}, updated_at = ? WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    bookingsData.bookings[bookingIndex] = {
-      ...bookingsData.bookings[bookingIndex],
-      ...updates,
-      id: bookingId
-    };
+    const updatedBooking = await db.get('SELECT * FROM bookings WHERE id = ?', [bookingId]);
     
-    await writeJSONFile(BOOKINGS_FILE, bookingsData);
-    
-    res.json({ success: true, booking: bookingsData.bookings[bookingIndex] });
+    res.json({ success: true, booking: updatedBooking });
   } catch (error) {
     console.error('Update booking error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -988,18 +829,14 @@ app.put('/api/bookings/:id/status', requireAdmin, async (req, res) => {
     const bookingId = parseInt(req.params.id);
     const { status } = req.body;
     
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
-    const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
+    const result = await db.run('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?', [status, new Date().toISOString(), bookingId]);
     
-    if (bookingIndex === -1) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    bookingsData.bookings[bookingIndex].status = status;
-    
-    await writeJSONFile(BOOKINGS_FILE, bookingsData);
-    
-    res.json({ success: true, booking: bookingsData.bookings[bookingIndex] });
+    const updatedBooking = await db.get('SELECT * FROM bookings WHERE id = ?', [bookingId]);
+    res.json({ success: true, booking: updatedBooking });
   } catch (error) {
     console.error('Update booking status error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1010,10 +847,12 @@ app.put('/api/bookings/:id/status', requireAdmin, async (req, res) => {
 app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
-    const bookingsData = await readJSONFile(BOOKINGS_FILE);
     
-    bookingsData.bookings = bookingsData.bookings.filter(b => b.id !== bookingId);
-    await writeJSONFile(BOOKINGS_FILE, bookingsData);
+    const result = await db.run('DELETE FROM bookings WHERE id = ?', [bookingId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -1029,8 +868,8 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
 // Get all invoices (admin only)
 app.get('/api/invoices', requireAdmin, async (req, res) => {
   try {
-    const invoicesData = await readJSONFile(INVOICES_FILE);
-    res.json({ invoices: invoicesData.invoices });
+    const invoices = await db.all('SELECT * FROM invoices ORDER BY created_at DESC');
+    res.json({ invoices });
   } catch (error) {
     console.error('Get invoices error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1046,37 +885,24 @@ app.post('/api/invoices', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Client name and amount required' });
     }
     
-    const invoicesData = await readJSONFile(INVOICES_FILE);
+    const result = await db.run(
+      `INSERT INTO invoices (booking_id, amount, description, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        bookingId || null,
+        parseFloat(amount),
+        `Invoice for ${clientName}`,
+        status || 'pending',
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
     
-    // Generate invoice number
-    const maxId = Math.max(...invoicesData.invoices.map(i => i.id), 0);
-    const invoiceNumber = `INV-${String(maxId + 1).padStart(4, '0')}`;
+    const newInvoice = await db.get('SELECT * FROM invoices WHERE id = ?', [result.id]);
     
-    const newInvoice = {
-      id: maxId + 1,
-      invoiceNumber,
-      clientName,
-      clientEmail: clientEmail || '',
-      amount: parseFloat(amount),
-      status: status || 'Pending',
-      date: date || new Date().toISOString().split('T')[0],
-      items: items || [],
-      bookingId: bookingId || null,
-      createdAt: new Date().toISOString()
-    };
-    
-    invoicesData.invoices.unshift(newInvoice);
-    await writeJSONFile(INVOICES_FILE, invoicesData);
-    
-    // If linked to booking, update booking with invoice ID
+    // If linked to booking, update booking status
     if (bookingId) {
-      const bookingsData = await readJSONFile(BOOKINGS_FILE);
-      const bookingIndex = bookingsData.bookings.findIndex(b => b.id === bookingId);
-      if (bookingIndex !== -1) {
-        bookingsData.bookings[bookingIndex].invoiceId = newInvoice.id;
-        bookingsData.bookings[bookingIndex].status = 'Invoiced';
-        await writeJSONFile(BOOKINGS_FILE, bookingsData);
-      }
+      await db.run('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?', ['invoiced', new Date().toISOString(), bookingId]);
     }
     
     res.json({ success: true, invoice: newInvoice });
@@ -1092,22 +918,38 @@ app.put('/api/invoices/:id', requireAdmin, async (req, res) => {
     const invoiceId = parseInt(req.params.id);
     const updates = req.body;
     
-    const invoicesData = await readJSONFile(INVOICES_FILE);
-    const invoiceIndex = invoicesData.invoices.findIndex(i => i.id === invoiceId);
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
     
-    if (invoiceIndex === -1) {
+    const allowedFields = ['amount', 'description', 'status'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        updateValues.push(value);
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    updateValues.push(new Date().toISOString()); // updated_at
+    updateValues.push(invoiceId);
+    
+    const result = await db.run(
+      `UPDATE invoices SET ${updateFields.join(', ')}, updated_at = ? WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
     
-    invoicesData.invoices[invoiceIndex] = {
-      ...invoicesData.invoices[invoiceIndex],
-      ...updates,
-      id: invoiceId
-    };
+    const updatedInvoice = await db.get('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
     
-    await writeJSONFile(INVOICES_FILE, invoicesData);
-    
-    res.json({ success: true, invoice: invoicesData.invoices[invoiceIndex] });
+    res.json({ success: true, invoice: updatedInvoice });
   } catch (error) {
     console.error('Update invoice error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1118,10 +960,11 @@ app.put('/api/invoices/:id', requireAdmin, async (req, res) => {
 app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
   try {
     const invoiceId = parseInt(req.params.id);
-    const invoicesData = await readJSONFile(INVOICES_FILE);
+    const result = await db.run('DELETE FROM invoices WHERE id = ?', [invoiceId]);
     
-    invoicesData.invoices = invoicesData.invoices.filter(i => i.id !== invoiceId);
-    await writeJSONFile(INVOICES_FILE, invoicesData);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -1137,8 +980,8 @@ app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
 // Get all expenses (admin only)
 app.get('/api/expenses', requireAdmin, async (req, res) => {
   try {
-    const expensesData = await readJSONFile(EXPENSES_FILE);
-    res.json({ expenses: expensesData.expenses });
+    const expenses = await db.all('SELECT * FROM expenses ORDER BY created_at DESC');
+    res.json({ expenses });
   } catch (error) {
     console.error('Get expenses error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1154,20 +997,20 @@ app.post('/api/expenses', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Category, description, and amount required' });
     }
     
-    const expensesData = await readJSONFile(EXPENSES_FILE);
+    const result = await db.run(
+      `INSERT INTO expenses (description, amount, category, date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        description,
+        parseFloat(amount),
+        category,
+        date || new Date().toISOString().split('T')[0],
+        new Date().toISOString(),
+        new Date().toISOString()
+      ]
+    );
     
-    const maxId = Math.max(...expensesData.expenses.map(e => e.id), 0);
-    const newExpense = {
-      id: maxId + 1,
-      category,
-      description,
-      amount: parseFloat(amount),
-      date: date || new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString()
-    };
-    
-    expensesData.expenses.unshift(newExpense);
-    await writeJSONFile(EXPENSES_FILE, expensesData);
+    const newExpense = await db.get('SELECT * FROM expenses WHERE id = ?', [result.id]);
     
     res.json({ success: true, expense: newExpense });
   } catch (error) {
@@ -1182,22 +1025,38 @@ app.put('/api/expenses/:id', requireAdmin, async (req, res) => {
     const expenseId = parseInt(req.params.id);
     const updates = req.body;
     
-    const expensesData = await readJSONFile(EXPENSES_FILE);
-    const expenseIndex = expensesData.expenses.findIndex(e => e.id === expenseId);
+    // Build dynamic update query
+    const updateFields = [];
+    const updateValues = [];
     
-    if (expenseIndex === -1) {
+    const allowedFields = ['description', 'amount', 'category', 'date'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        updateFields.push(`${key} = ?`);
+        updateValues.push(value);
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    updateValues.push(new Date().toISOString()); // updated_at
+    updateValues.push(expenseId);
+    
+    const result = await db.run(
+      `UPDATE expenses SET ${updateFields.join(', ')}, updated_at = ? WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Expense not found' });
     }
     
-    expensesData.expenses[expenseIndex] = {
-      ...expensesData.expenses[expenseIndex],
-      ...updates,
-      id: expenseId
-    };
+    const updatedExpense = await db.get('SELECT * FROM expenses WHERE id = ?', [expenseId]);
     
-    await writeJSONFile(EXPENSES_FILE, expensesData);
-    
-    res.json({ success: true, expense: expensesData.expenses[expenseIndex] });
+    res.json({ success: true, expense: updatedExpense });
   } catch (error) {
     console.error('Update expense error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1208,10 +1067,12 @@ app.put('/api/expenses/:id', requireAdmin, async (req, res) => {
 app.delete('/api/expenses/:id', requireAdmin, async (req, res) => {
   try {
     const expenseId = parseInt(req.params.id);
-    const expensesData = await readJSONFile(EXPENSES_FILE);
     
-    expensesData.expenses = expensesData.expenses.filter(e => e.id !== expenseId);
-    await writeJSONFile(EXPENSES_FILE, expensesData);
+    const result = await db.run('DELETE FROM expenses WHERE id = ?', [expenseId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Expense not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -1404,19 +1265,8 @@ app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
       ]
     );
     
-    const newShoot = {
-      id: result.id,
-      title,
-      description: description || '',
-      category,
-      date: date || new Date().toISOString(),
-      photos: [],
-      authorizedEmails: [],
-      downloadStats: {},
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
+    const newShoot = await db.get('SELECT * FROM shoots WHERE id = ?', [result.id]);
+
     res.json({ success: true, shoot: newShoot });
   } catch (error) {
     console.error('Create shoot error:', error);
@@ -1495,14 +1345,7 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
       downloadStats: db.parseJSONField(updatedShoot.download_stats) || {},
       createdAt: updatedShoot.created_at,
       updatedAt: updatedShoot.updated_at
-    };
-    
-    res.json({ success: true, shoot });
-  } catch (error) {
-    console.error('Update shoot error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+    });
 
 // Delete shoot (admin only)
 app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
@@ -2467,23 +2310,23 @@ async function startServer() {
     // Initialize database
     await db.init();
     
-    // Check if we need to migrate existing JSON data
-    const existingData = await checkForExistingData();
+    // Check if we need to migrate existing JSON data (DISABLED FOR PRODUCTION)
+    // const existingData = await checkForExistingData();
     
-    if (existingData) {
-      console.log('🔄 Found existing JSON data - running migration...');
-      const { migrateToSQLite } = require('./migrate-to-sqlite');
-      
-      // Run migrations
-      await migrateToSQLite.migrateUsers();
-      await migrateToSQLite.migrateShoots();
-      await migrateToSQLite.migrateBookings();
-      await migrateToSQLite.migrateInvoices();
-      await migrateToSQLite.migrateExpenses();
-      await migrateToSQLite.migratePricing();
-      
-      console.log('✅ Migration completed');
-    } else {
+    // if (existingData) {
+    //   console.log('🔄 Found existing JSON data - running migration...');
+    //   const { migrateToSQLite } = require('./migrate-to-sqlite');
+    //   
+    //   // Run migrations
+    //   await migrateToSQLite.migrateUsers();
+    //   await migrateToSQLite.migrateShoots();
+    //   await migrateToSQLite.migrateBookings();
+    //   await migrateToSQLite.migrateInvoices();
+    //   await migrateToSQLite.migrateExpenses();
+    //   await migrateToSQLite.migratePricing();
+    //   
+    //   console.log('✅ Migration completed');
+    // } else {
       // Only create default admin if NO users exist at all (not just no admin users)
       const userCount = await db.get('SELECT COUNT(*) as count FROM users');
       if (userCount.count === 0) {
@@ -2538,7 +2381,7 @@ async function startServer() {
         }
         console.log('✅ Default pricing categories created');
       }
-    }
+    // }
     
     // Start the server
     app.listen(PORT, () => {

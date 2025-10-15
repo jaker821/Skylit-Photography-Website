@@ -89,6 +89,7 @@ class Database {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         client_name TEXT NOT NULL,
         client_email TEXT NOT NULL,
+        user_id INTEGER,
         session_type TEXT,
         date TEXT,
         time TEXT,
@@ -96,7 +97,8 @@ class Database {
         notes TEXT,
         status TEXT DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
       )`,
 
       // Invoices table
@@ -199,6 +201,19 @@ class Database {
           console.error(`Error adding ${field.name} column:`, error);
           throw error;
         }
+      }
+    }
+
+    // Add user_id column to bookings table if it doesn't exist
+    try {
+      await this.run('ALTER TABLE bookings ADD COLUMN user_id INTEGER');
+      console.log('📱 Added user_id column to bookings table');
+    } catch (error) {
+      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
+        console.log('📱 user_id column already exists in bookings table, skipping...');
+      } else {
+        console.error('Error adding user_id column to bookings table:', error);
+        throw error;
       }
     }
   }
