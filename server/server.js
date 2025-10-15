@@ -1952,47 +1952,43 @@ app.get('/api/photos/:photoId/download', requireAuth, async (req, res) => {
 app.delete('/api/portfolio/shoots/:id/originals', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const shootsData = await readJSONFile(SHOOTS_FILE);
-    const shootIndex = shootsData.shoots.findIndex(s => s.id === shootId);
-    
-    if (shootIndex === -1) {
+    // Get shoot from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
     }
     
-    const shoot = shootsData.shoots[shootIndex];
+    // Get photos for this shoot
+    const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? AND has_high_res = 1', [shootId]);
+    
     let deletedCount = 0;
     let freedSpace = 0;
     
     // Delete original files from Spaces
     if (SPACES_ENABLED && s3Client) {
-      for (const photo of shoot.photos) {
-        if (photo.hasHighRes && photo.downloadKey) {
+      for (const photo of photos) {
+        if (photo.download_key) {
           try {
             await s3Client.deleteObject({
               Bucket: process.env.SPACES_BUCKET,
-              Key: photo.downloadKey
+              Key: photo.download_key
             }).promise();
             
-            freedSpace += photo.originalSize || 0;
+            freedSpace += photo.original_size || 0;
             deletedCount++;
-            console.log(`🗑️  Deleted original: ${photo.downloadKey}`);
+            console.log(`🗑️  Deleted original: ${photo.download_key}`);
           } catch (err) {
-            console.error(`Error deleting ${photo.downloadKey}:`, err);
+            console.error(`Error deleting ${photo.download_key}:`, err);
           }
         }
       }
     }
     
     // Update all photos to mark high-res as deleted
-    shoot.photos.forEach(photo => {
-      photo.hasHighRes = false;
-      photo.downloadUrl = null; // Clear download URL
-    });
-    
-    // Record deletion
-    shoot.highResDeletedAt = new Date().toISOString();
-    
-    await writeJSONFile(SHOOTS_FILE, shootsData);
+    await db.run(
+      'UPDATE photos SET has_high_res = 0, download_url = NULL WHERE shoot_id = ?',
+      [shootId]
+    );
     
     console.log(`✅ Deleted ${deletedCount} original files, freed ${(freedSpace / 1024 / 1024).toFixed(2)}MB`);
     
@@ -2011,31 +2007,34 @@ app.delete('/api/portfolio/shoots/:id/originals', requireAdmin, async (req, res)
 // Get storage statistics (admin only)
 app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
   try {
-    const shootsData = await readJSONFile(SHOOTS_FILE);
+    // Get stats from database
+    const totalPhotos = await db.get('SELECT COUNT(*) as count FROM photos');
+    const totalShoots = await db.get('SELECT COUNT(*) as count FROM shoots');
+    const photosWithHighRes = await db.get('SELECT COUNT(*) as count FROM photos WHERE has_high_res = 1');
     
-    let totalPhotos = 0;
-    let totalOriginalSize = 0;
-    let totalCompressedSize = 0;
-    let photosWithHighRes = 0;
-    let shootsWithHighRes = 0;
+    // Get size stats
+    const sizeStats = await db.get(`
+      SELECT 
+        SUM(original_size) as totalOriginalSize,
+        SUM(compressed_size) as totalCompressedSize
+      FROM photos
+    `);
     
-    shootsData.shoots.forEach(shoot => {
-      const hasHighRes = shoot.photos?.some(p => p.hasHighRes) || false;
-      if (hasHighRes) shootsWithHighRes++;
-      
-      shoot.photos?.forEach(photo => {
-        totalPhotos++;
-        totalOriginalSize += photo.originalSize || 0;
-        totalCompressedSize += photo.compressedSize || 0;
-        if (photo.hasHighRes) photosWithHighRes++;
-      });
-    });
+    // Get shoots with high-res photos
+    const shootsWithHighRes = await db.get(`
+      SELECT COUNT(DISTINCT shoot_id) as count 
+      FROM photos 
+      WHERE has_high_res = 1
+    `);
+    
+    const totalOriginalSize = sizeStats.totalOriginalSize || 0;
+    const totalCompressedSize = sizeStats.totalCompressedSize || 0;
     
     res.json({
-      totalPhotos,
-      totalShoots: shootsData.shoots.length,
-      shootsWithHighRes,
-      photosWithHighRes,
+      totalPhotos: totalPhotos.count,
+      totalShoots: totalShoots.count,
+      shootsWithHighRes: shootsWithHighRes.count,
+      photosWithHighRes: photosWithHighRes.count,
       totalOriginalSizeMB: (totalOriginalSize / 1024 / 1024).toFixed(2),
       totalCompressedSizeMB: (totalCompressedSize / 1024 / 1024).toFixed(2),
       totalStorageMB: ((totalOriginalSize + totalCompressedSize) / 1024 / 1024).toFixed(2),
@@ -2057,15 +2056,18 @@ app.post('/api/portfolio/categories', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Category name required' });
     }
     
-    const shootsData = await readJSONFile(SHOOTS_FILE);
+    // Check if category already exists
+    const existingCategory = await db.get('SELECT id FROM pricing_categories WHERE name = ?', [category]);
     
-    if (!shootsData.categories.includes(category)) {
-      shootsData.categories.push(category);
-      shootsData.categories.sort();
-      await writeJSONFile(SHOOTS_FILE, shootsData);
+    if (!existingCategory) {
+      // Add new category
+      await db.run('INSERT INTO pricing_categories (name) VALUES (?)', [category]);
     }
     
-    res.json({ success: true, categories: shootsData.categories });
+    // Get all categories
+    const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
+    
+    res.json({ success: true, categories: categories.map(c => c.name) });
   } catch (error) {
     console.error('Add category error:', error);
     res.status(500).json({ error: 'Server error' });
