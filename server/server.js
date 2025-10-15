@@ -292,14 +292,7 @@ if (GOOGLE_OAUTH_ENABLED) {
         req.session.userId = req.user.id;
         req.session.userRole = req.user.role;
         
-        // Save session to file
-        const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
-        sessionsData.sessions.push({
-          sessionId: req.sessionID,
-          userId: req.user.id,
-          createdAt: new Date().toISOString()
-        });
-        await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
+        // Session tracking removed - using database sessions only
         
         // Check if user needs approval
         if (req.user.status === 'pending') {
@@ -414,18 +407,6 @@ app.post('/api/auth/login', async (req, res) => {
       }
 
       console.log('✅ Login successful - Session saved:', req.sessionID, 'User:', user.email);
-      
-      // Save session to file for tracking
-      readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] })
-        .then(sessionsData => {
-          sessionsData.sessions.push({
-            sessionId: req.sessionID,
-            userId: user.id,
-            createdAt: new Date().toISOString()
-          });
-          return writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
-        })
-        .catch(err => console.error('Auth sessions file error:', err));
 
       // Return user data without password
       const { password: _, ...userWithoutPassword } = user;
@@ -443,11 +424,6 @@ app.post('/api/auth/login', async (req, res) => {
 // Logout
 app.post('/api/auth/logout', async (req, res) => {
   try {
-    // Remove session from file
-    const sessionsData = await readJSONFile(AUTH_SESSIONS_FILE, { sessions: [] });
-    sessionsData.sessions = sessionsData.sessions.filter(s => s.sessionId !== req.sessionID);
-    await writeJSONFile(AUTH_SESSIONS_FILE, sessionsData);
-
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ error: 'Logout failed' });
@@ -2026,16 +2002,18 @@ app.put('/api/users/:id/reject', requireAdmin, async (req, res) => {
 app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   try {
     const userId = req.params.id;
-    const usersData = await readJSONFile(USERS_FILE);
     
     // Prevent deleting admin user
-    const user = usersData.users.find(u => u.id === userId);
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
     if (user && user.role === 'admin') {
       return res.status(403).json({ error: 'Cannot delete admin user' });
     }
     
-    usersData.users = usersData.users.filter(u => u.id !== userId);
-    await writeJSONFile(USERS_FILE, usersData);
+    const result = await db.run('DELETE FROM users WHERE id = ?', [userId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
@@ -2213,17 +2191,19 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
 app.delete('/api/profile/delete-account', requireAuth, async (req, res) => {
   try {
     const userId = req.session.userId;
-    const usersData = await readJSONFile(USERS_FILE);
     
     // Prevent deleting admin user
-    const user = usersData.users.find(u => u.id === userId);
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
     if (user && user.role === 'admin') {
       return res.status(403).json({ error: 'Admin accounts cannot be deleted through this method' });
     }
     
     // Delete user
-    usersData.users = usersData.users.filter(u => u.id !== userId);
-    await writeJSONFile(USERS_FILE, usersData);
+    const result = await db.run('DELETE FROM users WHERE id = ?', [userId]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
     
     // Clear session
     req.session.destroy();
