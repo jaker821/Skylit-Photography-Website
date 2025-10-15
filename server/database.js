@@ -160,7 +160,13 @@ class Database {
     try {
       await this.run('ALTER TABLE users ADD COLUMN phone TEXT');
     } catch (error) {
-      // Column already exists, ignore error
+      // Only ignore duplicate column errors, log others
+      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
+        console.log('📱 Phone column already exists, skipping...');
+      } else {
+        console.error('Error adding phone column:', error);
+        throw error;
+      }
     }
   }
 
@@ -169,7 +175,10 @@ class Database {
     return new Promise((resolve, reject) => {
       this.db.run(sql, params, function(err) {
         if (err) {
-          console.error('Database run error:', err);
+          // Don't log expected errors like duplicate columns
+          if (!(err.code === 'SQLITE_ERROR' && err.message.includes('duplicate column name'))) {
+            console.error('Database run error:', err);
+          }
           reject(err);
         } else {
           resolve({ id: this.lastID, changes: this.changes });
