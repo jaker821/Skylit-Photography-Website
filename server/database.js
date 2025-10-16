@@ -137,6 +137,7 @@ class Database {
         name TEXT NOT NULL,
         description TEXT,
         price REAL,
+        features TEXT, -- JSON string for features array
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`,
@@ -213,6 +214,19 @@ class Database {
         console.log('📱 user_id column already exists in bookings table, skipping...');
       } else {
         console.error('Error adding user_id column to bookings table:', error);
+        throw error;
+      }
+    }
+
+    // Add features column to pricing_packages table if it doesn't exist
+    try {
+      await this.run('ALTER TABLE pricing_packages ADD COLUMN features TEXT');
+      console.log('📱 Added features column to pricing_packages table');
+    } catch (error) {
+      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
+        console.log('📱 features column already exists in pricing_packages table, skipping...');
+      } else {
+        console.error('Error adding features column to pricing_packages table:', error);
         throw error;
       }
     }
