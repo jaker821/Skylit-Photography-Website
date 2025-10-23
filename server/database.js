@@ -177,7 +177,7 @@ class Database {
     
     // UPDATE table SET col1 = ?, col2 = ? WHERE col3 = ?
     if (upperSQL.includes('UPDATE')) {
-      const match = sql.match(/UPDATE\s+(\w+)\s*SET\s*([^W]+?)\s*WHERE\s*(\w+)\s*=\s*\?/i);
+      const match = sql.match(/UPDATE\s+(\w+)\s*SET\s*(.*?)\s*WHERE\s*(\w+)\s*=\s*\?/i);
       if (match) {
         const table = match[1];
         const setClause = match[2];
