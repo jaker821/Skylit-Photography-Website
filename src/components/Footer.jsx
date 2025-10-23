@@ -25,7 +25,7 @@ const Footer = () => {
 
         <div className="footer-section">
           <h4>Contact</h4>
-          <p>Email: <a href="mailto:skylit.photography25@gmail.com">skylit.photography25@gmail.com</a></p>
+          <p><a href="mailto:skylit.photography25@gmail.com">skylit.photography25@gmail.com</a></p>
           <p>Raleigh/Durham, North Carolina</p>
         </div>
 

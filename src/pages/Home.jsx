@@ -1,7 +1,13 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { API_URL } from '../config'
+import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
+import InlinePhotoEditor from '../components/InlinePhotoEditor'
 
 const Home = () => {
+  const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
+  const [adminName, setAdminName] = useState('Alina')
+
   useEffect(() => {
     // Animate elements on scroll
     const observerOptions = {
@@ -19,8 +25,28 @@ const Home = () => {
 
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el))
 
+    // Fetch about photo
+    fetchAboutPhoto()
+
     return () => observer.disconnect()
   }, [])
+
+  const fetchAboutPhoto = async () => {
+    try {
+      const response = await fetch(`${API_URL}/about-photo`)
+      if (response.ok) {
+        const data = await response.json()
+        setAboutPhotoUrl(data.aboutPhotoUrl)
+        setAdminName(data.adminName)
+      }
+    } catch (error) {
+      console.error('Error fetching about photo:', error)
+    }
+  }
+
+  const handlePhotoUpdate = (newPhotoUrl) => {
+    setAboutPhotoUrl(newPhotoUrl)
+  }
 
   return (
     <div className="home-page">
@@ -45,43 +71,7 @@ const Home = () => {
       </section>
 
       {/* Featured Work */}
-      <section className="featured-work fade-in">
-        <div className="container">
-          <h2 className="section-title">Featured Work</h2>
-          <p className="section-subtitle">A glimpse into recent sessions</p>
-          
-          <div className="featured-grid">
-            <div className="featured-item">
-              <div className="featured-image-placeholder">
-                <span>Wedding Photography</span>
-              </div>
-              <h3>Weddings</h3>
-              <p>Timeless moments of your special day</p>
-            </div>
-            <div className="featured-item">
-              <div className="featured-image-placeholder">
-                <span>Portrait Photography</span>
-              </div>
-              <h3>Portraits</h3>
-              <p>Capturing your unique essence</p>
-            </div>
-            <div className="featured-item">
-              <div className="featured-image-placeholder">
-                <span>Family Photography</span>
-              </div>
-              <h3>Family</h3>
-              <p>Cherished memories together</p>
-            </div>
-            <div className="featured-item">
-              <div className="featured-image-placeholder">
-                <span>Event Photography</span>
-              </div>
-              <h3>Events</h3>
-              <p>Professional event coverage</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <FeaturedWorkGallery />
 
       {/* About Preview */}
       <section className="about-preview fade-in">
@@ -101,9 +91,11 @@ const Home = () => {
               <Link to="/about" className="btn btn-text">Learn More About Me →</Link>
             </div>
             <div className="about-preview-image">
-              <div className="image-placeholder">
-                <span>Alina Suedbeck</span>
-              </div>
+              <InlinePhotoEditor 
+                currentPhotoUrl={aboutPhotoUrl}
+                onPhotoUpdate={handlePhotoUpdate}
+                adminName={adminName}
+              />
             </div>
           </div>
         </div>

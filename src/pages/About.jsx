@@ -1,7 +1,36 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { API_URL } from '../config'
+import InlinePhotoEditor from '../components/InlinePhotoEditor'
 
 const About = () => {
+  const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
+  const [adminName, setAdminName] = useState('Alina')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAboutPhoto()
+  }, [])
+
+  const fetchAboutPhoto = async () => {
+    try {
+      const response = await fetch(`${API_URL}/about-photo`)
+      if (response.ok) {
+        const data = await response.json()
+        setAboutPhotoUrl(data.aboutPhotoUrl)
+        setAdminName(data.adminName)
+      }
+    } catch (error) {
+      console.error('Error fetching about photo:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePhotoUpdate = (newPhotoUrl) => {
+    setAboutPhotoUrl(newPhotoUrl)
+  }
+
   return (
     <div className="about-page">
       <div className="page-header">
@@ -16,12 +45,14 @@ const About = () => {
         <section className="about-intro">
           <div className="about-content">
             <div className="about-image-section">
-              <div className="about-image-placeholder">
-                <span>Alina Suedbeck</span>
-              </div>
+              <InlinePhotoEditor 
+                currentPhotoUrl={aboutPhotoUrl}
+                onPhotoUpdate={handlePhotoUpdate}
+                adminName={adminName}
+              />
             </div>
             <div className="about-text-section">
-              <h2>Hi, I'm Alina Suedbeck</h2>
+              <h2>Hi, I'm {adminName}</h2>
               <p className="lead-text">
                 The eye behind the lens at Skylit Photography. Based in the Raleigh/Durham area of North Carolina.
               </p>

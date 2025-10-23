@@ -1,31 +1,35 @@
-# Skylit Photography Portfolio Website v2.0.1
+# Skylit Photography Portfolio Website v2.0.2
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
 ## Features
 
 ### Public Pages
-- **Home** - Landing page with hero section and featured work
+- **Home** - Landing page with hero section and **auto-scrolling featured work gallery**
 - **Portfolio** - Gallery of photography work with category filtering
 - **Pricing** - Session packages and pricing information
-- **About** - Information about Alina Suedbeck
+- **About** - Information about Alina Suedbeck with **admin-editable professional photo**
 - **Contact** - Contact form and booking information
 
 ### User Features
 - User authentication and login
 - Book photography sessions
 - View booking history
-- User profile management
+- **Enhanced profile management** with tabbed interface
+- **Profile picture upload** with cropping and DigitalOcean Spaces storage
+- **Display name editing** for personalized experience
 - Download high-resolution photos (with permission)
 
 ### Admin Dashboard
 - Upload and manage portfolio photos
+- **Featured work selection** - star photos to showcase on home page
 - Create photo shoots with categories
 - Manage user permissions for photo downloads
 - User approval system
 - Session management
 - Financial tracking and invoicing
 - Expense tracking
+- **Inline photo editing** - click photos to update directly on pages
 
 ## Tech Stack
 
@@ -35,7 +39,25 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **Storage:** DigitalOcean Spaces (S3-compatible with CDN)
 - **Authentication:** Session-based with bcrypt password hashing
 - **File Uploads:** Multer + Sharp (image compression)
+- **Image Processing:** react-image-crop for client-side cropping
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.0.2
+
+### 🎨 **New Features:**
+- **✨ Featured Work Gallery** - Auto-scrolling gallery on home page showcasing admin-selected photos
+- **📸 Profile Picture System** - Upload, crop, and manage profile pictures with DigitalOcean Spaces storage
+- **👤 Enhanced Profile Management** - Tabbed interface for better organization and user experience
+- **⭐ Featured Photo Selection** - Admin can star photos to feature on home page gallery
+- **🖼️ Inline Photo Editor** - Admin can click photos on About page to update them directly
+- **📝 Display Name Editing** - Users can customize their display name
+- **🎯 Professional Animations** - Smooth transitions and professional gallery effects
+
+### 🔧 **Improvements:**
+- **📱 Better Mobile Experience** - Responsive design for all new features
+- **⚡ Performance Optimized** - CDN delivery for all images
+- **🎨 Professional UI/UX** - Clean, modern interface design
+- **🔄 Real-time Updates** - Changes reflect immediately across the site
 
 ## What's New in v2.0.1
 
@@ -181,7 +203,19 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.0.1 (Current) - Bug Fixes
+### v2.0.2 (Current) - Enhanced User Experience
+- **✨ NEW:** Auto-scrolling featured work gallery on home page
+- **📸 NEW:** Profile picture upload system with cropping and DigitalOcean Spaces storage
+- **👤 NEW:** Tabbed profile management interface for better organization
+- **⭐ NEW:** Featured photo selection system for admin
+- **🖼️ NEW:** Inline photo editor for About page (admin can click photos to update)
+- **📝 NEW:** Display name editing for personalized user experience
+- **🎯 NEW:** Professional animations and smooth transitions
+- **📱 IMPROVED:** Enhanced mobile responsiveness
+- **⚡ IMPROVED:** CDN-optimized image delivery
+- **🎨 IMPROVED:** Modern, professional UI/UX design
+
+### v2.0.1 - Bug Fixes
 - **🐛 FIXED:** Email update functionality for admin users
 - **🔧 IMPROVED:** SQL parsing logic for UPDATE operations
 - **✅ STABILITY:** All profile management features now working correctly

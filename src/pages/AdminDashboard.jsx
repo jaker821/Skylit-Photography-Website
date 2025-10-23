@@ -344,6 +344,32 @@ const AdminDashboard = () => {
     }
   }
 
+  // Toggle featured status for a photo
+  const toggleFeatured = async (photoId, currentFeatured) => {
+    try {
+      const response = await fetch(`${API_URL}/photos/${photoId}/featured`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ featured: !currentFeatured })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        // Refresh shoots to update featured status
+        await fetchShoots()
+        alert(data.message)
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update featured status')
+      }
+    } catch (error) {
+      alert('Server error. Please try again.')
+    }
+  }
+
   // Create expense
   const handleCreateExpense = async (expenseData) => {
     try {
@@ -1857,16 +1883,32 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, isUploading,
                   <span className="high-res-badge">✓ High-Res</span>
                 )}
               </div>
-              <button 
-                className="delete-photo-btn"
-                onClick={() => {
-                  if (window.confirm('Delete this photo? (Both compressed and original will be deleted)')) {
-                    onPhotoDelete(photo.id)
-                  }
-                }}
-              >
-                ×
-              </button>
+              <div className="photo-actions">
+                <button 
+                  className={`featured-btn ${photo.featured ? 'featured' : ''}`}
+                  onClick={() => toggleFeatured(photo.id, photo.featured)}
+                  title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          fill={photo.featured ? "currentColor" : "none"}/>
+                  </svg>
+                </button>
+                <button 
+                  className="delete-photo-btn"
+                  onClick={() => {
+                    if (window.confirm('Delete this photo? (Both compressed and original will be deleted)')) {
+                      onPhotoDelete(photo.id)
+                    }
+                  }}
+                >
+                  ×
+                </button>
+              </div>
             </div>
           );
         })}

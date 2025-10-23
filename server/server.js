@@ -2277,6 +2277,249 @@ app.put('/api/profile/update-name', requireAuth, async (req, res) => {
   }
 });
 
+// Update profile picture
+app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
+  try {
+    const { profilePictureData } = req.body;
+    
+    // Handle profile picture removal
+    if (profilePictureData === null) {
+      // Update user profile picture to null in database
+      const result = await db.run(
+        'UPDATE users SET profile_picture = ?, updated_at = ? WHERE id = ?',
+        [null, new Date().toISOString(), req.session.userId]
+      );
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'Profile picture removed successfully',
+        profilePictureUrl: null
+      });
+    }
+    
+    if (!profilePictureData) {
+      return res.status(400).json({ error: 'Profile picture data is required' });
+    }
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const filename = `profile-${req.session.userId}-${timestamp}-${randomId}.jpg`;
+    const key = `profile-pictures/${filename}`;
+    
+    // Convert base64 to buffer
+    const base64Data = profilePictureData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Upload to DigitalOcean Spaces
+    const uploadParams = {
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: 'image/jpeg',
+      ACL: 'public-read'
+    };
+    
+    await spaces.upload(uploadParams).promise();
+    
+    // Generate the public URL
+    const profilePictureUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`;
+    
+    // Update user profile picture URL in database
+    const result = await db.run(
+      'UPDATE users SET profile_picture = ?, updated_at = ? WHERE id = ?',
+      [profilePictureUrl, new Date().toISOString(), req.session.userId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Profile picture updated successfully',
+      profilePictureUrl: profilePictureUrl
+    });
+  } catch (error) {
+    console.error('Update profile picture error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Toggle featured status for a photo
+app.put('/api/photos/:id/featured', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { featured } = req.body;
+    
+    // Update photo featured status
+    const result = await db.run(
+      'UPDATE photos SET featured = ? WHERE id = ?',
+      [featured, id]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    res.json({ success: true, message: `Photo ${featured ? 'added to' : 'removed from'} featured work` });
+  } catch (error) {
+    console.error('Toggle featured photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update about photo for admin
+app.put('/api/admin/about-photo', requireAuth, async (req, res) => {
+  try {
+    const { aboutPhotoData } = req.body;
+    
+    // Check if user is admin
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    // Handle about photo removal
+    if (aboutPhotoData === null) {
+      // Update user about photo to null in database
+      const result = await db.run(
+        'UPDATE users SET about_photo = ?, updated_at = ? WHERE id = ?',
+        [null, new Date().toISOString(), req.session.userId]
+      );
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: 'About photo removed successfully',
+        aboutPhotoUrl: null
+      });
+    }
+    
+    if (!aboutPhotoData) {
+      return res.status(400).json({ error: 'About photo data is required' });
+    }
+    
+    // Generate unique filename
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const filename = `about-${req.session.userId}-${timestamp}-${randomId}.jpg`;
+    const key = `about-photos/${filename}`;
+    
+    // Convert base64 to buffer
+    const base64Data = aboutPhotoData.replace(/^data:image\/[a-z]+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Upload to DigitalOcean Spaces
+    const uploadParams = {
+      Bucket: process.env.DO_SPACES_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: 'image/jpeg',
+      ACL: 'public-read'
+    };
+    
+    await spaces.upload(uploadParams).promise();
+    
+    // Generate the public URL
+    const aboutPhotoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`;
+    
+    // Update user about photo URL in database
+    const result = await db.run(
+      'UPDATE users SET about_photo = ?, updated_at = ? WHERE id = ?',
+      [aboutPhotoUrl, new Date().toISOString(), req.session.userId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'About photo updated successfully',
+      aboutPhotoUrl: aboutPhotoUrl
+    });
+  } catch (error) {
+    console.error('Update about photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get about photo for public display
+app.get('/api/about-photo', async (req, res) => {
+  try {
+    const admin = await db.get(`
+      SELECT about_photo, name 
+      FROM users 
+      WHERE role = 'admin' 
+      ORDER BY created_at ASC 
+      LIMIT 1
+    `);
+    
+    res.json({ 
+      aboutPhotoUrl: admin?.about_photo || null,
+      adminName: admin?.name || 'Alina'
+    });
+  } catch (error) {
+    console.error('Get about photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get featured photos for home page
+app.get('/api/featured-photos', async (req, res) => {
+  try {
+    const photos = await db.all(`
+      SELECT p.*, s.title as shoot_title, s.category as shoot_category
+      FROM photos p
+      JOIN shoots s ON p.shoot_id = s.id
+      WHERE p.featured = true
+      ORDER BY p.uploaded_at DESC
+    `);
+    
+    // Add camelCase versions for frontend compatibility
+    const formattedPhotos = photos.map(photo => ({
+      id: photo.id,
+      original_name: photo.original_name,
+      filename: photo.filename,
+      display_url: photo.display_url,
+      download_url: photo.download_url,
+      display_key: photo.display_key,
+      download_key: photo.download_key,
+      original_size: photo.original_size,
+      compressed_size: photo.compressed_size,
+      has_high_res: photo.has_high_res,
+      uploaded_at: photo.uploaded_at,
+      featured: photo.featured,
+      shoot_title: photo.shoot_title,
+      shoot_category: photo.shoot_category,
+      // Add camelCase versions for frontend compatibility
+      displayUrl: photo.display_url,
+      downloadUrl: photo.download_url,
+      displayKey: photo.display_key,
+      downloadKey: photo.download_key,
+      originalSize: photo.original_size,
+      compressedSize: photo.compressed_size,
+      hasHighRes: photo.has_high_res,
+      uploadedAt: photo.uploaded_at,
+      shootTitle: photo.shoot_title,
+      shootCategory: photo.shoot_category
+    }));
+    
+    res.json({ photos: formattedPhotos });
+  } catch (error) {
+    console.error('Get featured photos error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete account
 app.delete('/api/profile/delete-account', requireAuth, async (req, res) => {
   try {

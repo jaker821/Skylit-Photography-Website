@@ -77,7 +77,15 @@ const Navbar = () => {
                   aria-label="Profile menu"
                 >
                   <div className="profile-avatar">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    {user?.profile_picture ? (
+                      <img 
+                        src={user.profile_picture} 
+                        alt={user.name || 'User'} 
+                        className="profile-avatar-image"
+                      />
+                    ) : (
+                      user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                    )}
                   </div>
                   <span className="profile-name">{user?.name || 'User'}</span>
                   <svg className="dropdown-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
@@ -89,7 +97,15 @@ const Navbar = () => {
                   <div className="profile-dropdown-menu">
                     <div className="profile-dropdown-header">
                       <div className="profile-dropdown-avatar">
-                        {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                        {user?.profile_picture ? (
+                          <img 
+                            src={user.profile_picture} 
+                            alt={user.name || 'User'} 
+                            className="profile-dropdown-avatar-image"
+                          />
+                        ) : (
+                          user?.name ? user.name.charAt(0).toUpperCase() : 'U'
+                        )}
                       </div>
                       <div className="profile-dropdown-info">
                         <div className="profile-dropdown-name">{user?.name || 'User'}</div>
