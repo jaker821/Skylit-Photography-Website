@@ -196,11 +196,12 @@ class Database {
           }
         });
         
+        // The WHERE parameter is the last parameter in the array
         return { 
           type: 'UPDATE', 
           table, 
           values: valuesObj, 
-          where: { column: whereColumn, value: params[paramIndex] }
+          where: { column: whereColumn, value: params[params.length - 1] }
         };
       }
     }

@@ -1,4 +1,4 @@
-# Skylit Photography Portfolio Website v2.0.0
+# Skylit Photography Portfolio Website v2.0.1
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
@@ -36,6 +36,13 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **Authentication:** Session-based with bcrypt password hashing
 - **File Uploads:** Multer + Sharp (image compression)
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.0.1
+
+### 🐛 **Bug Fixes:**
+- **✅ Fixed Email Update Issue** - Resolved "user not found" error when updating admin email
+- **✅ Database Query Fix** - Corrected SQL parsing logic for UPDATE operations
+- **✅ Profile Management** - All user profile updates now work correctly
 
 ## What's New in v2.0.0
 
@@ -174,7 +181,12 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.0.0 (Current) - Supabase Integration
+### v2.0.1 (Current) - Bug Fixes
+- **🐛 FIXED:** Email update functionality for admin users
+- **🔧 IMPROVED:** SQL parsing logic for UPDATE operations
+- **✅ STABILITY:** All profile management features now working correctly
+
+### v2.0.0 - Supabase Integration
 - **🎉 MAJOR:** Integrated Supabase PostgreSQL database
 - **🔒 SECURITY:** Complete data persistence across deployments
 - **⚡ PERFORMANCE:** Professional database infrastructure
