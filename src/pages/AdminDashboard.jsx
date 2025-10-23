@@ -97,8 +97,13 @@ const AdminDashboard = () => {
 
   const fetchShoots = async () => {
     try {
+      console.log('🌟 Fetching shoots...')
       const response = await fetch(`${API_URL}/portfolio`)
       const data = await response.json()
+      console.log('🌟 Shoots data received:', data.shoots?.length, 'shoots')
+      if (data.shoots?.length > 0) {
+        console.log('🌟 First shoot photos:', data.shoots[0].photos?.map(p => ({ id: p.id, featured: p.featured })))
+      }
       setShoots(data.shoots || [])
       setCategories(data.categories || [])
     } catch (error) {
@@ -377,8 +382,18 @@ const AdminDashboard = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('🌟 Featured status updated successfully:', data)
-        // Refresh shoots to update featured status
-        await fetchShoots()
+        // Update the local state immediately for visual feedback
+        setShoots(prevShoots => 
+          prevShoots.map(shoot => ({
+            ...shoot,
+            photos: shoot.photos.map(photo => 
+              photo.id === photoId 
+                ? { ...photo, featured: !currentFeatured }
+                : photo
+            )
+          }))
+        )
+        
         // Dispatch event to notify other components
         window.dispatchEvent(new CustomEvent('featuredPhotoUpdated'))
         alert(data.message)
@@ -669,12 +684,6 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('pricing')}
           >
             Pricing
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-            onClick={() => setActiveTab('portfolio')}
-          >
-            Portfolio
           </button>
           <button 
             className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
@@ -1986,7 +1995,10 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, isUploading,
               </div>
               <button 
                 className={`featured-btn ${photo.featured ? 'featured' : ''}`}
-                onClick={() => toggleFeatured(photo.id, photo.featured)}
+                onClick={() => {
+                  console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
+                  toggleFeatured(photo.id, photo.featured)
+                }}
                 title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
