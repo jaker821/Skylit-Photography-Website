@@ -153,10 +153,13 @@ const AdminDashboard = () => {
       const response = await fetch(`${API_URL}/portfolio`)
       const data = await response.json()
       
+      console.log('🌟 Portfolio data received:', data)
+      
       // Flatten all photos from all shoots
       const allPhotosList = []
       data.shoots?.forEach(shoot => {
         shoot.photos?.forEach(photo => {
+          console.log(`🌟 Photo ${photo.id}: featured = ${photo.featured} (type: ${typeof photo.featured})`)
           allPhotosList.push({
             ...photo,
             shoot_title: shoot.title,
@@ -165,6 +168,7 @@ const AdminDashboard = () => {
         })
       })
       
+      console.log('🌟 All photos list:', allPhotosList.map(p => ({ id: p.id, featured: p.featured })))
       setAllPhotos(allPhotosList)
     } catch (error) {
       console.error('Error fetching all photos:', error)
@@ -185,6 +189,8 @@ const AdminDashboard = () => {
   // Toggle featured status for a photo
   const togglePhotoFeatured = async (photoId, isFeatured) => {
     try {
+      console.log(`🌟 Toggle featured: photo ${photoId}, currently featured: ${isFeatured}, setting to: ${!isFeatured}`)
+      
       const response = await fetch(`${API_URL}/photos/${photoId}/featured`, {
         method: 'PUT',
         headers: {
@@ -194,7 +200,12 @@ const AdminDashboard = () => {
         body: JSON.stringify({ featured: !isFeatured })
       })
 
+      console.log(`🌟 Response status: ${response.status}`)
+      
       if (response.ok) {
+        const data = await response.json()
+        console.log('🌟 Response data:', data)
+        
         // Update local state
         setAllPhotos(prev => 
           prev.map(photo => 
@@ -212,11 +223,12 @@ const AdminDashboard = () => {
         
         alert(`Photo ${!isFeatured ? 'added to' : 'removed from'} featured work`)
       } else {
-        const data = await response.json()
-        alert(data.error || 'Failed to update featured status')
+        const errorData = await response.text()
+        console.error('🌟 Error response:', response.status, errorData)
+        alert(`Failed to update featured status: ${response.status}`)
       }
     } catch (error) {
-      console.error('Error toggling featured status:', error)
+      console.error('🌟 Error toggling featured status:', error)
       alert('Error updating featured status. Please try again.')
     }
   }
