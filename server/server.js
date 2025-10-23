@@ -2247,6 +2247,36 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
   }
 });
 
+// Update name
+app.put('/api/profile/update-name', requireAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+    
+    if (name.trim().length > 50) {
+      return res.status(400).json({ error: 'Name must be 50 characters or less' });
+    }
+    
+    // Update user name
+    const result = await db.run(
+      'UPDATE users SET name = ?, updated_at = ? WHERE id = ?',
+      [name.trim(), new Date().toISOString(), req.session.userId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json({ success: true, message: 'Name updated successfully' });
+  } catch (error) {
+    console.error('Update name error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete account
 app.delete('/api/profile/delete-account', requireAuth, async (req, res) => {
   try {

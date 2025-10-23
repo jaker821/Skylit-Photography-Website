@@ -3259,9 +3259,10 @@ img {
 }
 
 .access-control-header h3 {
-  color: var(--primary-purple);
+  color: var(--text-primary);
   margin: 0;
   font-size: 1.3rem;
+  font-weight: 600;
 }
 
 .access-control-content {
@@ -3269,12 +3270,14 @@ img {
 }
 
 .access-control-description {
-  color: var(--text-light);
+  color: var(--text-primary);
   margin-bottom: var(--spacing-lg);
   padding: var(--spacing-md);
-  background: var(--background-darker);
+  background: rgba(223, 208, 143, 0.1);
   border-radius: var(--radius-md);
   border-left: 4px solid var(--accent-gold);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .add-email-form {
@@ -3289,8 +3292,8 @@ img {
   border: 2px solid var(--border-light);
   border-radius: var(--radius-md);
   font-size: 1rem;
-  background: var(--background-dark);
-  color: var(--text-light);
+  background: var(--white);
+  color: var(--text-primary);
 }
 
 .add-email-form input:focus {
@@ -3304,18 +3307,20 @@ img {
 }
 
 .authorized-emails-list h4 {
-  color: var(--text-light);
+  color: var(--text-primary);
   margin-bottom: var(--spacing-md);
   font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .no-emails-message {
-  color: var(--text-gray);
+  color: var(--text-secondary);
   font-style: italic;
   padding: var(--spacing-lg);
   text-align: center;
-  background: var(--background-darker);
+  background: rgba(223, 208, 143, 0.05);
   border-radius: var(--radius-md);
+  border: 1px dashed var(--border-light);
 }
 
 .emails-list {
@@ -3330,7 +3335,7 @@ img {
   align-items: center;
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-sm);
-  background: var(--background-dark);
+  background: var(--white);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   transition: all 0.2s ease;
@@ -3342,9 +3347,10 @@ img {
 }
 
 .email-address {
-  color: var(--text-light);
+  color: var(--text-primary);
   font-family: monospace;
   font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .btn-sm {

@@ -77,10 +77,15 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const refreshUser = async () => {
+    await checkSession()
+  }
+
   const value = {
     user,
     login,
     logout,
+    refreshUser,
     loading,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin'

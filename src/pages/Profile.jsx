@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 
 const Profile = () => {
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [profileData, setProfileData] = useState(null)
@@ -31,6 +31,7 @@ const Profile = () => {
   }
   
   // Form states
+  const [nameForm, setNameForm] = useState({ name: '' })
   const [emailForm, setEmailForm] = useState({ email: '' })
   const [phoneForm, setPhoneForm] = useState({ phone: '' })
   const [passwordForm, setPasswordForm] = useState({
@@ -40,6 +41,9 @@ const Profile = () => {
   })
   
   // UI states
+  const [nameError, setNameError] = useState('')
+  const [nameSuccess, setNameSuccess] = useState('')
+  const [nameLoading, setNameLoading] = useState(false)
   const [emailError, setEmailError] = useState('')
   const [phoneError, setPhoneError] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -70,12 +74,59 @@ const Profile = () => {
       
       const data = await response.json()
       setProfileData(data.user)
+      setNameForm({ name: data.user.name || '' })
       setEmailForm({ email: data.user.email })
       setPhoneForm({ phone: data.user.phone || '' })
     } catch (error) {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUpdateName = async (e) => {
+    e.preventDefault()
+    setNameError('')
+    setNameSuccess('')
+    setNameLoading(true)
+
+    // Name validation
+    if (!nameForm.name.trim()) {
+      setNameError('Name is required')
+      setNameLoading(false)
+      return
+    }
+
+    if (nameForm.name.trim().length > 50) {
+      setNameError('Name must be 50 characters or less')
+      setNameLoading(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/profile/update-name`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: nameForm.name.trim() })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setNameSuccess('Name updated successfully!')
+        setProfileData({ ...profileData, name: nameForm.name.trim() })
+        // Refresh user data in AuthContext to update navbar
+        await refreshUser()
+      } else {
+        setNameError(data.error || 'Failed to update name')
+      }
+    } catch (error) {
+      setNameError('Server error. Please try again.')
+    } finally {
+      setNameLoading(false)
     }
   }
 
@@ -321,6 +372,41 @@ const Profile = () => {
 
         {/* Settings Grid */}
         <div className="profile-settings-grid">
+          {/* Name Section */}
+          <div className="settings-card">
+            <h3>👤 Display Name</h3>
+            <div className="current-info">
+              <label>Current Name</label>
+              <p className="current-value">{profileData.name || 'Not set'}</p>
+            </div>
+            
+            <div className="divider-line"></div>
+            
+            <div className="edit-section">
+              <h4>Update Name</h4>
+              {nameSuccess && <div className="success-message">{nameSuccess}</div>}
+              {nameError && <div className="error-message">{nameError}</div>}
+              <form onSubmit={handleUpdateName}>
+                <div className="form-group">
+                  <label htmlFor="name">Display Name</label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={nameForm.name}
+                    onChange={(e) => setNameForm({ name: e.target.value })}
+                    required
+                    placeholder="Your first name or preferred name"
+                    maxLength="50"
+                  />
+                  <small className="form-help">This name will appear in the top-right corner and throughout the app</small>
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={nameLoading}>
+                  {nameLoading ? 'Updating...' : 'Update Name'}
+                </button>
+              </form>
+            </div>
+          </div>
+
           {/* Email Section */}
           <div className="settings-card">
             <h3>📧 Email Address</h3>
