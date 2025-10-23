@@ -2283,6 +2283,7 @@ app.put('/api/profile/update-name', requireAuth, async (req, res) => {
 // Update profile picture
 app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
   try {
+    console.log('📸 Profile picture update request received');
     const { profilePictureData } = req.body;
     
     // Handle profile picture removal
@@ -2305,8 +2306,11 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
     }
     
     if (!profilePictureData) {
+      console.log('📸 No profile picture data provided');
       return res.status(400).json({ error: 'Profile picture data is required' });
     }
+    
+    console.log('📸 Processing profile picture upload');
     
     // Generate unique filename
     const timestamp = Date.now();
@@ -2314,9 +2318,13 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
     const filename = `profile-${req.session.userId}-${timestamp}-${randomId}.jpg`;
     const key = `profile-pictures/${filename}`;
     
+    console.log('📸 Generated filename:', filename);
+    
     // Convert base64 to buffer
     const base64Data = profilePictureData.replace(/^data:image\/[a-z]+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
+    
+    console.log('📸 Buffer size:', buffer.length, 'bytes');
     
     // Upload to DigitalOcean Spaces
     const uploadParams = {
@@ -2327,10 +2335,14 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
       ACL: 'public-read'
     };
     
+    console.log('📸 Uploading to DigitalOcean Spaces...');
     await spaces.upload(uploadParams).promise();
+    console.log('📸 Upload successful');
     
     // Generate the public URL
     const profilePictureUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`;
+    
+    console.log('📸 Profile picture URL:', profilePictureUrl);
     
     // Update user profile picture URL in database
     const result = await db.run(
@@ -2339,9 +2351,11 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
     );
     
     if (result.changes === 0) {
+      console.log('📸 User not found in database');
       return res.status(404).json({ error: 'User not found' });
     }
     
+    console.log('📸 Profile picture update successful');
     res.json({ 
       success: true, 
       message: 'Profile picture updated successfully',
@@ -2359,16 +2373,22 @@ app.put('/api/photos/:id/featured', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { featured } = req.body;
     
+    console.log(`🌟 Featured update request: photo ${id}, featured: ${featured}`);
+    
     // Update photo featured status
     const result = await db.run(
       'UPDATE photos SET featured = ? WHERE id = ?',
       [featured, id]
     );
     
+    console.log(`🌟 Database update result: ${result.changes} rows affected`);
+    
     if (result.changes === 0) {
+      console.log(`🌟 Photo ${id} not found in database`);
       return res.status(404).json({ error: 'Photo not found' });
     }
     
+    console.log(`🌟 Photo ${id} featured status updated to ${featured}`);
     res.json({ success: true, message: `Photo ${featured ? 'added to' : 'removed from'} featured work` });
   } catch (error) {
     console.error('Toggle featured photo error:', error);

@@ -667,6 +667,7 @@ img {
   align-items: center;
   justify-content: center;
   padding: var(--spacing-lg);
+  overflow-y: auto;
 }
 
 .cropper-header {
@@ -696,6 +697,8 @@ img {
   box-shadow: var(--shadow-xl);
   max-width: 800px;
   width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .image-container {
@@ -1276,6 +1279,37 @@ img {
   
   .settings-section {
     padding: var(--spacing-md);
+  }
+
+  /* Profile Picture Cropper Mobile */
+  .profile-picture-cropper {
+    padding: var(--spacing-sm);
+  }
+  
+  .cropper-container {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    max-height: 95vh;
+    padding: var(--spacing-md);
+  }
+  
+  .cropper-controls {
+    order: 2;
+  }
+  
+  .cropper-preview {
+    order: 3;
+  }
+  
+  .cropper-actions {
+    order: 4;
+    margin-top: var(--spacing-md);
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+  
+  .cropper-actions button {
+    width: 100%;
   }
 }
 

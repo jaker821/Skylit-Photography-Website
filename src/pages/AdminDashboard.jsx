@@ -347,6 +347,8 @@ const AdminDashboard = () => {
   // Toggle featured status for a photo
   const toggleFeatured = async (photoId, currentFeatured) => {
     try {
+      console.log(`🌟 Toggling featured status for photo ${photoId} from ${currentFeatured} to ${!currentFeatured}`)
+      
       const response = await fetch(`${API_URL}/photos/${photoId}/featured`, {
         method: 'PUT',
         headers: {
@@ -358,14 +360,17 @@ const AdminDashboard = () => {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('🌟 Featured status updated successfully:', data)
         // Refresh shoots to update featured status
         await fetchShoots()
         alert(data.message)
       } else {
         const data = await response.json()
+        console.error('🌟 Failed to update featured status:', data)
         alert(data.error || 'Failed to update featured status')
       }
     } catch (error) {
+      console.error('🌟 Error toggling featured status:', error)
       alert('Server error. Please try again.')
     }
   }
@@ -409,9 +414,14 @@ const AdminDashboard = () => {
         await fetchPricing()
         setShowPackageForm(false)
         setEditingPackage(null)
+        alert(editingPackage ? 'Package updated successfully!' : 'Package created successfully!')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to save package')
       }
     } catch (error) {
       console.error('Error saving package:', error)
+      alert('Server error. Please try again.')
     }
   }
 

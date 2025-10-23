@@ -280,6 +280,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
           type="button" 
           className="btn btn-secondary" 
           onClick={onCancel}
+          style={{ minWidth: '120px', padding: '12px 24px' }}
         >
           Cancel
         </button>
@@ -287,6 +288,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
           type="button" 
           className="btn btn-primary" 
           onClick={handleSave}
+          style={{ minWidth: '120px', padding: '12px 24px' }}
         >
           Approve & Save
         </button>

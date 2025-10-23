@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { API_URL } from '../config'
 
-const FeaturedWorkGallery = () => {
+const FeaturedWorkGallery = ({ refreshTrigger }) => {
   const [featuredPhotos, setFeaturedPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -11,6 +11,13 @@ const FeaturedWorkGallery = () => {
   useEffect(() => {
     fetchFeaturedPhotos()
   }, [])
+
+  // Refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger) {
+      fetchFeaturedPhotos()
+    }
+  }, [refreshTrigger])
 
   useEffect(() => {
     if (featuredPhotos.length > 1) {
