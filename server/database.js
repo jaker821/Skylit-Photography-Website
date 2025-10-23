@@ -1,303 +1,262 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
 class Database {
   constructor() {
-    this.db = null;
-    this.dbPath = path.join(__dirname, 'data', 'photography.db');
+    this.supabase = null;
+    this.supabaseUrl = process.env.SUPABASE_URL || 'https://cctdsabijwozimzbeyrq.supabase.co';
+    this.supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjdGRzYWJpandvemltemJleXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyMzI1MjMsImV4cCI6MjA3NjgwODUyM30.KRHwT20jvUPMCv35aGBy1pO3pRSvY8f7CbDTUohz6O0';
   }
 
-  // Initialize database connection and create tables
+  // Initialize database connection
   async init() {
-    return new Promise((resolve, reject) => {
-      // Ensure the data directory exists
-      const dataDir = path.dirname(this.dbPath);
-      if (!fs.existsSync(dataDir)) {
-        fs.mkdirSync(dataDir, { recursive: true });
-      }
-
-      this.db = new sqlite3.Database(this.dbPath, (err) => {
-        if (err) {
-          console.error('Error opening database:', err);
-          reject(err);
-        } else {
-          console.log('✅ Connected to SQLite database');
-          this.createTables()
-            .then(() => {
-              console.log('✅ Database tables created/verified');
-              resolve();
-            })
-            .catch(reject);
-        }
-      });
-    });
-  }
-
-  // Create all necessary tables
-  async createTables() {
-    const tables = [
-      // Users table
-      `CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT,
-        phone TEXT,
-        name TEXT,
-        google_id TEXT UNIQUE,
-        profile_picture TEXT,
-        auth_method TEXT DEFAULT 'local',
-        role TEXT DEFAULT 'user',
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
-      // Shoots table
-      `CREATE TABLE IF NOT EXISTS shoots (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT,
-        category TEXT,
-        date TEXT,
-        authorized_emails TEXT, -- JSON array of emails
-        download_stats TEXT, -- JSON object with download data
-        high_res_deleted_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
-      // Photos table
-      `CREATE TABLE IF NOT EXISTS photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        shoot_id INTEGER NOT NULL,
-        original_name TEXT,
-        filename TEXT,
-        display_url TEXT, -- Compressed version URL
-        download_url TEXT, -- High-res version URL
-        display_key TEXT, -- Spaces key for compressed
-        download_key TEXT, -- Spaces key for original
-        original_size INTEGER, -- Size in bytes
-        compressed_size INTEGER, -- Size in bytes
-        has_high_res BOOLEAN DEFAULT 1,
-        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (shoot_id) REFERENCES shoots (id) ON DELETE CASCADE
-      )`,
-
-      // Bookings table
-      `CREATE TABLE IF NOT EXISTS bookings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_name TEXT NOT NULL,
-        client_email TEXT NOT NULL,
-        user_id INTEGER,
-        session_type TEXT,
-        date TEXT,
-        time TEXT,
-        location TEXT,
-        notes TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
-      )`,
-
-      // Invoices table
-      `CREATE TABLE IF NOT EXISTS invoices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        booking_id INTEGER,
-        amount REAL,
-        description TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (booking_id) REFERENCES bookings (id) ON DELETE SET NULL
-      )`,
-
-      // Expenses table
-      `CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        description TEXT NOT NULL,
-        amount REAL NOT NULL,
-        category TEXT,
-        date TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
-      // Pricing categories table
-      `CREATE TABLE IF NOT EXISTS pricing_categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
-      // Pricing packages table
-      `CREATE TABLE IF NOT EXISTS pricing_packages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        price REAL,
-        features TEXT, -- JSON string for features array
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`,
-
-      // Pricing add-ons table
-      `CREATE TABLE IF NOT EXISTS pricing_addons (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        price REAL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`
-    ];
-
-    for (const tableSQL of tables) {
-      await this.run(tableSQL);
-    }
-
-    // Create indexes for better performance
-    const indexes = [
-      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
-      'CREATE INDEX IF NOT EXISTS idx_shoots_category ON shoots(category)',
-      'CREATE INDEX IF NOT EXISTS idx_photos_shoot_id ON photos(shoot_id)',
-      'CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status)',
-      'CREATE INDEX IF NOT EXISTS idx_invoices_booking_id ON invoices(booking_id)'
-    ];
-
-    for (const indexSQL of indexes) {
-      await this.run(indexSQL);
-    }
-
-    // Add phone column if it doesn't exist (for existing databases)
     try {
-      await this.run('ALTER TABLE users ADD COLUMN phone TEXT');
-    } catch (error) {
-      // Only ignore duplicate column errors, log others
-      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
-        console.log('📱 Phone column already exists, skipping...');
-      } else {
-        console.error('Error adding phone column:', error);
+      this.supabase = createClient(this.supabaseUrl, this.supabaseKey);
+      console.log('✅ Connected to Supabase database');
+      
+      // Test connection
+      const { data, error } = await this.supabase
+        .from('users')
+        .select('count')
+        .limit(1);
+      
+      if (error && !error.message.includes('relation "users" does not exist')) {
         throw error;
       }
-    }
-
-    // Add Google OAuth fields if they don't exist
-    const newFields = [
-      { name: 'name', type: 'TEXT' },
-      { name: 'google_id', type: 'TEXT UNIQUE' },
-      { name: 'profile_picture', type: 'TEXT' },
-      { name: 'auth_method', type: 'TEXT DEFAULT "local"' }
-    ];
-
-    for (const field of newFields) {
-      try {
-        await this.run(`ALTER TABLE users ADD COLUMN ${field.name} ${field.type}`);
-        console.log(`📱 Added ${field.name} column to users table`);
-      } catch (error) {
-        if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
-          console.log(`📱 ${field.name} column already exists, skipping...`);
-        } else {
-          console.error(`Error adding ${field.name} column:`, error);
-          throw error;
-        }
-      }
-    }
-
-    // Add user_id column to bookings table if it doesn't exist
-    try {
-      await this.run('ALTER TABLE bookings ADD COLUMN user_id INTEGER');
-      console.log('📱 Added user_id column to bookings table');
+      
+      console.log('✅ Database tables verified');
+      
     } catch (error) {
-      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
-        console.log('📱 user_id column already exists in bookings table, skipping...');
-      } else {
-        console.error('Error adding user_id column to bookings table:', error);
-        throw error;
-      }
-    }
-
-    // Add features column to pricing_packages table if it doesn't exist
-    try {
-      await this.run('ALTER TABLE pricing_packages ADD COLUMN features TEXT');
-      console.log('📱 Added features column to pricing_packages table');
-    } catch (error) {
-      if (error.code === 'SQLITE_ERROR' && error.message.includes('duplicate column name')) {
-        console.log('📱 features column already exists in pricing_packages table, skipping...');
-      } else {
-        console.error('Error adding features column to pricing_packages table:', error);
-        throw error;
-      }
+      console.error('❌ Database connection failed:', error);
+      throw error;
     }
   }
 
-  // Generic database operations
-  run(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.run(sql, params, function(err) {
-        if (err) {
-          // Don't log expected errors like duplicate columns
-          if (!(err.code === 'SQLITE_ERROR' && err.message.includes('duplicate column name'))) {
-            console.error('Database run error:', err);
+  // Generic database operations using Supabase client
+  async run(sql, params = []) {
+    try {
+      // Parse SQL and convert to Supabase operations
+      const operation = this.parseSQL(sql, params);
+      
+      if (operation.type === 'INSERT') {
+        const { data, error } = await this.supabase
+          .from(operation.table)
+          .insert(operation.values)
+          .select();
+        
+        if (error) throw error;
+        return { id: data[0]?.id, changes: data.length };
+      }
+      
+      if (operation.type === 'UPDATE') {
+        const { data, error } = await this.supabase
+          .from(operation.table)
+          .update(operation.values)
+          .eq(operation.where.column, operation.where.value)
+          .select();
+        
+        if (error) throw error;
+        return { id: data[0]?.id, changes: data.length };
+      }
+      
+      if (operation.type === 'DELETE') {
+        const { data, error } = await this.supabase
+          .from(operation.table)
+          .delete()
+          .eq(operation.where.column, operation.where.value)
+          .select();
+        
+        if (error) throw error;
+        return { id: null, changes: data.length };
+      }
+      
+      // For other operations, return empty result
+      return { id: null, changes: 0 };
+      
+    } catch (error) {
+      console.error('Database run error:', error);
+      throw error;
+    }
+  }
+
+  async get(sql, params = []) {
+    try {
+      const operation = this.parseSQL(sql, params);
+      
+      if (operation.type === 'SELECT') {
+        let query = this.supabase.from(operation.table).select('*');
+        
+        if (operation.where) {
+          query = query.eq(operation.where.column, operation.where.value);
+        }
+        
+        if (operation.limit) {
+          query = query.limit(operation.limit);
+        }
+        
+        const { data, error } = await query.single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data || null;
+      }
+      
+      // For COUNT queries
+      if (operation.type === 'COUNT') {
+        let query = this.supabase.from(operation.table).select('*', { count: 'exact', head: true });
+        
+        if (operation.where) {
+          query = query.eq(operation.where.column, operation.where.value);
+        }
+        
+        const { count, error } = await query;
+        if (error) throw error;
+        return { count };
+      }
+      
+      return null;
+      
+    } catch (error) {
+      console.error('Database get error:', error);
+      throw error;
+    }
+  }
+
+  async all(sql, params = []) {
+    try {
+      const operation = this.parseSQL(sql, params);
+      
+      if (operation.type === 'SELECT') {
+        let query = this.supabase.from(operation.table).select('*');
+        
+        if (operation.where) {
+          query = query.eq(operation.where.column, operation.where.value);
+        }
+        
+        if (operation.limit) {
+          query = query.limit(operation.limit);
+        }
+        
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+      }
+      
+      return [];
+      
+    } catch (error) {
+      console.error('Database all error:', error);
+      throw error;
+    }
+  }
+
+  // Parse SQL queries and convert to Supabase operations
+  parseSQL(sql, params) {
+    const upperSQL = sql.toUpperCase().trim();
+    
+    // INSERT INTO table (col1, col2) VALUES (?, ?)
+    if (upperSQL.includes('INSERT INTO')) {
+      const match = sql.match(/INSERT INTO\s+(\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
+      if (match) {
+        const table = match[1];
+        const columns = match[2].split(',').map(c => c.trim());
+        const values = match[3].split(',').map(v => v.trim());
+        
+        const valuesObj = {};
+        columns.forEach((col, index) => {
+          const value = values[index];
+          if (value === '?') {
+            valuesObj[col] = params[index];
+          } else {
+            // Remove quotes
+            valuesObj[col] = value.replace(/['"]/g, '');
           }
-          reject(err);
-        } else {
-          resolve({ id: this.lastID, changes: this.changes });
+        });
+        
+        return { type: 'INSERT', table, values: valuesObj };
+      }
+    }
+    
+    // UPDATE table SET col1 = ?, col2 = ? WHERE col3 = ?
+    if (upperSQL.includes('UPDATE')) {
+      const match = sql.match(/UPDATE\s+(\w+)\s*SET\s*([^WHERE]+)\s*WHERE\s*(\w+)\s*=\s*\?/i);
+      if (match) {
+        const table = match[1];
+        const setClause = match[2];
+        const whereColumn = match[3];
+        
+        const valuesObj = {};
+        const setParts = setClause.split(',');
+        let paramIndex = 0;
+        
+        setParts.forEach(part => {
+          const [col, val] = part.split('=').map(s => s.trim());
+          if (val === '?') {
+            valuesObj[col] = params[paramIndex++];
+          } else {
+            valuesObj[col] = val.replace(/['"]/g, '');
+          }
+        });
+        
+        return { 
+          type: 'UPDATE', 
+          table, 
+          values: valuesObj, 
+          where: { column: whereColumn, value: params[paramIndex] }
+        };
+      }
+    }
+    
+    // DELETE FROM table WHERE col = ?
+    if (upperSQL.includes('DELETE FROM')) {
+      const match = sql.match(/DELETE FROM\s+(\w+)\s*WHERE\s*(\w+)\s*=\s*\?/i);
+      if (match) {
+        return { 
+          type: 'DELETE', 
+          table: match[1], 
+          where: { column: match[2], value: params[0] }
+        };
+      }
+    }
+    
+    // SELECT * FROM table WHERE col = ? LIMIT 1
+    if (upperSQL.includes('SELECT')) {
+      const match = sql.match(/SELECT\s+.*?\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*=\s*\?)?(?:\s+LIMIT\s+(\d+))?/i);
+      if (match) {
+        const table = match[1];
+        const whereColumn = match[2];
+        const limit = match[3] ? parseInt(match[3]) : null;
+        
+        if (upperSQL.includes('COUNT(*)')) {
+          return { 
+            type: 'COUNT', 
+            table, 
+            where: whereColumn ? { column: whereColumn, value: params[0] } : null
+          };
         }
-      });
-    });
-  }
-
-  get(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.get(sql, params, (err, row) => {
-        if (err) {
-          console.error('Database get error:', err);
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
-    });
-  }
-
-  all(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      this.db.all(sql, params, (err, rows) => {
-        if (err) {
-          console.error('Database all error:', err);
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      });
-    });
+        
+        return { 
+          type: 'SELECT', 
+          table, 
+          where: whereColumn ? { column: whereColumn, value: params[0] } : null,
+          limit
+        };
+      }
+    }
+    
+    // Default fallback
+    return { type: 'UNKNOWN', table: 'users' };
   }
 
   // Close database connection
-  close() {
-    return new Promise((resolve) => {
-      if (this.db) {
-        this.db.close((err) => {
-          if (err) {
-            console.error('Error closing database:', err);
-          } else {
-            console.log('Database connection closed');
-          }
-          resolve();
-        });
-      } else {
-        resolve();
-      }
-    });
+  async close() {
+    // Supabase client doesn't need explicit closing
+    console.log('Database connection closed');
   }
 
   // Helper function to parse JSON fields
   parseJSONField(field) {
     if (!field) return null;
     try {
-      return JSON.parse(field);
+      return typeof field === 'string' ? JSON.parse(field) : field;
     } catch (e) {
       console.warn('Failed to parse JSON field:', field);
       return null;
