@@ -1097,7 +1097,16 @@ app.get('/api/portfolio', async (req, res) => {
           original_size: photo.original_size,
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
-          uploaded_at: photo.uploaded_at
+          uploaded_at: photo.uploaded_at,
+          // Add camelCase versions for frontend compatibility
+          displayUrl: photo.display_url,
+          downloadUrl: photo.download_url,
+          displayKey: photo.display_key,
+          downloadKey: photo.download_key,
+          originalSize: photo.original_size,
+          compressedSize: photo.compressed_size,
+          hasHighRes: photo.has_high_res,
+          uploadedAt: photo.uploaded_at
         }))
       };
     }));
@@ -1150,7 +1159,16 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
           original_size: photo.original_size,
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
-          uploaded_at: photo.uploaded_at
+          uploaded_at: photo.uploaded_at,
+          // Add camelCase versions for frontend compatibility
+          displayUrl: photo.display_url,
+          downloadUrl: photo.download_url,
+          displayKey: photo.display_key,
+          downloadKey: photo.download_key,
+          originalSize: photo.original_size,
+          compressedSize: photo.compressed_size,
+          hasHighRes: photo.has_high_res,
+          uploadedAt: photo.uploaded_at
         })),
         authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
         downloadStats: db.parseJSONField(shoot.download_stats) || {},
@@ -1203,7 +1221,16 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
         original_size: photo.original_size,
         compressed_size: photo.compressed_size,
         has_high_res: photo.has_high_res,
-        uploaded_at: photo.uploaded_at
+        uploaded_at: photo.uploaded_at,
+        // Add camelCase versions for frontend compatibility
+        displayUrl: photo.display_url,
+        downloadUrl: photo.download_url,
+        displayKey: photo.display_key,
+        downloadKey: photo.download_key,
+        originalSize: photo.original_size,
+        compressedSize: photo.compressed_size,
+        hasHighRes: photo.has_high_res,
+        uploadedAt: photo.uploaded_at
       })),
       authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
       downloadStats: db.parseJSONField(shoot.download_stats) || {},
@@ -1317,7 +1344,16 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
         original_size: photo.original_size,
         compressed_size: photo.compressed_size,
         has_high_res: photo.has_high_res,
-        uploaded_at: photo.uploaded_at
+        uploaded_at: photo.uploaded_at,
+        // Add camelCase versions for frontend compatibility
+        displayUrl: photo.display_url,
+        downloadUrl: photo.download_url,
+        displayKey: photo.display_key,
+        downloadKey: photo.download_key,
+        originalSize: photo.original_size,
+        compressedSize: photo.compressed_size,
+        hasHighRes: photo.has_high_res,
+        uploadedAt: photo.uploaded_at
       })),
       authorizedEmails: db.parseJSONField(updatedShoot.authorized_emails) || [],
       downloadStats: db.parseJSONField(updatedShoot.download_stats) || {},
@@ -2145,16 +2181,19 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
       sessionUserId: req.session.userId,
       sessionUserRole: req.session.userRole,
       sessionId: req.sessionID,
-      hasSession: !!req.session
+      hasSession: !!req.session,
+      bodyKeys: Object.keys(req.body || {})
     });
     
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
+      console.log('❌ Missing password fields');
       return res.status(400).json({ error: 'Current and new passwords are required' });
     }
     
     if (newPassword.length < 6) {
+      console.log('❌ Password too short');
       return res.status(400).json({ error: 'New password must be at least 6 characters' });
     }
     
@@ -2170,16 +2209,20 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
     
     // Check if user has a password (Google OAuth users might not)
     if (!user.password_hash) {
+      console.log('❌ User has no password hash (Google OAuth)');
       return res.status(400).json({ error: 'Cannot change password for Google-authenticated accounts' });
     }
     
     // Verify current password with bcrypt
+    console.log('🔄 Verifying current password...');
     const passwordMatch = await bcrypt.compare(currentPassword, user.password_hash);
     if (!passwordMatch) {
+      console.log('❌ Current password incorrect');
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
     
     // Hash new password before storing
+    console.log('🔄 Hashing new password...');
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     // Update password in database
@@ -2196,6 +2239,7 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
+    console.log('✅ Password updated successfully');
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (error) {
     console.error('Update password error:', error);
