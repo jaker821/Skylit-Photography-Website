@@ -902,9 +902,20 @@ const AdminDashboard = () => {
                   <div key={shoot.id} className="shoot-card" onClick={() => setSelectedShoot(shoot)}>
                     <div className="shoot-thumbnail">
                       {shoot.photos.length > 0 ? (
-                        <img src={`http://localhost:5000${shoot.photos[0].url}`} alt={shoot.title} />
+                        <img 
+                          src={shoot.photos[0].displayUrl || shoot.photos[0].display_url} 
+                          alt={shoot.title}
+                          loading="lazy"
+                        />
                       ) : (
-                        <div className="no-photo">No photos yet</div>
+                        <div className="no-photo">
+                          <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="2"/>
+                            <polyline points="21,15 16,10 5,21" stroke="currentColor" strokeWidth="2"/>
+                          </svg>
+                          <span>No photos yet</span>
+                        </div>
                       )}
                     </div>
                     <div className="shoot-info">
