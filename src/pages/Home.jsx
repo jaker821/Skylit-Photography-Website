@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { API_URL } from '../config'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
-import InlinePhotoEditor from '../components/InlinePhotoEditor'
 import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
-import { useAuth } from '../context/AuthContext'
 
 const Home = () => {
-  const { user } = useAuth()
-  const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
-  const [adminName, setAdminName] = useState('Alina')
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
 
   useEffect(() => {
@@ -29,28 +23,8 @@ const Home = () => {
 
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el))
 
-    // Fetch about photo
-    fetchAboutPhoto()
-
     return () => observer.disconnect()
   }, [])
-
-  const fetchAboutPhoto = async () => {
-    try {
-      const response = await fetch(`${API_URL}/about-photo`)
-      if (response.ok) {
-        const data = await response.json()
-        setAboutPhotoUrl(data.aboutPhotoUrl)
-        setAdminName(data.adminName)
-      }
-    } catch (error) {
-      console.error('Error fetching about photo:', error)
-    }
-  }
-
-  const handlePhotoUpdate = (newPhotoUrl) => {
-    setAboutPhotoUrl(newPhotoUrl)
-  }
 
   // Function to trigger featured gallery refresh
   const refreshFeaturedGallery = () => {
@@ -110,15 +84,7 @@ const Home = () => {
               <Link to="/about" className="btn btn-text">Learn More About Me →</Link>
             </div>
             <div className="about-preview-image">
-              {user && user.role === 'admin' ? (
-                <InlinePhotoEditor 
-                  currentPhotoUrl={aboutPhotoUrl}
-                  onPhotoUpdate={handlePhotoUpdate}
-                  adminName={adminName}
-                />
-              ) : (
-                <AboutPhotoDisplay adminName={adminName} />
-              )}
+              <AboutPhotoDisplay adminName="Alina" />
             </div>
           </div>
         </div>

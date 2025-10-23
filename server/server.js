@@ -2594,6 +2594,7 @@ app.get('/api/about-photo', async (req, res) => {
 // Get featured photos for home page
 app.get('/api/featured-photos', async (req, res) => {
   try {
+    console.log('🌟 Featured photos API called');
     const photos = await db.all(`
       SELECT p.*, s.title as shoot_title, c.name as shoot_category
       FROM photos p
@@ -2602,6 +2603,8 @@ app.get('/api/featured-photos', async (req, res) => {
       WHERE p.featured = true
       ORDER BY p.uploaded_at DESC
     `);
+    
+    console.log('🌟 Found', photos.length, 'featured photos');
     
     // Add camelCase versions for frontend compatibility
     const formattedPhotos = photos.map(photo => ({
@@ -2632,6 +2635,7 @@ app.get('/api/featured-photos', async (req, res) => {
       shootCategory: photo.shoot_category
     }));
     
+    console.log('🌟 Returning', formattedPhotos.length, 'formatted photos');
     res.json({ photos: formattedPhotos });
   } catch (error) {
     console.error('Get featured photos error:', error);

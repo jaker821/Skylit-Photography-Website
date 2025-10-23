@@ -34,15 +34,21 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
     try {
       console.log('🌟 Fetching featured photos...')
       const response = await fetch(`${API_URL}/featured-photos`)
+      console.log('🌟 Response status:', response.status)
+      
       if (response.ok) {
         const data = await response.json()
         console.log('🌟 Featured photos response:', data)
-        setFeaturedPhotos(data.photos)
+        setFeaturedPhotos(data.photos || [])
       } else {
         console.error('🌟 Failed to fetch featured photos:', response.status)
+        const errorData = await response.text()
+        console.error('🌟 Error response:', errorData)
+        setFeaturedPhotos([])
       }
     } catch (error) {
       console.error('🌟 Error fetching featured photos:', error)
+      setFeaturedPhotos([])
     } finally {
       setLoading(false)
     }
