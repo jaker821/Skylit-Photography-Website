@@ -2053,13 +2053,6 @@ app.put('/api/profile/update-email', requireAuth, async (req, res) => {
   try {
     const { email } = req.body;
     
-    console.log('🔍 Email update debug:', {
-      sessionUserId: req.session.userId,
-      sessionUserRole: req.session.userRole,
-      email: email,
-      sessionId: req.sessionID
-    });
-    
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
@@ -2077,16 +2070,12 @@ app.put('/api/profile/update-email', requireAuth, async (req, res) => {
     }
     
     // Update user email
-    console.log('🔄 Attempting UPDATE with params:', [email, new Date().toISOString(), req.session.userId]);
     const result = await db.run(
       'UPDATE users SET email = ?, updated_at = ? WHERE id = ?',
       [email, new Date().toISOString(), req.session.userId]
     );
     
-    console.log('📊 Update result:', result);
-    
     if (result.changes === 0) {
-      console.error('❌ No changes made - user not found or update failed');
       return res.status(404).json({ error: 'User not found' });
     }
     
