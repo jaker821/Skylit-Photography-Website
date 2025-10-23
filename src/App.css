@@ -486,7 +486,7 @@ img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -555,7 +555,7 @@ img {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -709,7 +709,7 @@ img {
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+  background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -833,6 +833,12 @@ img {
   gap: var(--spacing-lg);
 }
 
+.password-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-lg);
+}
+
 .form-actions {
   margin-top: var(--spacing-lg);
 }
@@ -854,37 +860,26 @@ img {
   color: var(--primary-purple-dark);
 }
 
-.danger-card {
-  border: 2px solid var(--error-color);
-}
-
-.danger-card .card-header {
-  background: rgba(220, 53, 69, 0.1);
-  border-bottom-color: var(--error-color);
-}
-
-.danger-card .card-header h2 {
-  color: var(--error-color);
-}
-
-.danger-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--spacing-xl);
-}
-
-.danger-info h3 {
-  color: var(--white);
-  font-size: 1.2rem;
+.btn-large {
+  padding: var(--spacing-lg) var(--spacing-2xl);
+  font-size: 1.1rem;
   font-weight: 600;
-  margin-bottom: var(--spacing-xs);
 }
 
-.danger-info p {
+.delete-account-section {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  background: rgba(220, 53, 69, 0.05);
+  border: 2px solid rgba(220, 53, 69, 0.2);
+  border-radius: var(--radius-xl);
+  margin-top: var(--spacing-xl);
+}
+
+.delete-warning {
   color: var(--cream);
   font-size: 0.95rem;
-  line-height: 1.5;
+  margin-top: var(--spacing-md);
+  opacity: 0.9;
 }
 
 .error-message {
@@ -966,6 +961,14 @@ img {
   .about-photo-container {
     height: 350px;
     max-width: 100%;
+  }
+  
+  .password-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .delete-account-section {
+    padding: var(--spacing-lg);
   }
 }
 .profile-picture-cropper {

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
-import ProfilePictureCropper from '../components/ProfilePictureCropper'
 
 const Profile = () => {
   const { user, logout, refreshUser } = useAuth()
@@ -56,14 +55,6 @@ const Profile = () => {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  // Profile picture states
-  const [showProfilePictureCropper, setShowProfilePictureCropper] = useState(false)
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [profilePictureLoading, setProfilePictureLoading] = useState(false)
-  const [profilePictureError, setProfilePictureError] = useState('')
-  const [profilePictureSuccess, setProfilePictureSuccess] = useState('')
-  const fileInputRef = useRef(null)
-
   useEffect(() => {
     fetchProfile()
   }, [])
@@ -87,106 +78,6 @@ const Profile = () => {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setProfilePictureError('Please select a valid image file')
-        return
-      }
-      
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setProfilePictureError('Image must be smaller than 10MB')
-        return
-      }
-      
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setSelectedImage(event.target.result)
-        setShowProfilePictureCropper(true)
-        setProfilePictureError('')
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleCropComplete = async (croppedImageBlob) => {
-    setShowProfilePictureCropper(false)
-    setProfilePictureLoading(true)
-    setProfilePictureError('')
-    setProfilePictureSuccess('')
-
-    try {
-      // Convert blob to base64 for upload to DigitalOcean Spaces
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const base64String = reader.result
-        
-        // Upload to DigitalOcean Spaces via server
-        const response = await fetch(`${API_URL}/profile/update-picture`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include',
-          body: JSON.stringify({ profilePictureData: base64String })
-        })
-
-        const data = await response.json()
-
-        if (response.ok) {
-          setProfilePictureSuccess('Profile picture updated successfully!')
-          setProfileData({ ...profileData, profile_picture: data.profilePictureUrl })
-          // Refresh user data in AuthContext to update navbar
-          await refreshUser()
-          // Clear success message after 3 seconds
-          setTimeout(() => setProfilePictureSuccess(''), 3000)
-        } else {
-          setProfilePictureError(data.error || 'Failed to update profile picture')
-        }
-      }
-      reader.readAsDataURL(croppedImageBlob)
-    } catch (error) {
-      setProfilePictureError('Server error. Please try again.')
-    } finally {
-      setProfilePictureLoading(false)
-    }
-  }
-
-  const handleRemoveProfilePicture = async () => {
-    setProfilePictureLoading(true)
-    setProfilePictureError('')
-    setProfilePictureSuccess('')
-
-    try {
-      const response = await fetch(`${API_URL}/profile/update-picture`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ profilePictureData: null })
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setProfilePictureSuccess('Profile picture removed successfully!')
-        setProfileData({ ...profileData, profile_picture: null })
-        // Refresh user data in AuthContext to update navbar
-        await refreshUser()
-      } else {
-        setProfilePictureError(data.error || 'Failed to remove profile picture')
-      }
-    } catch (error) {
-      setProfilePictureError('Server error. Please try again.')
-    } finally {
-      setProfilePictureLoading(false)
     }
   }
 
@@ -354,7 +245,23 @@ const Profile = () => {
   }
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your account?\n\n' +
+      'This action cannot be undone and will permanently delete:\n' +
+      '• Your account and profile\n' +
+      '• All your data\n' +
+      '• Access to any shoots\n\n' +
+      'Type "DELETE" in the next prompt to confirm.'
+    )
+    
+    if (!confirmed) return
+    
+    const typedConfirmation = window.prompt(
+      'To confirm account deletion, please type "DELETE" exactly as shown:'
+    )
+    
+    if (typedConfirmation !== 'DELETE') {
+      alert('Account deletion cancelled. You must type "DELETE" exactly to confirm.')
       return
     }
 
@@ -399,40 +306,15 @@ const Profile = () => {
         <div className="profile-header">
           <div className="profile-avatar-section">
             <div className="profile-avatar-large">
-              {profileData?.profile_picture ? (
-                <img 
-                  src={profileData.profile_picture} 
-                  alt="Profile" 
-                  className="avatar-image"
-                />
-              ) : (
-                <div className="avatar-placeholder">
-                  <span>{profileData?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
-                </div>
-              )}
+              <div className="avatar-placeholder">
+                <span>{profileData?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+              </div>
             </div>
             <div className="profile-info">
               <h1 className="profile-title">{profileData?.name || 'User'}</h1>
               <p className="profile-email">{profileData?.email}</p>
               <span className="profile-role">{user?.role === 'admin' ? 'Administrator' : 'User'}</span>
             </div>
-          </div>
-          
-          <div className="profile-actions">
-            <button 
-              className="btn btn-outline"
-              onClick={() => setShowProfilePictureCropper(true)}
-              disabled={profilePictureLoading}
-            >
-              {profilePictureLoading ? 'Updating...' : 'Change Photo'}
-            </button>
-            <button 
-              className="btn btn-danger"
-              onClick={handleRemoveProfilePicture}
-              disabled={profilePictureLoading || !profileData?.profile_picture}
-            >
-              Remove Photo
-            </button>
           </div>
         </div>
 
@@ -520,46 +402,48 @@ const Profile = () => {
           {/* Security Card */}
           <div className="profile-card">
             <div className="card-header">
-              <h2>Security</h2>
+              <h2>🔒 Security</h2>
               <p>Manage your password and account security</p>
             </div>
             
             <div className="card-content">
               <form onSubmit={handleUpdatePassword} className="password-form">
-                <div className="form-section">
-                  <label className="form-label">Current Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.currentPassword}
-                    onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                    className="form-input"
-                    placeholder="Enter current password"
-                    required
-                  />
-                </div>
+                <div className="password-form-grid">
+                  <div className="form-section">
+                    <label className="form-label">Current Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                      className="form-input"
+                      placeholder="Enter current password"
+                      required
+                    />
+                  </div>
 
-                <div className="form-section">
-                  <label className="form-label">New Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                    className="form-input"
-                    placeholder="Enter new password"
-                    required
-                  />
-                </div>
+                  <div className="form-section">
+                    <label className="form-label">New Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                      className="form-input"
+                      placeholder="Enter new password"
+                      required
+                    />
+                  </div>
 
-                <div className="form-section">
-                  <label className="form-label">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                    className="form-input"
-                    placeholder="Confirm new password"
-                    required
-                  />
+                  <div className="form-section">
+                    <label className="form-label">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                      className="form-input"
+                      placeholder="Confirm new password"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="form-actions">
@@ -578,53 +462,23 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Danger Zone Card */}
-          <div className="profile-card danger-card">
-            <div className="card-header">
-              <h2>Danger Zone</h2>
-              <p>Irreversible and destructive actions</p>
+          {/* Delete Account Button - Only show for non-admin users */}
+          {user?.role !== 'admin' && (
+            <div className="delete-account-section">
+              <button 
+                className="btn btn-danger btn-large"
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Account'}
+              </button>
+              <p className="delete-warning">
+                ⚠️ This action cannot be undone. All your data will be permanently deleted.
+              </p>
             </div>
-            
-            <div className="card-content">
-              <div className="danger-section">
-                <div className="danger-info">
-                  <h3>Delete Account</h3>
-                  <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
-                </div>
-                <button 
-                  className="btn btn-danger"
-                  onClick={handleDeleteAccount}
-                  disabled={deleteLoading}
-                >
-                  {deleteLoading ? 'Deleting...' : 'Delete Account'}
-                </button>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
-
-      {/* Profile Picture Cropper Modal */}
-      {showProfilePictureCropper && (
-        <ProfilePictureCropper
-          imageSrc={selectedImage}
-          onCropComplete={handleCropComplete}
-          onCancel={() => {
-            setShowProfilePictureCropper(false)
-            setSelectedImage(null)
-          }}
-          isCircular={true}
-        />
-      )}
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageSelect}
-        style={{ display: 'none' }}
-      />
     </div>
   )
 }

@@ -372,6 +372,8 @@ const AdminDashboard = () => {
         body: JSON.stringify({ featured: !currentFeatured })
       })
 
+      console.log(`🌟 Response status: ${response.status}`)
+
       if (response.ok) {
         const data = await response.json()
         console.log('🌟 Featured status updated successfully:', data)

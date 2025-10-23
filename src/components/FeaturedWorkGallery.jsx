@@ -32,13 +32,17 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
 
   const fetchFeaturedPhotos = async () => {
     try {
+      console.log('🌟 Fetching featured photos...')
       const response = await fetch(`${API_URL}/featured-photos`)
       if (response.ok) {
         const data = await response.json()
+        console.log('🌟 Featured photos response:', data)
         setFeaturedPhotos(data.photos)
+      } else {
+        console.error('🌟 Failed to fetch featured photos:', response.status)
       }
     } catch (error) {
-      console.error('Error fetching featured photos:', error)
+      console.error('🌟 Error fetching featured photos:', error)
     } finally {
       setLoading(false)
     }
@@ -105,6 +109,7 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
   }
 
   if (featuredPhotos.length === 0) {
+    console.log('🌟 No featured photos found, showing empty state')
     return (
       <div className="featured-work-section">
         <div className="featured-work-header">

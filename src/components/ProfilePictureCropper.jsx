@@ -23,13 +23,13 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
   }, [imageSrc])
 
   // Compress image (different sizes for profile vs about photos)
-  const compressImage = useCallback((canvas, quality = 0.8) => {
+  const compressImage = useCallback((canvas, quality = 0.9) => {
     // Create a new canvas for compression
     const compressedCanvas = document.createElement('canvas')
     const ctx = compressedCanvas.getContext('2d')
     
     // Set compressed dimensions based on use case
-    const maxSize = isCircular ? 200 : 400 // Profile pics: 200px, About photos: 400px
+    const maxSize = isCircular ? 200 : 800 // Profile pics: 200px, About photos: 800px for better quality
     let { width, height } = canvas
     
     if (width > height) {
@@ -46,6 +46,10 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
     
     compressedCanvas.width = width
     compressedCanvas.height = height
+    
+    // Enable better image quality
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
     
     // Draw compressed image
     ctx.drawImage(canvas, 0, 0, width, height)
@@ -93,6 +97,10 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // Enable better image quality
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
 
       const pixelRatio = window.devicePixelRatio
       
@@ -147,7 +155,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
       const canvas = previewCanvasRef.current
       
       // Compress the image for profile picture
-      const compressedBlob = await compressImage(canvas, 0.8)
+      const compressedBlob = await compressImage(canvas, 0.9)
       
       if (!compressedBlob) {
         throw new Error('Failed to create compressed blob')
