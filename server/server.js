@@ -460,24 +460,144 @@ app.get('/api/auth/session', async (req, res) => {
 });
 
 // ===================================
+// Category Management Routes
+// ===================================
+
+// Get all categories
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await db.all('SELECT * FROM categories ORDER BY name');
+    res.json({ categories });
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create new category (admin only)
+app.post('/api/categories', requireAuth, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    
+    // Check if user is admin
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+    
+    // Check if category already exists
+    const existing = await db.get('SELECT * FROM categories WHERE name = ?', [name.trim()]);
+    if (existing) {
+      return res.status(400).json({ error: 'Category already exists' });
+    }
+    
+    const result = await db.run(
+      'INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)',
+      [name.trim(), description || null, new Date().toISOString(), new Date().toISOString()]
+    );
+    
+    const newCategory = await db.get('SELECT * FROM categories WHERE id = ?', [result.id]);
+    res.json({ success: true, category: newCategory });
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update category (admin only)
+app.put('/api/categories/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    
+    // Check if user is admin
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+    
+    // Check if category already exists (excluding current one)
+    const existing = await db.get('SELECT * FROM categories WHERE name = ? AND id != ?', [name.trim(), id]);
+    if (existing) {
+      return res.status(400).json({ error: 'Category already exists' });
+    }
+    
+    const result = await db.run(
+      'UPDATE categories SET name = ?, description = ?, updated_at = ? WHERE id = ?',
+      [name.trim(), description || null, new Date().toISOString(), id]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    const updatedCategory = await db.get('SELECT * FROM categories WHERE id = ?', [id]);
+    res.json({ success: true, category: updatedCategory });
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete category (admin only)
+app.delete('/api/categories/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if user is admin
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    // Check if category is being used by any shoots
+    const shootsUsingCategory = await db.get('SELECT COUNT(*) as count FROM shoots WHERE category_id = ?', [id]);
+    if (shootsUsingCategory.count > 0) {
+      return res.status(400).json({ error: 'Cannot delete category that is being used by shoots' });
+    }
+    
+    const result = await db.run('DELETE FROM categories WHERE id = ?', [id]);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    
+    res.json({ success: true, message: 'Category deleted successfully' });
+  } catch (error) {
+    console.error('Delete category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
 // Pricing Routes
 // ===================================
 
 // Get all pricing data
 app.get('/api/pricing', async (req, res) => {
   try {
-    // Get categories from database
-    const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
-    
     // Get packages from database
     const packages = await db.all('SELECT * FROM pricing_packages ORDER BY id');
     
     // Get addons from database
     const addOns = await db.all('SELECT * FROM pricing_addons ORDER BY id');
     
+    // Parse JSON fields for packages
+    const formattedPackages = packages.map(pkg => ({
+      ...pkg,
+      features: pkg.features ? JSON.parse(pkg.features) : []
+    }));
+    
     res.json({
-      categories: categories.map(c => c.name),
-      packages: packages,
+      packages: formattedPackages,
       addOns: addOns
     });
   } catch (error) {
@@ -1057,6 +1177,43 @@ app.delete('/api/expenses/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Get or create category by name (for shoot creation)
+app.post('/api/categories/get-or-create', requireAuth, async (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    // Check if user is admin
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+    
+    const categoryName = name.trim();
+    
+    // Check if category already exists
+    let category = await db.get('SELECT * FROM categories WHERE name = ?', [categoryName]);
+    
+    if (!category) {
+      // Create new category
+      const result = await db.run(
+        'INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)',
+        [categoryName, null, new Date().toISOString(), new Date().toISOString()]
+      );
+      
+      category = await db.get('SELECT * FROM categories WHERE id = ?', [result.id]);
+    }
+    
+    res.json({ success: true, category });
+  } catch (error) {
+    console.error('Get or create category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===================================
 // Portfolio/Shoots Routes
 // ===================================
@@ -1066,8 +1223,13 @@ app.get('/api/portfolio', async (req, res) => {
   try {
     console.log('📸 Portfolio request received');
     
-    // Get all shoots
-    const shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+    // Get all shoots with category information
+    const shoots = await db.all(`
+      SELECT s.*, c.name as category_name, c.description as category_description
+      FROM shoots s
+      LEFT JOIN categories c ON s.category_id = c.id
+      ORDER BY s.created_at DESC
+    `);
     console.log(`📸 Found ${shoots.length} shoots in database`);
 
     // Get photos for each shoot
@@ -1077,7 +1239,9 @@ app.get('/api/portfolio', async (req, res) => {
         id: shoot.id,
         title: shoot.title,
         description: shoot.description,
-        category: shoot.category,
+        category: shoot.category_name || shoot.category, // Fallback to old category field
+        category_id: shoot.category_id,
+        category_description: shoot.category_description,
         date: shoot.date,
         authorized_emails: shoot.authorized_emails,
         download_stats: shoot.download_stats,
@@ -1258,13 +1422,31 @@ app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Title and category are required' });
     }
     
+    // Get or create category
+    let categoryId = null;
+    if (typeof category === 'number') {
+      // If category is already an ID
+      categoryId = category;
+    } else {
+      // If category is a string, get or create it
+      let categoryRecord = await db.get('SELECT * FROM categories WHERE name = ?', [category]);
+      if (!categoryRecord) {
+        const result = await db.run(
+          'INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)',
+          [category, null, new Date().toISOString(), new Date().toISOString()]
+        );
+        categoryRecord = await db.get('SELECT * FROM categories WHERE id = ?', [result.id]);
+      }
+      categoryId = categoryRecord.id;
+    }
+    
     const result = await db.run(
-      `INSERT INTO shoots (title, description, category, date, authorized_emails, download_stats, created_at, updated_at)
+      `INSERT INTO shoots (title, description, category_id, date, authorized_emails, download_stats, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title,
         description || '',
-        category,
+        categoryId,
         date || new Date().toISOString(),
         db.stringifyJSONField([]), // authorized_emails
         db.stringifyJSONField({}), // download_stats
@@ -2328,7 +2510,7 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
     
     // Upload to DigitalOcean Spaces
     const uploadParams = {
-      Bucket: process.env.DO_SPACES_BUCKET,
+      Bucket: process.env.SPACES_BUCKET,
       Key: key,
       Body: buffer,
       ContentType: 'image/jpeg',
@@ -2336,11 +2518,11 @@ app.put('/api/profile/update-picture', requireAuth, async (req, res) => {
     };
     
     console.log('📸 Uploading to DigitalOcean Spaces...');
-    await spaces.upload(uploadParams).promise();
+    await s3Client.upload(uploadParams).promise();
     console.log('📸 Upload successful');
     
     // Generate the public URL
-    const profilePictureUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`;
+    const profilePictureUrl = `https://${process.env.SPACES_BUCKET}.${process.env.SPACES_ENDPOINT}/${key}`;
     
     console.log('📸 Profile picture URL:', profilePictureUrl);
     
@@ -2442,17 +2624,17 @@ app.put('/api/admin/about-photo', requireAuth, async (req, res) => {
     
     // Upload to DigitalOcean Spaces
     const uploadParams = {
-      Bucket: process.env.DO_SPACES_BUCKET,
+      Bucket: process.env.SPACES_BUCKET,
       Key: key,
       Body: buffer,
       ContentType: 'image/jpeg',
       ACL: 'public-read'
     };
     
-    await spaces.upload(uploadParams).promise();
+    await s3Client.upload(uploadParams).promise();
     
     // Generate the public URL
-    const aboutPhotoUrl = `https://${process.env.DO_SPACES_BUCKET}.${process.env.DO_SPACES_ENDPOINT}/${key}`;
+    const aboutPhotoUrl = `https://${process.env.SPACES_BUCKET}.${process.env.SPACES_ENDPOINT}/${key}`;
     
     // Update user about photo URL in database
     const result = await db.run(
@@ -2500,9 +2682,10 @@ app.get('/api/about-photo', async (req, res) => {
 app.get('/api/featured-photos', async (req, res) => {
   try {
     const photos = await db.all(`
-      SELECT p.*, s.title as shoot_title, s.category as shoot_category
+      SELECT p.*, s.title as shoot_title, c.name as shoot_category
       FROM photos p
       JOIN shoots s ON p.shoot_id = s.id
+      LEFT JOIN categories c ON s.category_id = c.id
       WHERE p.featured = true
       ORDER BY p.uploaded_at DESC
     `);

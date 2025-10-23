@@ -31,6 +31,15 @@
   --text-dark: #1a1a1a;                /* Dark text for light backgrounds */
   --text-gray: #9e9e9e;                /* Gray text */
   
+  /* Text colors for light theme */
+  --text-primary: #4E2E3A;             /* Dark purple for primary text on light backgrounds */
+  --text-secondary: #6B4051;           /* Medium purple for secondary text on light backgrounds */
+  --text-tertiary: #8A5A6F;            /* Light purple for tertiary text on light backgrounds */
+  
+  /* Background colors for light theme */
+  --background-light: #F8EEDB;         /* Cream white background */
+  --background-lighter: #FBF5E8;       /* Even lighter cream */
+  
   --border-light: rgba(223, 208, 143, 0.2);  /* Gold-tinted borders */
   --border-dark: rgba(78, 46, 58, 0.2);      /* Purple-tinted borders */
   
@@ -695,9 +704,9 @@ img {
   padding: var(--spacing-xl);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
-  max-width: 800px;
+  max-width: 95vw;
   width: 100%;
-  max-height: 90vh;
+  max-height: 95vh;
   overflow-y: auto;
 }
 
@@ -706,6 +715,7 @@ img {
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 500px;
 }
 
 .cropper-controls {
@@ -6036,6 +6046,260 @@ img {
 [data-theme='dark'] .danger-text {
   color: var(--black);
   background: rgba(244, 67, 54, 0.1);
+}
+
+/* Portfolio Management */
+.portfolio-management {
+  padding: var(--spacing-xl);
+}
+
+.portfolio-section {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+
+.portfolio-section .section-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xl);
+}
+
+.portfolio-section .section-header h2 {
+  color: var(--text-primary);
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.portfolio-section .section-header p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  margin: 0;
+}
+
+.portfolio-section .section-header button {
+  align-self: flex-start;
+}
+
+/* Categories Grid */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.category-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: all var(--transition-fast);
+}
+
+.category-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.category-card h3 {
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 var(--spacing-sm) 0;
+  text-align: center;
+}
+
+.category-description {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  margin: 0 0 var(--spacing-md) 0;
+  line-height: 1.4;
+}
+
+.category-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+.category-actions .btn {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* Category Selector */
+.category-selector {
+  position: relative;
+  width: 100%;
+}
+
+.category-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.category-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  background: var(--white);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.category-input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(223, 208, 143, 0.1);
+}
+
+.category-dropdown-toggle {
+  position: absolute;
+  right: var(--spacing-sm);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.category-dropdown-toggle:hover {
+  color: var(--text-primary);
+}
+
+.category-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--white);
+  border: 2px solid var(--border-light);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.category-options {
+  padding: var(--spacing-xs) 0;
+}
+
+.category-option {
+  padding: var(--spacing-sm) var(--spacing-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.category-option:hover {
+  background: var(--background-light);
+}
+
+.category-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.category-description {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.category-create {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-top: 1px solid var(--border-light);
+}
+
+.create-category-btn {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: var(--accent-gold);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.create-category-btn:hover:not(:disabled) {
+  background: var(--accent-gold-dark);
+  transform: translateY(-1px);
+}
+
+.create-category-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.category-no-results {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* Mobile responsive for category selector */
+@media (max-width: 768px) {
+  .category-dropdown {
+    max-height: 200px;
+  }
+  
+  .category-option {
+    padding: var(--spacing-sm);
+  }
+  
+  .create-category-btn {
+    padding: var(--spacing-sm);
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile responsive for portfolio */
+@media (max-width: 768px) {
+  .categories-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  
+  .portfolio-management {
+    padding: var(--spacing-md);
+  }
+  
+  .portfolio-section {
+    padding: var(--spacing-lg);
+  }
 }
 
 /* Responsive Profile Page */

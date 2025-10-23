@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
+import CategorySelector from '../components/CategorySelector'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -14,9 +15,9 @@ const AdminDashboard = () => {
   const [invoices, setInvoices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [shoots, setShoots] = useState([])
-  const [categories, setCategories] = useState([])
   const [packages, setPackages] = useState([])
   const [addOns, setAddOns] = useState([])
+  const [categories, setCategories] = useState([])
   const [users, setUsers] = useState([])
   const [pendingUsers, setPendingUsers] = useState([])
   
@@ -30,10 +31,12 @@ const AdminDashboard = () => {
   const [showPackageForm, setShowPackageForm] = useState(false)
   const [showAddOnForm, setShowAddOnForm] = useState(false)
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [selectedShoot, setSelectedShoot] = useState(null)
   const [selectedSession, setSelectedSession] = useState(null)
   const [editingPackage, setEditingPackage] = useState(null)
   const [editingAddOn, setEditingAddOn] = useState(null)
+  const [editingCategory, setEditingCategory] = useState(null)
   
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -52,6 +55,7 @@ const AdminDashboard = () => {
         fetchExpenses(),
         fetchShoots(),
         fetchPricing(),
+        fetchCategories(),
         fetchUsers()
       ])
     } catch (error) {
@@ -121,6 +125,16 @@ const AdminDashboard = () => {
       setPendingUsers(data.users?.filter(u => u.status === 'pending') || [])
     } catch (error) {
       console.error('Error fetching users:', error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${API_URL}/categories`)
+      const data = await response.json()
+      setCategories(data.categories || [])
+    } catch (error) {
+      console.error('Error fetching categories:', error)
     }
   }
 
@@ -363,6 +377,8 @@ const AdminDashboard = () => {
         console.log('🌟 Featured status updated successfully:', data)
         // Refresh shoots to update featured status
         await fetchShoots()
+        // Dispatch event to notify other components
+        window.dispatchEvent(new CustomEvent('featuredPhotoUpdated'))
         alert(data.message)
       } else {
         const data = await response.json()
@@ -539,6 +555,59 @@ const AdminDashboard = () => {
     }
   }
 
+  // Category Management Functions
+  const handleSaveCategory = async (categoryData) => {
+    try {
+      const url = editingCategory 
+        ? `${API_URL}/categories/${editingCategory.id}`
+        : `${API_URL}/categories`
+      
+      const method = editingCategory ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(categoryData)
+      })
+      
+      if (response.ok) {
+        await fetchCategories()
+        setShowCategoryForm(false)
+        setEditingCategory(null)
+        alert(editingCategory ? 'Category updated successfully!' : 'Category created successfully!')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to save category')
+      }
+    } catch (error) {
+      console.error('Error saving category:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId) => {
+    if (!window.confirm('Delete this category?')) return
+    
+    try {
+      const response = await fetch(`${API_URL}/categories/${categoryId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        await fetchCategories()
+        alert('Category deleted successfully!')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete category')
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
   if (loading) {
     return (
       <div className="admin-dashboard">
@@ -598,6 +667,12 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('pricing')}
           >
             Pricing
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+            onClick={() => setActiveTab('portfolio')}
+          >
+            Portfolio
           </button>
           <button 
             className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`}
@@ -917,7 +992,6 @@ const AdminDashboard = () => {
 
             {showShootForm && (
               <ShootForm 
-                categories={categories}
                 onSubmit={handleCreateShoot}
                 onCancel={() => setShowShootForm(false)}
               />
@@ -1169,6 +1243,69 @@ const AdminDashboard = () => {
                         <button 
                           className="btn-small btn-danger"
                           onClick={() => handleDeleteAddOn(addon.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PORTFOLIO TAB */}
+        {activeTab === 'portfolio' && (
+          <div className="tab-content">
+            <div className="portfolio-management">
+              {/* Categories Section */}
+              <div className="portfolio-section">
+                <div className="section-header">
+                  <h2>Portfolio Categories</h2>
+                  <p>Organize your shoots by category for better portfolio management</p>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => {
+                      setEditingCategory(null)
+                      setShowCategoryForm(true)
+                    }}
+                  >
+                    + Create Category
+                  </button>
+                </div>
+
+                {showCategoryForm && (
+                  <CategoryForm 
+                    category={editingCategory}
+                    onSubmit={handleSaveCategory}
+                    onCancel={() => {
+                      setShowCategoryForm(false)
+                      setEditingCategory(null)
+                    }}
+                  />
+                )}
+
+                <div className="categories-grid">
+                  {categories.map(category => (
+                    <div key={category.id} className="category-card">
+                      <h3>{category.name}</h3>
+                      {category.description && (
+                        <p className="category-description">{category.description}</p>
+                      )}
+                      <div className="category-actions">
+                        <button
+                          className="btn btn-small btn-secondary"
+                          onClick={() => {
+                            setEditingCategory(category)
+                            setShowCategoryForm(true)
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-small btn-danger"
+                          onClick={() => handleDeleteCategory(category.id)}
                         >
                           Delete
                         </button>
@@ -1622,7 +1759,7 @@ const InvoiceForm = ({ session, onSubmit, onCancel }) => {
 }
 
 // Shoot Form Component
-const ShootForm = ({ categories, onSubmit, onCancel }) => {
+const ShootForm = ({ onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -1651,16 +1788,11 @@ const ShootForm = ({ categories, onSubmit, onCancel }) => {
         </div>
         <div className="form-group">
           <label>Category *</label>
-          <select
+          <CategorySelector
             value={formData.category}
-            onChange={(e) => setFormData({...formData, category: e.target.value})}
-            required
-          >
-            <option value="">Select category</option>
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            onChange={(value) => setFormData({...formData, category: value})}
+            placeholder="Select or type a category..."
+          />
         </div>
         <div className="form-group">
           <label>Description</label>
@@ -2189,6 +2321,52 @@ const AddOnForm = ({ addOn, onSubmit, onCancel }) => {
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
           <button type="submit" className="btn btn-primary">
             {addOn ? 'Update Add-on' : 'Create Add-on'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Category Form Component
+const CategoryForm = ({ category, onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    name: category?.name || '',
+    description: category?.description || ''
+  })
+  
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+  
+  return (
+    <div className="form-card">
+      <h3>{category ? 'Edit Category' : 'Create New Category'}</h3>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Category Name *</label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            required
+            placeholder="e.g., Weddings, Portraits, Events"
+          />
+        </div>
+        <div className="form-group">
+          <label>Description (Optional)</label>
+          <textarea
+            value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            placeholder="Brief description of this category..."
+            rows="3"
+          />
+        </div>
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="submit" className="btn btn-primary">
+            {category ? 'Update Category' : 'Create Category'}
           </button>
         </div>
       </form>

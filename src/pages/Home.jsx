@@ -7,6 +7,7 @@ import InlinePhotoEditor from '../components/InlinePhotoEditor'
 const Home = () => {
   const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
   const [adminName, setAdminName] = useState('Alina')
+  const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
 
   useEffect(() => {
     // Animate elements on scroll
@@ -48,6 +49,21 @@ const Home = () => {
     setAboutPhotoUrl(newPhotoUrl)
   }
 
+  // Function to trigger featured gallery refresh
+  const refreshFeaturedGallery = () => {
+    setFeaturedRefreshTrigger(prev => prev + 1)
+  }
+
+  // Listen for featured photo updates from other components
+  useEffect(() => {
+    const handleFeaturedUpdate = () => {
+      refreshFeaturedGallery()
+    }
+
+    window.addEventListener('featuredPhotoUpdated', handleFeaturedUpdate)
+    return () => window.removeEventListener('featuredPhotoUpdated', handleFeaturedUpdate)
+  }, [])
+
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -71,7 +87,7 @@ const Home = () => {
       </section>
 
       {/* Featured Work */}
-      <FeaturedWorkGallery />
+      <FeaturedWorkGallery refreshTrigger={featuredRefreshTrigger} />
 
       {/* About Preview */}
       <section className="about-preview fade-in">

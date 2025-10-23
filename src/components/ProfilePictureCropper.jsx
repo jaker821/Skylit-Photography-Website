@@ -202,8 +202,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
               src={imageSrc}
               style={{ 
                 transform: `scale(${scale}) rotate(${rotate}deg)`,
-                maxHeight: '400px',
-                maxWidth: '400px'
+                maxHeight: '600px',
+                maxWidth: '600px'
               }}
               onLoad={onImageLoad}
             />
