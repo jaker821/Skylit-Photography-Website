@@ -1255,69 +1255,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* PORTFOLIO TAB */}
-        {activeTab === 'portfolio' && (
-          <div className="tab-content">
-            <div className="portfolio-management">
-              {/* Categories Section */}
-              <div className="portfolio-section">
-                <div className="section-header">
-                  <h2>Portfolio Categories</h2>
-                  <p>Organize your shoots by category for better portfolio management</p>
-                  <button 
-                    className="btn btn-primary" 
-                    onClick={() => {
-                      setEditingCategory(null)
-                      setShowCategoryForm(true)
-                    }}
-                  >
-                    + Create Category
-                  </button>
-                </div>
-
-                {showCategoryForm && (
-                  <CategoryForm 
-                    category={editingCategory}
-                    onSubmit={handleSaveCategory}
-                    onCancel={() => {
-                      setShowCategoryForm(false)
-                      setEditingCategory(null)
-                    }}
-                  />
-                )}
-
-                <div className="categories-grid">
-                  {categories.map(category => (
-                    <div key={category.id} className="category-card">
-                      <h3>{category.name}</h3>
-                      {category.description && (
-                        <p className="category-description">{category.description}</p>
-                      )}
-                      <div className="category-actions">
-                        <button
-                          className="btn btn-small btn-secondary"
-                          onClick={() => {
-                            setEditingCategory(category)
-                            setShowCategoryForm(true)
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-small btn-danger"
-                          onClick={() => handleDeleteCategory(category.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* USERS TAB */}
         {activeTab === 'users' && (
           <div className="tab-content">

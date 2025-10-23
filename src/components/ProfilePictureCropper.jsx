@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
@@ -7,7 +8,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
   const [completedCrop, setCompletedCrop] = useState()
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
-  const [aspect, setAspect] = useState(isCircular ? 1 : 4/3) // Square for profile, 4:3 for about page
+  const [aspect] = useState(isCircular ? 1 : 4/3) // Fixed: Square for profile, 4:3 for about page
   const [error, setError] = useState('')
   const imgRef = useRef(null)
   const previewCanvasRef = useRef(null)
@@ -94,8 +95,13 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       const pixelRatio = window.devicePixelRatio
-      canvas.width = crop.width * pixelRatio
-      canvas.height = crop.height * pixelRatio
+      
+      // Set fixed canvas dimensions based on use case
+      const previewWidth = isCircular ? 100 : 120
+      const previewHeight = isCircular ? 100 : 90
+      
+      canvas.width = previewWidth * pixelRatio
+      canvas.height = previewHeight * pixelRatio
 
       ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
       ctx.imageSmoothingQuality = 'high'
@@ -105,9 +111,9 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
       
       // Apply rotation
       if (rotate !== 0) {
-        ctx.translate(crop.width / 2, crop.height / 2)
+        ctx.translate(previewWidth / 2, previewHeight / 2)
         ctx.rotate((rotate * Math.PI) / 180)
-        ctx.translate(-crop.width / 2, -crop.height / 2)
+        ctx.translate(-previewWidth / 2, -previewHeight / 2)
       }
 
       // Apply scale
@@ -123,8 +129,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
         crop.height * scaleY,
         0,
         0,
-        crop.width,
-        crop.height
+        previewWidth,
+        previewHeight
       )
       
       ctx.restore()
@@ -159,7 +165,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
   }
 
   if (error) {
-    return (
+    return createPortal(
       <div className="profile-picture-cropper">
         <div className="cropper-header">
           <h3>❌ Error</h3>
@@ -174,11 +180,12 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
             Close
           </button>
         </div>
-      </div>
+      </div>,
+      document.body
     )
   }
 
-  return (
+  return createPortal(
     <div className="profile-picture-cropper">
       <div className="cropper-header">
         <h3>📸 Crop Your Photo</h3>
@@ -236,26 +243,6 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
             />
             <span>{rotate}°</span>
           </div>
-
-          <div className="control-group">
-            <label>Aspect Ratio</label>
-            <select value={aspect} onChange={(e) => setAspect(Number(e.target.value))}>
-              {isCircular ? (
-                <>
-                  <option value={1}>Square (1:1)</option>
-                  <option value={4/3}>4:3</option>
-                  <option value={3/4}>3:4</option>
-                </>
-              ) : (
-                <>
-                  <option value={4/3}>4:3 (Landscape)</option>
-                  <option value={3/4}>3:4 (Portrait)</option>
-                  <option value={16/9}>16:9 (Wide)</option>
-                  <option value={1}>Square (1:1)</option>
-                </>
-              )}
-            </select>
-          </div>
         </div>
 
         <div className="cropper-preview">
@@ -264,8 +251,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
             <canvas
               ref={previewCanvasRef}
               style={{
-                width: 100,
-                height: isCircular ? 100 : 75,
+                width: isCircular ? 100 : 120,
+                height: isCircular ? 100 : 90,
                 borderRadius: isCircular ? '50%' : '8px',
                 border: '2px solid var(--accent-gold)',
                 objectFit: 'cover'
@@ -293,7 +280,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
           Approve & Save
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
