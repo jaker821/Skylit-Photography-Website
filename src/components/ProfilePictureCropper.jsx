@@ -2,12 +2,12 @@ import React, { useState, useRef, useCallback } from 'react'
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
-const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
+const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular = true }) => {
   const [crop, setCrop] = useState()
   const [completedCrop, setCompletedCrop] = useState()
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
-  const [aspect, setAspect] = useState(1)
+  const [aspect, setAspect] = useState(isCircular ? 1 : 4/3) // Square for profile, 4:3 for about page
   const [error, setError] = useState('')
   const imgRef = useRef(null)
   const previewCanvasRef = useRef(null)
@@ -21,14 +21,14 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
     setError('')
   }, [imageSrc])
 
-  // Compress image for profile picture (small size)
+  // Compress image (different sizes for profile vs about photos)
   const compressImage = useCallback((canvas, quality = 0.8) => {
     // Create a new canvas for compression
     const compressedCanvas = document.createElement('canvas')
     const ctx = compressedCanvas.getContext('2d')
     
-    // Set compressed dimensions (profile pictures should be small)
-    const maxSize = 200 // Max 200px for profile pictures
+    // Set compressed dimensions based on use case
+    const maxSize = isCircular ? 200 : 400 // Profile pics: 200px, About photos: 400px
     let { width, height } = canvas
     
     if (width > height) {
@@ -55,7 +55,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
         resolve(blob)
       }, 'image/jpeg', quality)
     })
-  }, [])
+  }, [isCircular])
 
   const onImageLoad = useCallback((e) => {
     const { width, height } = e.currentTarget
@@ -75,7 +75,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
     setCrop(crop)
   }, [aspect])
 
-  // Update preview canvas when crop changes
+  // Update preview canvas when crop, scale, or rotation changes
   React.useEffect(() => {
     if (completedCrop && imgRef.current && previewCanvasRef.current) {
       const image = imgRef.current
@@ -90,12 +90,30 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
         throw new Error('No 2d context')
       }
 
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
       const pixelRatio = window.devicePixelRatio
       canvas.width = crop.width * pixelRatio
       canvas.height = crop.height * pixelRatio
 
       ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
       ctx.imageSmoothingQuality = 'high'
+
+      // Apply transformations
+      ctx.save()
+      
+      // Apply rotation
+      if (rotate !== 0) {
+        ctx.translate(crop.width / 2, crop.height / 2)
+        ctx.rotate((rotate * Math.PI) / 180)
+        ctx.translate(-crop.width / 2, -crop.height / 2)
+      }
+
+      // Apply scale
+      if (scale !== 1) {
+        ctx.scale(scale, scale)
+      }
 
       ctx.drawImage(
         image,
@@ -108,8 +126,10 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
         crop.width,
         crop.height
       )
+      
+      ctx.restore()
     }
-  }, [completedCrop])
+  }, [completedCrop, scale, rotate])
 
   const onDownloadCropClick = useCallback(async () => {
     try {
@@ -161,8 +181,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
   return (
     <div className="profile-picture-cropper">
       <div className="cropper-header">
-        <h3>📸 Crop Your Profile Picture</h3>
-        <p>Adjust the crop area to frame your photo perfectly</p>
+        <h3>📸 Crop Your Photo</h3>
+        <p>Adjust the crop area and settings to frame your photo perfectly</p>
       </div>
 
       <div className="cropper-container">
@@ -174,7 +194,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
             aspect={aspect}
             minWidth={50}
             minHeight={50}
-            circularCrop
+            circularCrop={isCircular}
           >
             <img
               ref={imgRef}
@@ -220,10 +240,20 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
           <div className="control-group">
             <label>Aspect Ratio</label>
             <select value={aspect} onChange={(e) => setAspect(Number(e.target.value))}>
-              <option value={1}>Square (1:1)</option>
-              <option value={4/3}>4:3</option>
-              <option value={3/4}>3:4</option>
-              <option value={16/9}>16:9</option>
+              {isCircular ? (
+                <>
+                  <option value={1}>Square (1:1)</option>
+                  <option value={4/3}>4:3</option>
+                  <option value={3/4}>3:4</option>
+                </>
+              ) : (
+                <>
+                  <option value={4/3}>4:3 (Landscape)</option>
+                  <option value={3/4}>3:4 (Portrait)</option>
+                  <option value={16/9}>16:9 (Wide)</option>
+                  <option value={1}>Square (1:1)</option>
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -235,8 +265,8 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
               ref={previewCanvasRef}
               style={{
                 width: 100,
-                height: 100,
-                borderRadius: '50%',
+                height: isCircular ? 100 : 75,
+                borderRadius: isCircular ? '50%' : '8px',
                 border: '2px solid var(--accent-gold)',
                 objectFit: 'cover'
               }}
@@ -258,7 +288,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
           className="btn btn-primary" 
           onClick={handleSave}
         >
-          Save Profile Picture
+          Approve & Save
         </button>
       </div>
     </div>

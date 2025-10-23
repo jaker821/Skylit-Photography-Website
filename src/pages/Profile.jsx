@@ -437,11 +437,56 @@ const Profile = () => {
           <div className="settings-section">
             <h3>📸 Profile Picture</h3>
             <div className="profile-picture-compact">
-              <InlinePhotoEditor 
-                currentPhotoUrl={profileData.profile_picture}
-                onPhotoUpdate={(newUrl) => setProfileData({ ...profileData, profile_picture: newUrl })}
-                adminName={profileData.name || 'User'}
-              />
+              <div className="profile-picture-display">
+                {profileData.profile_picture ? (
+                  <img 
+                    src={profileData.profile_picture} 
+                    alt="Profile" 
+                    className="current-profile-picture"
+                  />
+                ) : (
+                  <div className="profile-picture-placeholder">
+                    {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                
+                <div className="profile-picture-actions">
+                  <input
+                    type="file"
+                    id="profile-picture-input"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="profile-picture-input"
+                  />
+                  <label htmlFor="profile-picture-input" className="profile-picture-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                    {profileData.profile_picture ? 'Change Photo' : 'Add Photo'}
+                  </label>
+                  
+                  {profileData.profile_picture && (
+                    <button 
+                      type="button" 
+                      className="remove-profile-picture"
+                      onClick={handleRemoveProfilePicture}
+                      disabled={profilePictureLoading}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Remove
+                    </button>
+                  )}
+                </div>
+                
+                {profilePictureSuccess && <div className="success-message">{profilePictureSuccess}</div>}
+                {profilePictureError && <div className="error-message">{profilePictureError}</div>}
+                {profilePictureLoading && <div className="loading-message">Updating profile picture...</div>}
+              </div>
             </div>
           </div>
 
@@ -595,6 +640,7 @@ const Profile = () => {
             setShowCropper(false)
             setSelectedImage(null)
           }}
+          isCircular={true}
         />
       )}
     </div>

@@ -1098,6 +1098,7 @@ app.get('/api/portfolio', async (req, res) => {
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
           uploaded_at: photo.uploaded_at,
+          featured: photo.featured,
           // Add camelCase versions for frontend compatibility
           displayUrl: photo.display_url,
           downloadUrl: photo.download_url,
@@ -1160,6 +1161,7 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
           uploaded_at: photo.uploaded_at,
+          featured: photo.featured,
           // Add camelCase versions for frontend compatibility
           displayUrl: photo.display_url,
           downloadUrl: photo.download_url,
@@ -1222,6 +1224,7 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
         compressed_size: photo.compressed_size,
         has_high_res: photo.has_high_res,
         uploaded_at: photo.uploaded_at,
+        featured: photo.featured,
         // Add camelCase versions for frontend compatibility
         displayUrl: photo.display_url,
         downloadUrl: photo.download_url,

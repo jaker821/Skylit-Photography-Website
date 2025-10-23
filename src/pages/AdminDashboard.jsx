@@ -1252,7 +1252,12 @@ const AdminDashboard = () => {
                     <tbody>
                       {users.filter(u => u.status === 'approved').map(user => (
                         <tr key={user.id}>
-                          <td>{user.name}</td>
+                          <td className="user-name-cell">
+                            <span className="user-name">{user.name || 'No name set'}</span>
+                            {user.role === 'admin' && (
+                              <span className="admin-badge">👑 Admin</span>
+                            )}
+                          </td>
                           <td>{user.email}</td>
                           <td>{user.phone || 'N/A'}</td>
                           <td>{new Date(user.createdAt).toLocaleDateString()}</td>
@@ -1263,12 +1268,17 @@ const AdminDashboard = () => {
                             </span>
                           </td>
                           <td>
-                            <button 
-                              className="btn-small btn-danger"
-                              onClick={() => handleDeleteUser(user.id)}
-                            >
-                              Delete
-                            </button>
+                            {user.role !== 'admin' && (
+                              <button 
+                                className="btn-small btn-danger"
+                                onClick={() => handleDeleteUser(user.id)}
+                              >
+                                Delete
+                              </button>
+                            )}
+                            {user.role === 'admin' && (
+                              <span className="admin-protected">Protected</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -1299,18 +1309,28 @@ const AdminDashboard = () => {
                     <tbody>
                       {users.filter(u => u.status === 'rejected').map(user => (
                         <tr key={user.id}>
-                          <td>{user.name}</td>
+                          <td className="user-name-cell">
+                            <span className="user-name">{user.name || 'No name set'}</span>
+                            {user.role === 'admin' && (
+                              <span className="admin-badge">👑 Admin</span>
+                            )}
+                          </td>
                           <td>{user.email}</td>
                           <td>{user.phone || 'N/A'}</td>
                           <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                           <td>{user.rejectedAt ? new Date(user.rejectedAt).toLocaleDateString() : 'N/A'}</td>
                           <td>
-                            <button 
-                              className="btn-small btn-danger"
-                              onClick={() => handleDeleteUser(user.id)}
-                            >
-                              Delete
-                            </button>
+                            {user.role !== 'admin' && (
+                              <button 
+                                className="btn-small btn-danger"
+                                onClick={() => handleDeleteUser(user.id)}
+                              >
+                                Delete
+                              </button>
+                            )}
+                            {user.role === 'admin' && (
+                              <span className="admin-protected">Protected</span>
+                            )}
                           </td>
                         </tr>
                       ))}

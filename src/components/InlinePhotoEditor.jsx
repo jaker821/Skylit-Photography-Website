@@ -206,6 +206,7 @@ const InlinePhotoEditor = ({ currentPhotoUrl, onPhotoUpdate, adminName }) => {
             setShowCropper(false)
             setSelectedImage(null)
           }}
+          isCircular={false}
         />
       )}
     </>
