@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { API_URL } from '../config'
 import InlinePhotoEditor from '../components/InlinePhotoEditor'
+import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
+import { useAuth } from '../context/AuthContext'
 
 const About = () => {
+  const { user } = useAuth()
   const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
   const [adminName, setAdminName] = useState('Alina')
   const [loading, setLoading] = useState(true)
@@ -45,11 +48,15 @@ const About = () => {
         <section className="about-intro">
           <div className="about-content">
             <div className="about-image-section">
-              <InlinePhotoEditor 
-                currentPhotoUrl={aboutPhotoUrl}
-                onPhotoUpdate={handlePhotoUpdate}
-                adminName={adminName}
-              />
+              {user && user.role === 'admin' ? (
+                <InlinePhotoEditor 
+                  currentPhotoUrl={aboutPhotoUrl}
+                  onPhotoUpdate={handlePhotoUpdate}
+                  adminName={adminName}
+                />
+              ) : (
+                <AboutPhotoDisplay adminName={adminName} />
+              )}
             </div>
             <div className="about-text-section">
               <h2>Hi, I'm {adminName}</h2>

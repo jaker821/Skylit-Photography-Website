@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
@@ -46,24 +46,23 @@ const Profile = () => {
   const [nameSuccess, setNameSuccess] = useState('')
   const [nameLoading, setNameLoading] = useState(false)
   const [emailError, setEmailError] = useState('')
-  const [phoneError, setPhoneError] = useState('')
-  const [passwordError, setPasswordError] = useState('')
   const [emailSuccess, setEmailSuccess] = useState('')
-  const [phoneSuccess, setPhoneSuccess] = useState('')
-  const [passwordSuccess, setPasswordSuccess] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
+  const [phoneError, setPhoneError] = useState('')
+  const [phoneSuccess, setPhoneSuccess] = useState('')
   const [phoneLoading, setPhoneLoading] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
-  
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   // Profile picture states
-  const [showCropper, setShowCropper] = useState(false)
+  const [showProfilePictureCropper, setShowProfilePictureCropper] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
   const [profilePictureLoading, setProfilePictureLoading] = useState(false)
   const [profilePictureError, setProfilePictureError] = useState('')
   const [profilePictureSuccess, setProfilePictureSuccess] = useState('')
-  
-  // Tab state
-  const [activeTab, setActiveTab] = useState('profile')
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     fetchProfile()
@@ -75,69 +74,19 @@ const Profile = () => {
         credentials: 'include'
       })
       
-      if (!response.ok) {
-        console.error('Profile fetch failed:', response.status, response.statusText)
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Error details:', errorData)
-        setLoading(false)
-        return
+      if (response.ok) {
+        const data = await response.json()
+        setProfileData(data.user)
+        setNameForm({ name: data.user.name || '' })
+        setEmailForm({ email: data.user.email || '' })
+        setPhoneForm({ phone: data.user.phone || '' })
+      } else {
+        console.error('Failed to fetch profile')
       }
-      
-      const data = await response.json()
-      setProfileData(data.user)
-      setNameForm({ name: data.user.name || '' })
-      setEmailForm({ email: data.user.email })
-      setPhoneForm({ phone: data.user.phone || '' })
     } catch (error) {
       console.error('Error fetching profile:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleUpdateName = async (e) => {
-    e.preventDefault()
-    setNameError('')
-    setNameSuccess('')
-    setNameLoading(true)
-
-    // Name validation
-    if (!nameForm.name.trim()) {
-      setNameError('Name is required')
-      setNameLoading(false)
-      return
-    }
-
-    if (nameForm.name.trim().length > 50) {
-      setNameError('Name must be 50 characters or less')
-      setNameLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/profile/update-name`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ name: nameForm.name.trim() })
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        setNameSuccess('Name updated successfully!')
-        setProfileData({ ...profileData, name: nameForm.name.trim() })
-        // Refresh user data in AuthContext to update navbar
-        await refreshUser()
-      } else {
-        setNameError(data.error || 'Failed to update name')
-      }
-    } catch (error) {
-      setNameError('Server error. Please try again.')
-    } finally {
-      setNameLoading(false)
     }
   }
 
@@ -159,7 +108,7 @@ const Profile = () => {
       const reader = new FileReader()
       reader.onload = (event) => {
         setSelectedImage(event.target.result)
-        setShowCropper(true)
+        setShowProfilePictureCropper(true)
         setProfilePictureError('')
       }
       reader.readAsDataURL(file)
@@ -167,7 +116,7 @@ const Profile = () => {
   }
 
   const handleCropComplete = async (croppedImageBlob) => {
-    setShowCropper(false)
+    setShowProfilePictureCropper(false)
     setProfilePictureLoading(true)
     setProfilePictureError('')
     setProfilePictureSuccess('')
@@ -195,6 +144,8 @@ const Profile = () => {
           setProfileData({ ...profileData, profile_picture: data.profilePictureUrl })
           // Refresh user data in AuthContext to update navbar
           await refreshUser()
+          // Clear success message after 3 seconds
+          setTimeout(() => setProfilePictureSuccess(''), 3000)
         } else {
           setProfilePictureError(data.error || 'Failed to update profile picture')
         }
@@ -236,6 +187,40 @@ const Profile = () => {
       setProfilePictureError('Server error. Please try again.')
     } finally {
       setProfilePictureLoading(false)
+    }
+  }
+
+  const handleUpdateName = async () => {
+    setNameError('')
+    setNameSuccess('')
+    setNameLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/profile/update-name`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: nameForm.name })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setNameSuccess('Display name updated successfully!')
+        setProfileData({ ...profileData, name: nameForm.name })
+        // Refresh user data in AuthContext to update navbar
+        await refreshUser()
+        // Clear success message after 3 seconds
+        setTimeout(() => setNameSuccess(''), 3000)
+      } else {
+        setNameError(data.error || 'Failed to update display name')
+      }
+    } catch (error) {
+      setNameError('Server error. Please try again.')
+    } finally {
+      setNameLoading(false)
     }
   }
 
@@ -369,13 +354,20 @@ const Profile = () => {
   }
 
   const handleDeleteAccount = async () => {
+    if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+      return
+    }
+
+    setDeleteLoading(true)
+
     try {
-      const response = await fetch(`${API_URL}/profile/delete-account`, {
+      const response = await fetch(`${API_URL}/profile/delete`, {
         method: 'DELETE',
         credentials: 'include'
       })
 
       if (response.ok) {
+        alert('Account deleted successfully')
         logout()
         navigate('/')
       } else {
@@ -384,12 +376,14 @@ const Profile = () => {
       }
     } catch (error) {
       alert('Server error. Please try again.')
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
   if (loading) {
     return (
-      <div className="profile-page">
+      <div className="profile-page-new">
         <div className="loading-container">
           <div className="loading-spinner"></div>
           <p>Loading profile...</p>
@@ -399,250 +393,238 @@ const Profile = () => {
   }
 
   return (
-    <div className="profile-page">
+    <div className="profile-page-new">
       <div className="profile-container">
+        {/* Profile Header */}
         <div className="profile-header">
-          <h1>👤 Profile Settings</h1>
-          <p className="profile-subtitle">
-            Manage your account information and preferences
-          </p>
-        </div>
-
-        {/* Profile Info Card */}
-        <div className="profile-info-card">
-          <div className="profile-details">
-            <h2>Account Information</h2>
-            <div className="account-info-grid">
-              <div className="info-item">
-                <label>Email</label>
-                <span>{profileData?.email}</span>
-              </div>
-              <div className="info-item">
-                <label>Role</label>
-                <span className={`role-badge ${profileData?.role}`}>
-                  {profileData?.role === 'admin' ? '👑 Admin' : '👤 User'}
-                </span>
-              </div>
-              <div className="info-item">
-                <label>Phone</label>
-                <span>{profileData?.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Compact Settings Layout */}
-        <div className="profile-settings-compact">
-          {/* Profile Picture Section */}
-          <div className="settings-section">
-            <h3>📸 Profile Picture</h3>
-            <div className="profile-picture-compact">
-              <div className="profile-picture-display">
-                {profileData.profile_picture ? (
-                  <img 
-                    src={profileData.profile_picture} 
-                    alt="Profile" 
-                    className="current-profile-picture"
-                  />
-                ) : (
-                  <div className="profile-picture-placeholder">
-                    {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
-                  </div>
-                )}
-                
-                <div className="profile-picture-actions">
-                  <input
-                    type="file"
-                    id="profile-picture-input"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="profile-picture-input"
-                  />
-                  <label htmlFor="profile-picture-input" className="profile-picture-label">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                    {profileData.profile_picture ? 'Change Photo' : 'Add Photo'}
-                  </label>
-                  
-                  {profileData.profile_picture && (
-                    <button 
-                      type="button" 
-                      className="remove-profile-picture"
-                      onClick={handleRemoveProfilePicture}
-                      disabled={profilePictureLoading}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      Remove
-                    </button>
-                  )}
+          <div className="profile-avatar-section">
+            <div className="profile-avatar-large">
+              {profileData?.profile_picture ? (
+                <img 
+                  src={profileData.profile_picture} 
+                  alt="Profile" 
+                  className="avatar-image"
+                />
+              ) : (
+                <div className="avatar-placeholder">
+                  <span>{profileData?.name?.charAt(0)?.toUpperCase() || 'U'}</span>
                 </div>
-                
-                {profilePictureSuccess && <div className="success-message">{profilePictureSuccess}</div>}
-                {profilePictureError && <div className="error-message">{profilePictureError}</div>}
-                {profilePictureLoading && <div className="loading-message">Updating profile picture...</div>}
+              )}
+            </div>
+            <div className="profile-info">
+              <h1 className="profile-title">{profileData?.name || 'User'}</h1>
+              <p className="profile-email">{profileData?.email}</p>
+              <span className="profile-role">{user?.role === 'admin' ? 'Administrator' : 'User'}</span>
+            </div>
+          </div>
+          
+          <div className="profile-actions">
+            <button 
+              className="btn btn-outline"
+              onClick={() => setShowProfilePictureCropper(true)}
+              disabled={profilePictureLoading}
+            >
+              {profilePictureLoading ? 'Updating...' : 'Change Photo'}
+            </button>
+            <button 
+              className="btn btn-danger"
+              onClick={handleRemoveProfilePicture}
+              disabled={profilePictureLoading || !profileData?.profile_picture}
+            >
+              Remove Photo
+            </button>
+          </div>
+        </div>
+
+        {/* Profile Content */}
+        <div className="profile-content">
+          {/* Personal Information Card */}
+          <div className="profile-card">
+            <div className="card-header">
+              <h2>Personal Information</h2>
+              <p>Update your personal details</p>
+            </div>
+            
+            <div className="card-content">
+              {/* Display Name */}
+              <div className="form-section">
+                <label className="form-label">Display Name</label>
+                <div className="form-group-inline">
+                  <input
+                    type="text"
+                    value={nameForm.name}
+                    onChange={(e) => setNameForm({ name: e.target.value })}
+                    className="form-input"
+                    placeholder="Enter your display name"
+                  />
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    onClick={handleUpdateName}
+                    disabled={nameLoading || !nameForm.name.trim()}
+                  >
+                    {nameLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                {nameError && <div className="error-message">{nameError}</div>}
+                {nameSuccess && <div className="success-message">{nameSuccess}</div>}
+              </div>
+
+              {/* Email */}
+              <div className="form-section">
+                <label className="form-label">Email Address</label>
+                <div className="form-group-inline">
+                  <input
+                    type="email"
+                    value={emailForm.email}
+                    onChange={(e) => setEmailForm({ email: e.target.value })}
+                    className="form-input"
+                    placeholder="Enter your email"
+                  />
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    onClick={handleUpdateEmail}
+                    disabled={emailLoading || !emailForm.email.trim()}
+                  >
+                    {emailLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                {emailError && <div className="error-message">{emailError}</div>}
+                {emailSuccess && <div className="success-message">{emailSuccess}</div>}
+              </div>
+
+              {/* Phone */}
+              <div className="form-section">
+                <label className="form-label">Phone Number</label>
+                <div className="form-group-inline">
+                  <input
+                    type="tel"
+                    value={phoneForm.phone}
+                    onChange={(e) => setPhoneForm({ phone: e.target.value })}
+                    className="form-input"
+                    placeholder="Enter your phone number"
+                  />
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    onClick={handleUpdatePhone}
+                    disabled={phoneLoading}
+                  >
+                    {phoneLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                {phoneError && <div className="error-message">{phoneError}</div>}
+                {phoneSuccess && <div className="success-message">{phoneSuccess}</div>}
               </div>
             </div>
           </div>
 
-          {/* Display Name Section */}
-          <div className="settings-section">
-            <h3>👤 Display Name</h3>
-            <div className="form-compact">
-              <div className="current-value">
-                <label>Current Name</label>
-                <span>{profileData.name || 'Not set'}</span>
-              </div>
-              <form onSubmit={handleUpdateName} className="inline-form">
-                <input
-                  type="text"
-                  value={nameForm.name}
-                  onChange={(e) => setNameForm({ name: e.target.value })}
-                  placeholder="Your first name or preferred name"
-                  maxLength="50"
-                  required
-                />
-                <button type="submit" className="btn btn-primary btn-small" disabled={nameLoading}>
-                  {nameLoading ? 'Updating...' : 'Update'}
-                </button>
-              </form>
-              {nameSuccess && <div className="success-message">{nameSuccess}</div>}
-              {nameError && <div className="error-message">{nameError}</div>}
+          {/* Security Card */}
+          <div className="profile-card">
+            <div className="card-header">
+              <h2>Security</h2>
+              <p>Manage your password and account security</p>
             </div>
-          </div>
-
-          {/* Email Section */}
-          <div className="settings-section">
-            <h3>📧 Email Address</h3>
-            <div className="form-compact">
-              <div className="current-value">
-                <label>Current Email</label>
-                <span>{profileData.email}</span>
-              </div>
-              <form onSubmit={handleUpdateEmail} className="inline-form">
-                <input
-                  type="email"
-                  value={emailForm.email}
-                  onChange={(e) => setEmailForm({ email: e.target.value })}
-                  placeholder="your.email@example.com"
-                  required
-                />
-                <button type="submit" className="btn btn-primary btn-small" disabled={emailLoading}>
-                  {emailLoading ? 'Updating...' : 'Update'}
-                </button>
-              </form>
-              {emailSuccess && <div className="success-message">{emailSuccess}</div>}
-              {emailError && <div className="error-message">{emailError}</div>}
-            </div>
-          </div>
-
-          {/* Phone Section */}
-          <div className="settings-section">
-            <h3>📱 Phone Number</h3>
-            <div className="form-compact">
-              <div className="current-value">
-                <label>Current Phone</label>
-                <span>{profileData.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}</span>
-              </div>
-              <form onSubmit={handleUpdatePhone} className="inline-form">
-                <input
-                  type="tel"
-                  value={phoneForm.phone}
-                  onChange={(e) => setPhoneForm({ phone: e.target.value })}
-                  placeholder="(555) 123-4567"
-                />
-                <button type="submit" className="btn btn-primary btn-small" disabled={phoneLoading}>
-                  {phoneLoading ? 'Updating...' : 'Update'}
-                </button>
-              </form>
-              {phoneSuccess && <div className="success-message">{phoneSuccess}</div>}
-              {phoneError && <div className="error-message">{phoneError}</div>}
-            </div>
-          </div>
-
-          {/* Password Section */}
-          <div className="settings-section">
-            <h3>🔒 Password</h3>
-            <div className="form-compact">
-              <div className="current-value">
-                <label>Password Status</label>
-                <span>••••••••</span>
-              </div>
+            
+            <div className="card-content">
               <form onSubmit={handleUpdatePassword} className="password-form">
-                <div className="password-inputs">
+                <div className="form-section">
+                  <label className="form-label">Current Password</label>
                   <input
                     type="password"
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                    placeholder="Current password"
+                    className="form-input"
+                    placeholder="Enter current password"
                     required
                   />
+                </div>
+
+                <div className="form-section">
+                  <label className="form-label">New Password</label>
                   <input
                     type="password"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                    placeholder="New password"
-                    minLength="6"
+                    className="form-input"
+                    placeholder="Enter new password"
                     required
                   />
+                </div>
+
+                <div className="form-section">
+                  <label className="form-label">Confirm New Password</label>
                   <input
                     type="password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                    className="form-input"
                     placeholder="Confirm new password"
-                    minLength="6"
                     required
                   />
                 </div>
-                <button type="submit" className="btn btn-primary btn-small" disabled={passwordLoading}>
-                  {passwordLoading ? 'Updating...' : 'Update Password'}
-                </button>
+
+                <div className="form-actions">
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={passwordLoading}
+                  >
+                    {passwordLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+
+                {passwordError && <div className="error-message">{passwordError}</div>}
+                {passwordSuccess && <div className="success-message">{passwordSuccess}</div>}
               </form>
-              {passwordSuccess && <div className="success-message">{passwordSuccess}</div>}
-              {passwordError && <div className="error-message">{passwordError}</div>}
             </div>
           </div>
 
-          {/* Account Actions */}
-          <div className="settings-section danger-section">
-            <h3>⚠️ Account Actions</h3>
-            <div className="danger-zone-compact">
-              <div className="danger-info">
-                <h4>Delete Account</h4>
-                <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
+          {/* Danger Zone Card */}
+          <div className="profile-card danger-card">
+            <div className="card-header">
+              <h2>Danger Zone</h2>
+              <p>Irreversible and destructive actions</p>
+            </div>
+            
+            <div className="card-content">
+              <div className="danger-section">
+                <div className="danger-info">
+                  <h3>Delete Account</h3>
+                  <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
+                </div>
+                <button 
+                  className="btn btn-danger"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? 'Deleting...' : 'Delete Account'}
+                </button>
               </div>
-              <button 
-                className="btn btn-danger btn-small"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                    handleDeleteAccount()
-                  }
-                }}
-              >
-                Delete My Account
-              </button>
             </div>
           </div>
         </div>
       </div>
-      
+
       {/* Profile Picture Cropper Modal */}
-      {showCropper && selectedImage && (
+      {showProfilePictureCropper && (
         <ProfilePictureCropper
           imageSrc={selectedImage}
           onCropComplete={handleCropComplete}
           onCancel={() => {
-            setShowCropper(false)
+            setShowProfilePictureCropper(false)
             setSelectedImage(null)
           }}
           isCircular={true}
         />
       )}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageSelect}
+        style={{ display: 'none' }}
+      />
     </div>
   )
 }

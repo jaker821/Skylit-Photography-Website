@@ -8,7 +8,7 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
   const [completedCrop, setCompletedCrop] = useState()
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
-  const [aspect] = useState(isCircular ? 1 : 4/3) // Fixed: Square for profile, 4:3 for about page
+  const [aspect] = useState(isCircular ? 1 : 3/4) // Fixed: Square for profile, 4:3 for about page
   const [error, setError] = useState('')
   const imgRef = useRef(null)
   const previewCanvasRef = useRef(null)
@@ -96,9 +96,9 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
 
       const pixelRatio = window.devicePixelRatio
       
-      // Set fixed canvas dimensions based on use case
-      const previewWidth = isCircular ? 100 : 120
-      const previewHeight = isCircular ? 100 : 90
+        // Set fixed canvas dimensions based on use case
+        const previewWidth = isCircular ? 100 : 90
+        const previewHeight = isCircular ? 100 : 120
       
       canvas.width = previewWidth * pixelRatio
       canvas.height = previewHeight * pixelRatio
@@ -248,16 +248,16 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel, isCircular 
         <div className="cropper-preview">
           <h4>Preview</h4>
           <div className="preview-container">
-            <canvas
-              ref={previewCanvasRef}
-              style={{
-                width: isCircular ? 100 : 120,
-                height: isCircular ? 100 : 90,
-                borderRadius: isCircular ? '50%' : '8px',
-                border: '2px solid var(--accent-gold)',
-                objectFit: 'cover'
-              }}
-            />
+        <canvas
+          ref={previewCanvasRef}
+          style={{
+            width: isCircular ? 100 : 90,
+            height: isCircular ? 100 : 120,
+            borderRadius: isCircular ? '50%' : '8px',
+            border: '2px solid var(--accent-gold)',
+            objectFit: 'cover'
+          }}
+        />
           </div>
         </div>
       </div>

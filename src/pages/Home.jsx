@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { API_URL } from '../config'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
 import InlinePhotoEditor from '../components/InlinePhotoEditor'
+import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
+import { useAuth } from '../context/AuthContext'
 
 const Home = () => {
+  const { user } = useAuth()
   const [aboutPhotoUrl, setAboutPhotoUrl] = useState(null)
   const [adminName, setAdminName] = useState('Alina')
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
@@ -107,11 +110,15 @@ const Home = () => {
               <Link to="/about" className="btn btn-text">Learn More About Me →</Link>
             </div>
             <div className="about-preview-image">
-              <InlinePhotoEditor 
-                currentPhotoUrl={aboutPhotoUrl}
-                onPhotoUpdate={handlePhotoUpdate}
-                adminName={adminName}
-              />
+              {user && user.role === 'admin' ? (
+                <InlinePhotoEditor 
+                  currentPhotoUrl={aboutPhotoUrl}
+                  onPhotoUpdate={handlePhotoUpdate}
+                  adminName={adminName}
+                />
+              ) : (
+                <AboutPhotoDisplay adminName={adminName} />
+              )}
             </div>
           </div>
         </div>
