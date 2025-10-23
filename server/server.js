@@ -1066,48 +1066,50 @@ app.get('/api/portfolio', async (req, res) => {
   try {
     console.log('📸 Portfolio request received');
     
-    // Get all shoots with their photos
-    const shoots = await db.all(`
-      SELECT s.*, 
-             json_group_array(
-               json_object(
-                 'id', p.id,
-                 'original_name', p.original_name,
-                 'filename', p.filename,
-                 'display_url', p.display_url,
-                 'download_url', p.download_url,
-                 'display_key', p.display_key,
-                 'download_key', p.download_key,
-                 'original_size', p.original_size,
-                 'compressed_size', p.compressed_size,
-                 'has_high_res', p.has_high_res,
-                 'uploaded_at', p.uploaded_at
-               )
-             ) as photos
-      FROM shoots s
-      LEFT JOIN photos p ON s.id = p.shoot_id
-      GROUP BY s.id
-      ORDER BY s.created_at DESC
-    `);
-
+    // Get all shoots
+    const shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
     console.log(`📸 Found ${shoots.length} shoots in database`);
+
+    // Get photos for each shoot
+    const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
+      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      return {
+        id: shoot.id,
+        title: shoot.title,
+        description: shoot.description,
+        category: shoot.category,
+        date: shoot.date,
+        authorized_emails: shoot.authorized_emails,
+        download_stats: shoot.download_stats,
+        high_res_deleted_at: shoot.high_res_deleted_at,
+        created_at: shoot.created_at,
+        updated_at: shoot.updated_at,
+        authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
+        downloadStats: db.parseJSONField(shoot.download_stats) || {},
+        photos: photos.map(photo => ({
+          id: photo.id,
+          original_name: photo.original_name,
+          filename: photo.filename,
+          display_url: photo.display_url,
+          download_url: photo.download_url,
+          display_key: photo.display_key,
+          download_key: photo.download_key,
+          original_size: photo.original_size,
+          compressed_size: photo.compressed_size,
+          has_high_res: photo.has_high_res,
+          uploaded_at: photo.uploaded_at
+        }))
+      };
+    }));
 
     // Get all categories
     const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
     console.log(`📸 Found ${categories.length} categories in database`);
 
-    // Process shoots to parse JSON fields
-    const processedShoots = shoots.map(shoot => ({
-      ...shoot,
-      authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
-      downloadStats: db.parseJSONField(shoot.download_stats) || {},
-      photos: shoot.photos ? JSON.parse(shoot.photos) : []
-    }));
-
     console.log('📸 Portfolio data processed successfully');
 
     res.json({
-      shoots: processedShoots,
+      shoots: shootsWithPhotos,
       categories: categories.map(c => c.name)
     });
   } catch (error) {
@@ -2139,6 +2141,13 @@ app.put('/api/profile/update-phone', requireAuth, async (req, res) => {
 // Update password
 app.put('/api/profile/update-password', requireAuth, async (req, res) => {
   try {
+    console.log('🔍 Password update debug:', {
+      sessionUserId: req.session.userId,
+      sessionUserRole: req.session.userRole,
+      sessionId: req.sessionID,
+      hasSession: !!req.session
+    });
+    
     const { currentPassword, newPassword } = req.body;
     
     if (!currentPassword || !newPassword) {
@@ -2150,9 +2159,12 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
     }
     
     // Get user from database
+    console.log('🔄 Getting user from database with ID:', req.session.userId);
     const user = await db.get('SELECT password_hash FROM users WHERE id = ?', [req.session.userId]);
+    console.log('📊 User query result:', user ? 'User found' : 'User not found');
     
     if (!user) {
+      console.error('❌ User not found in database');
       return res.status(404).json({ error: 'User not found' });
     }
     
@@ -2171,12 +2183,16 @@ app.put('/api/profile/update-password', requireAuth, async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     
     // Update password in database
+    console.log('🔄 Updating password for user ID:', req.session.userId);
     const result = await db.run(
       'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
       [hashedPassword, new Date().toISOString(), req.session.userId]
     );
     
+    console.log('📊 Password update result:', result);
+    
     if (result.changes === 0) {
+      console.error('❌ No changes made to password');
       return res.status(404).json({ error: 'User not found' });
     }
     
