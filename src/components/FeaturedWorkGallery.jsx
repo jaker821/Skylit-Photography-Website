@@ -42,7 +42,7 @@ const FeaturedWorkGallery = () => {
       setCurrentIndex((prevIndex) => 
         prevIndex === featuredPhotos.length - 1 ? 0 : prevIndex + 1
       )
-    }, 4000) // Change photo every 4 seconds
+    }, 6000) // Changed from 4000ms to 6000ms (6 seconds)
   }
 
   const stopAutoScroll = () => {

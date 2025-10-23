@@ -8,51 +8,21 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
   const [scale, setScale] = useState(1)
   const [rotate, setRotate] = useState(0)
   const [aspect, setAspect] = useState(1)
+  const [error, setError] = useState('')
   const imgRef = useRef(null)
   const previewCanvasRef = useRef(null)
 
-  const onImageLoad = useCallback((e) => {
-    const { width, height } = e.currentTarget
-    const crop = centerCrop(
-      makeAspectCrop(
-        {
-          unit: '%',
-          width: 80,
-        },
-        aspect,
-        width,
-        height
-      ),
-      width,
-      height
-    )
-    setCrop(crop)
-  }, [aspect])
-
-  const onDownloadCropClick = useCallback(async () => {
-    if (!previewCanvasRef.current) {
-      throw new Error('Crop canvas does not exist')
+  // Add error boundary
+  React.useEffect(() => {
+    if (!imageSrc) {
+      setError('No image provided')
+      return
     }
-
-    // Get the cropped canvas
-    const canvas = previewCanvasRef.current
-    
-    // Compress the image for profile picture
-    const compressedBlob = await compressImage(canvas, 0.8)
-    
-    if (!compressedBlob) {
-      throw new Error('Failed to create compressed blob')
-    }
-    
-    onCropComplete(compressedBlob)
-  }, [onCropComplete, compressImage])
-
-  const handleSave = () => {
-    onDownloadCropClick()
-  }
+    setError('')
+  }, [imageSrc])
 
   // Compress image for profile picture (small size)
-  const compressImage = (canvas, quality = 0.8) => {
+  const compressImage = useCallback((canvas, quality = 0.8) => {
     // Create a new canvas for compression
     const compressedCanvas = document.createElement('canvas')
     const ctx = compressedCanvas.getContext('2d')
@@ -85,6 +55,107 @@ const ProfilePictureCropper = ({ imageSrc, onCropComplete, onCancel }) => {
         resolve(blob)
       }, 'image/jpeg', quality)
     })
+  }, [])
+
+  const onImageLoad = useCallback((e) => {
+    const { width, height } = e.currentTarget
+    const crop = centerCrop(
+      makeAspectCrop(
+        {
+          unit: '%',
+          width: 80,
+        },
+        aspect,
+        width,
+        height
+      ),
+      width,
+      height
+    )
+    setCrop(crop)
+  }, [aspect])
+
+  // Update preview canvas when crop changes
+  React.useEffect(() => {
+    if (completedCrop && imgRef.current && previewCanvasRef.current) {
+      const image = imgRef.current
+      const canvas = previewCanvasRef.current
+      const crop = completedCrop
+
+      const scaleX = image.naturalWidth / image.width
+      const scaleY = image.naturalHeight / image.height
+      const ctx = canvas.getContext('2d')
+
+      if (!ctx) {
+        throw new Error('No 2d context')
+      }
+
+      const pixelRatio = window.devicePixelRatio
+      canvas.width = crop.width * pixelRatio
+      canvas.height = crop.height * pixelRatio
+
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+      ctx.imageSmoothingQuality = 'high'
+
+      ctx.drawImage(
+        image,
+        crop.x * scaleX,
+        crop.y * scaleY,
+        crop.width * scaleX,
+        crop.height * scaleY,
+        0,
+        0,
+        crop.width,
+        crop.height
+      )
+    }
+  }, [completedCrop])
+
+  const onDownloadCropClick = useCallback(async () => {
+    try {
+      if (!previewCanvasRef.current) {
+        throw new Error('Crop canvas does not exist')
+      }
+
+      // Get the cropped canvas
+      const canvas = previewCanvasRef.current
+      
+      // Compress the image for profile picture
+      const compressedBlob = await compressImage(canvas, 0.8)
+      
+      if (!compressedBlob) {
+        throw new Error('Failed to create compressed blob')
+      }
+      
+      onCropComplete(compressedBlob)
+    } catch (error) {
+      console.error('Error cropping image:', error)
+      setError(`Failed to process image: ${error.message}`)
+    }
+  }, [onCropComplete, compressImage])
+
+  const handleSave = () => {
+    onDownloadCropClick()
+  }
+
+  if (error) {
+    return (
+      <div className="profile-picture-cropper">
+        <div className="cropper-header">
+          <h3>❌ Error</h3>
+          <p>{error}</p>
+        </div>
+        <div className="cropper-actions">
+          <button 
+            type="button" 
+            className="btn btn-secondary" 
+            onClick={onCancel}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

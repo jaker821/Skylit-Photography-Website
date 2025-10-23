@@ -412,328 +412,177 @@ const Profile = () => {
         <div className="profile-info-card">
           <div className="profile-details">
             <h2>Account Information</h2>
-            <p className="profile-email">
-              <strong>Email:</strong> {profileData?.email}
-            </p>
-            <p className="profile-role">
-              <strong>Role:</strong> 
-              <span className={`role-badge ${profileData?.role}`}>
-                {profileData?.role === 'admin' ? '👑 Admin' : '👤 User'}
-              </span>
-            </p>
-            <p className="profile-phone">
-              <strong>Phone:</strong> 
-              <span className="phone-display">
-                {profileData?.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}
-              </span>
-            </p>
+            <div className="account-info-grid">
+              <div className="info-item">
+                <label>Email</label>
+                <span>{profileData?.email}</span>
+              </div>
+              <div className="info-item">
+                <label>Role</label>
+                <span className={`role-badge ${profileData?.role}`}>
+                  {profileData?.role === 'admin' ? '👑 Admin' : '👤 User'}
+                </span>
+              </div>
+              <div className="info-item">
+                <label>Phone</label>
+                <span>{profileData?.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="profile-tabs">
-          <div className="tab-nav">
-            <button 
-              className={`tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Profile
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Settings
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-              onClick={() => setActiveTab('security')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" strokeWidth="2"/>
-                <circle cx="12" cy="16" r="1" stroke="currentColor" strokeWidth="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Security
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'danger' ? 'active' : ''}`}
-              onClick={() => setActiveTab('danger')}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" strokeWidth="2"/>
-                <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="2"/>
-                <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Danger Zone
-            </button>
+        {/* Compact Settings Layout */}
+        <div className="profile-settings-compact">
+          {/* Profile Picture Section */}
+          <div className="settings-section">
+            <h3>📸 Profile Picture</h3>
+            <div className="profile-picture-compact">
+              <InlinePhotoEditor 
+                currentPhotoUrl={profileData.profile_picture}
+                onPhotoUpdate={(newUrl) => setProfileData({ ...profileData, profile_picture: newUrl })}
+                adminName={profileData.name || 'User'}
+              />
+            </div>
           </div>
 
-          {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <div className="tab-content">
-              {/* Profile Picture Section */}
-              <div className="profile-picture-section">
-                <h3>📸 Profile Picture</h3>
-                <div className="profile-picture-display">
-                  {profileData.profile_picture ? (
-                    <img 
-                      src={profileData.profile_picture} 
-                      alt="Profile" 
-                      className="current-profile-picture"
-                    />
-                  ) : (
-                    <div className="profile-picture-placeholder">
-                      {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                  )}
-                  
-                  <div className="profile-picture-actions">
-                    <input
-                      type="file"
-                      id="profile-picture-input"
-                      accept="image/*"
-                      onChange={handleImageSelect}
-                      className="profile-picture-input"
-                    />
-                    <label htmlFor="profile-picture-input" className="profile-picture-label">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2"/>
-                      </svg>
-                      {profileData.profile_picture ? 'Change Photo' : 'Add Photo'}
-                    </label>
-                    
-                    {profileData.profile_picture && (
-                      <button 
-                        type="button" 
-                        className="remove-profile-picture"
-                        onClick={handleRemoveProfilePicture}
-                        disabled={profilePictureLoading}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                          <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                  
-                  {profilePictureSuccess && <div className="success-message">{profilePictureSuccess}</div>}
-                  {profilePictureError && <div className="error-message">{profilePictureError}</div>}
-                  {profilePictureLoading && <div className="loading-message">Updating profile picture...</div>}
-                </div>
+          {/* Display Name Section */}
+          <div className="settings-section">
+            <h3>👤 Display Name</h3>
+            <div className="form-compact">
+              <div className="current-value">
+                <label>Current Name</label>
+                <span>{profileData.name || 'Not set'}</span>
               </div>
-
-              {/* Display Name Section */}
-              <div className="settings-card">
-                <h3>👤 Display Name</h3>
-                <div className="current-info">
-                  <label>Current Name</label>
-                  <p className="current-value">{profileData.name || 'Not set'}</p>
-                </div>
-                
-                <div className="divider-line"></div>
-                
-                <div className="edit-section">
-                  <h4>Update Name</h4>
-                  {nameSuccess && <div className="success-message">{nameSuccess}</div>}
-                  {nameError && <div className="error-message">{nameError}</div>}
-                  <form onSubmit={handleUpdateName}>
-                    <div className="form-group">
-                      <label htmlFor="name">Display Name</label>
-                      <input
-                        type="text"
-                        id="name"
-                        value={nameForm.name}
-                        onChange={(e) => setNameForm({ name: e.target.value })}
-                        required
-                        placeholder="Your first name or preferred name"
-                        maxLength="50"
-                      />
-                      <small className="form-help">This name will appear in the top-right corner and throughout the app</small>
-                    </div>
-                    <button type="submit" className="btn btn-primary" disabled={nameLoading}>
-                      {nameLoading ? 'Updating...' : 'Update Name'}
-                    </button>
-                  </form>
-                </div>
-              </div>
+              <form onSubmit={handleUpdateName} className="inline-form">
+                <input
+                  type="text"
+                  value={nameForm.name}
+                  onChange={(e) => setNameForm({ name: e.target.value })}
+                  placeholder="Your first name or preferred name"
+                  maxLength="50"
+                  required
+                />
+                <button type="submit" className="btn btn-primary btn-small" disabled={nameLoading}>
+                  {nameLoading ? 'Updating...' : 'Update'}
+                </button>
+              </form>
+              {nameSuccess && <div className="success-message">{nameSuccess}</div>}
+              {nameError && <div className="error-message">{nameError}</div>}
             </div>
-          )}
+          </div>
 
-          {/* Settings Tab */}
-          {activeTab === 'settings' && (
-            <div className="tab-content">
-              <div className="profile-settings-grid">
-                {/* Email Section */}
-                <div className="settings-card">
-                  <h3>📧 Email Address</h3>
-                  <div className="current-info">
-                    <label>Current Email</label>
-                    <p className="current-value">{profileData.email}</p>
-                  </div>
-                  
-                  <div className="divider-line"></div>
-                  
-                  <div className="edit-section">
-                    <h4>Update Email</h4>
-                    {emailSuccess && <div className="success-message">{emailSuccess}</div>}
-                    {emailError && <div className="error-message">{emailError}</div>}
-                    <form onSubmit={handleUpdateEmail}>
-                      <div className="form-group">
-                        <label htmlFor="email">New Email Address</label>
-                        <input
-                          type="email"
-                          id="email"
-                          value={emailForm.email}
-                          onChange={(e) => setEmailForm({ email: e.target.value })}
-                          required
-                          placeholder="your.email@example.com"
-                        />
-                      </div>
-                      <button type="submit" className="btn btn-primary" disabled={emailLoading}>
-                        {emailLoading ? 'Updating...' : 'Update Email'}
-                      </button>
-                    </form>
-                  </div>
-                </div>
-
-                {/* Phone Section */}
-                <div className="settings-card">
-                  <h3>📱 Phone Number</h3>
-                  <div className="current-info">
-                    <label>Current Phone</label>
-                    <p className="current-value">
-                      {profileData.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}
-                    </p>
-                  </div>
-                  
-                  <div className="divider-line"></div>
-                  
-                  <div className="edit-section">
-                    <h4>Update Phone</h4>
-                    {phoneSuccess && <div className="success-message">{phoneSuccess}</div>}
-                    {phoneError && <div className="error-message">{phoneError}</div>}
-                    <form onSubmit={handleUpdatePhone}>
-                      <div className="form-group">
-                        <label htmlFor="phone">Phone Number</label>
-                        <input
-                          type="tel"
-                          id="phone"
-                          value={phoneForm.phone}
-                          onChange={(e) => setPhoneForm({ phone: e.target.value })}
-                          placeholder="(555) 123-4567"
-                        />
-                        <small className="form-help">Include area code for best results</small>
-                      </div>
-                      <button type="submit" className="btn btn-primary" disabled={phoneLoading}>
-                        {phoneLoading ? 'Updating...' : 'Update Phone'}
-                      </button>
-                    </form>
-                  </div>
-                </div>
+          {/* Email Section */}
+          <div className="settings-section">
+            <h3>📧 Email Address</h3>
+            <div className="form-compact">
+              <div className="current-value">
+                <label>Current Email</label>
+                <span>{profileData.email}</span>
               </div>
+              <form onSubmit={handleUpdateEmail} className="inline-form">
+                <input
+                  type="email"
+                  value={emailForm.email}
+                  onChange={(e) => setEmailForm({ email: e.target.value })}
+                  placeholder="your.email@example.com"
+                  required
+                />
+                <button type="submit" className="btn btn-primary btn-small" disabled={emailLoading}>
+                  {emailLoading ? 'Updating...' : 'Update'}
+                </button>
+              </form>
+              {emailSuccess && <div className="success-message">{emailSuccess}</div>}
+              {emailError && <div className="error-message">{emailError}</div>}
             </div>
-          )}
+          </div>
 
-          {/* Security Tab */}
-          {activeTab === 'security' && (
-            <div className="tab-content">
-              <div className="settings-card">
-                <h3>🔒 Password</h3>
-                <div className="current-info">
-                  <label>Password Status</label>
-                  <p className="current-value">••••••••</p>
-                </div>
-                
-                <div className="divider-line"></div>
-                
-                <div className="edit-section">
-                  <h4>Change Password</h4>
-                  {passwordSuccess && <div className="success-message">{passwordSuccess}</div>}
-                  {passwordError && <div className="error-message">{passwordError}</div>}
-                  <form onSubmit={handleUpdatePassword}>
-                    <div className="form-group">
-                      <label htmlFor="currentPassword">Current Password</label>
-                      <input
-                        type="password"
-                        id="currentPassword"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                        required
-                        placeholder="Enter current password"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="newPassword">New Password</label>
-                      <input
-                        type="password"
-                        id="newPassword"
-                        value={passwordForm.newPassword}
-                        onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                        required
-                        placeholder="Enter new password"
-                        minLength="6"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="confirmPassword">Confirm New Password</label>
-                      <input
-                        type="password"
-                        id="confirmPassword"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                        required
-                        placeholder="Confirm new password"
-                        minLength="6"
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-primary" disabled={passwordLoading}>
-                      {passwordLoading ? 'Updating...' : 'Update Password'}
-                    </button>
-                  </form>
-                </div>
+          {/* Phone Section */}
+          <div className="settings-section">
+            <h3>📱 Phone Number</h3>
+            <div className="form-compact">
+              <div className="current-value">
+                <label>Current Phone</label>
+                <span>{profileData.phone ? formatPhoneNumber(profileData.phone) : 'Not provided'}</span>
               </div>
+              <form onSubmit={handleUpdatePhone} className="inline-form">
+                <input
+                  type="tel"
+                  value={phoneForm.phone}
+                  onChange={(e) => setPhoneForm({ phone: e.target.value })}
+                  placeholder="(555) 123-4567"
+                />
+                <button type="submit" className="btn btn-primary btn-small" disabled={phoneLoading}>
+                  {phoneLoading ? 'Updating...' : 'Update'}
+                </button>
+              </form>
+              {phoneSuccess && <div className="success-message">{phoneSuccess}</div>}
+              {phoneError && <div className="error-message">{phoneError}</div>}
             </div>
-          )}
+          </div>
 
-          {/* Danger Zone Tab */}
-          {activeTab === 'danger' && (
-            <div className="tab-content">
-              <div className="account-actions">
-                <h3>⚠️ Account Actions</h3>
-                <div className="danger-zone">
-                  <div className="danger-item">
-                    <div className="danger-info">
-                      <h4>Delete Account</h4>
-                      <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
-                    </div>
-                    <button 
-                      className="btn btn-danger"
-                      onClick={() => {
-                        if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                          handleDeleteAccount()
-                        }
-                      }}
-                    >
-                      Delete My Account
-                    </button>
-                  </div>
-                </div>
+          {/* Password Section */}
+          <div className="settings-section">
+            <h3>🔒 Password</h3>
+            <div className="form-compact">
+              <div className="current-value">
+                <label>Password Status</label>
+                <span>••••••••</span>
               </div>
+              <form onSubmit={handleUpdatePassword} className="password-form">
+                <div className="password-inputs">
+                  <input
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                    placeholder="Current password"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                    placeholder="New password"
+                    minLength="6"
+                    required
+                  />
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                    placeholder="Confirm new password"
+                    minLength="6"
+                    required
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary btn-small" disabled={passwordLoading}>
+                  {passwordLoading ? 'Updating...' : 'Update Password'}
+                </button>
+              </form>
+              {passwordSuccess && <div className="success-message">{passwordSuccess}</div>}
+              {passwordError && <div className="error-message">{passwordError}</div>}
             </div>
-          )}
+          </div>
+
+          {/* Account Actions */}
+          <div className="settings-section danger-section">
+            <h3>⚠️ Account Actions</h3>
+            <div className="danger-zone-compact">
+              <div className="danger-info">
+                <h4>Delete Account</h4>
+                <p>Permanently delete your account and all associated data. This action cannot be undone.</p>
+              </div>
+              <button 
+                className="btn btn-danger btn-small"
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                    handleDeleteAccount()
+                  }
+                }}
+              >
+                Delete My Account
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
