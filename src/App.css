@@ -4792,6 +4792,7 @@ img {
 }
 
 .shoot-card {
+  position: relative;
   background: var(--white);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -4866,6 +4867,39 @@ img {
 .shoot-count {
   color: var(--gray);
   font-size: 0.85rem;
+}
+
+.shoot-delete-btn {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all var(--transition-normal);
+  z-index: 10;
+}
+
+.shoot-card:hover .shoot-delete-btn {
+  opacity: 1;
+}
+
+.shoot-delete-btn:hover {
+  background: rgba(185, 28, 28, 1);
+  transform: scale(1.1);
+}
+
+.shoot-delete-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Shoot Detail */

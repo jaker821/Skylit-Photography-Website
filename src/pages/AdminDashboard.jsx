@@ -37,8 +37,6 @@ const AdminDashboard = () => {
   const [editingPackage, setEditingPackage] = useState(null)
   const [editingAddOn, setEditingAddOn] = useState(null)
   const [editingCategory, setEditingCategory] = useState(null)
-  const [allPhotos, setAllPhotos] = useState([])
-  const [featuredPhotos, setFeaturedPhotos] = useState([])
   
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -58,9 +56,7 @@ const AdminDashboard = () => {
         fetchShoots(),
         fetchPricing(),
         fetchCategories(),
-        fetchUsers(),
-        fetchAllPhotos(),
-        fetchFeaturedPhotos()
+        fetchUsers()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -144,92 +140,6 @@ const AdminDashboard = () => {
       setCategories(data.categories || [])
     } catch (error) {
       console.error('Error fetching categories:', error)
-    }
-  }
-
-  // Fetch all photos for featured management
-  const fetchAllPhotos = async () => {
-    try {
-      const response = await fetch(`${API_URL}/portfolio`)
-      const data = await response.json()
-      
-      console.log('🌟 Portfolio data received:', data)
-      
-      // Flatten all photos from all shoots
-      const allPhotosList = []
-      data.shoots?.forEach(shoot => {
-        shoot.photos?.forEach(photo => {
-          console.log(`🌟 Photo ${photo.id}: featured = ${photo.featured} (type: ${typeof photo.featured})`)
-          allPhotosList.push({
-            ...photo,
-            shoot_title: shoot.title,
-            shoot_category: shoot.category
-          })
-        })
-      })
-      
-      console.log('🌟 All photos list:', allPhotosList.map(p => ({ id: p.id, featured: p.featured })))
-      setAllPhotos(allPhotosList)
-    } catch (error) {
-      console.error('Error fetching all photos:', error)
-    }
-  }
-
-  // Fetch currently featured photos
-  const fetchFeaturedPhotos = async () => {
-    try {
-      const response = await fetch(`${API_URL}/featured-photos`)
-      const data = await response.json()
-      setFeaturedPhotos(data.photos || [])
-    } catch (error) {
-      console.error('Error fetching featured photos:', error)
-    }
-  }
-
-  // Toggle featured status for a photo
-  const togglePhotoFeatured = async (photoId, isFeatured) => {
-    try {
-      console.log(`🌟 Toggle featured: photo ${photoId}, currently featured: ${isFeatured}, setting to: ${!isFeatured}`)
-      
-      const response = await fetch(`${API_URL}/photos/${photoId}/featured`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({ featured: !isFeatured })
-      })
-
-      console.log(`🌟 Response status: ${response.status}`)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('🌟 Response data:', data)
-        
-        // Update local state
-        setAllPhotos(prev => 
-          prev.map(photo => 
-            photo.id === photoId 
-              ? { ...photo, featured: !isFeatured }
-              : photo
-          )
-        )
-        
-        // Refresh featured photos list
-        await fetchFeaturedPhotos()
-        
-        // Notify other components
-        window.dispatchEvent(new CustomEvent('featuredPhotoUpdated'))
-        
-        alert(`Photo ${!isFeatured ? 'added to' : 'removed from'} featured work`)
-      } else {
-        const errorData = await response.text()
-        console.error('🌟 Error response:', response.status, errorData)
-        alert(`Failed to update featured status: ${response.status}`)
-      }
-    } catch (error) {
-      console.error('🌟 Error toggling featured status:', error)
-      alert('Error updating featured status. Please try again.')
     }
   }
 
@@ -453,6 +363,31 @@ const AdminDashboard = () => {
     }
   }
 
+  // Delete entire shoot
+  const handleDeleteShoot = async (shootId) => {
+    if (!window.confirm('Are you sure you want to delete this shoot? This will permanently delete the shoot and all its photos.')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        await fetchShoots()
+        alert('Shoot deleted successfully')
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete shoot')
+      }
+    } catch (error) {
+      console.error('Error deleting shoot:', error)
+      alert('Failed to delete shoot')
+    }
+  }
+
   // Toggle featured status for a photo
   const toggleFeatured = async (photoId, currentFeatured) => {
     try {
@@ -472,6 +407,10 @@ const AdminDashboard = () => {
       if (response.ok) {
         const data = await response.json()
         console.log('🌟 Featured status updated successfully:', data)
+        
+        // Refresh shoots data to get updated featured status
+        await fetchShoots()
+        
         // Update the local state immediately for visual feedback
         setShoots(prevShoots => 
           prevShoots.map(shoot => ({
@@ -484,9 +423,22 @@ const AdminDashboard = () => {
           }))
         )
         
-        // Dispatch event to notify other components
+        // Dispatch event to notify other components (like home page)
         window.dispatchEvent(new CustomEvent('featuredPhotoUpdated'))
-        alert(data.message)
+        
+        // Update selectedShoot if it's the current shoot
+        if (selectedShoot) {
+          setSelectedShoot(prevShoot => ({
+            ...prevShoot,
+            photos: prevShoot.photos.map(photo =>
+              photo.id === photoId
+                ? { ...photo, featured: !currentFeatured }
+                : photo
+            )
+          }))
+        }
+        
+        console.log(`🌟 Photo ${photoId} is now ${!currentFeatured ? 'featured' : 'not featured'}`)
       } else {
         const data = await response.json()
         console.error('🌟 Failed to update featured status:', data)
@@ -756,12 +708,6 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('portfolio')}
           >
             Portfolio
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'featured' ? 'active' : ''}`}
-            onClick={() => setActiveTab('featured')}
-          >
-            Featured Photos
           </button>
           <button 
             className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`}
@@ -1110,6 +1056,7 @@ const AdminDashboard = () => {
                 onBack={() => setSelectedShoot(null)}
                 onPhotoUpload={(files) => handlePhotoUpload(selectedShoot.id, files)}
                 onPhotoDelete={(photoId) => handleDeletePhoto(selectedShoot.id, photoId)}
+                onToggleFeatured={(photoId, currentFeatured) => toggleFeatured(photoId, currentFeatured)}
                 isUploading={isUploading}
                 uploadProgress={uploadProgress}
               />
@@ -1140,99 +1087,22 @@ const AdminDashboard = () => {
                       <p className="shoot-category">{shoot.category}</p>
                       <p className="shoot-count">{shoot.photos.length} photos</p>
                     </div>
+                    <button 
+                      className="shoot-delete-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteShoot(shoot.id)
+                      }}
+                      title="Delete shoot"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* FEATURED PHOTOS TAB */}
-        {activeTab === 'featured' && (
-          <div className="tab-content">
-            <div className="section-header">
-              <h2>Featured Photos Management</h2>
-              <p className="section-description">
-                Select photos to display on the home page gallery. Currently {featuredPhotos.length} photos are featured.
-              </p>
-            </div>
-
-            <div className="featured-photos-management">
-              {/* Currently Featured Photos */}
-              <div className="featured-section">
-                <h3>Currently Featured ({featuredPhotos.length})</h3>
-                {featuredPhotos.length > 0 ? (
-                  <div className="photos-grid">
-                    {featuredPhotos.map(photo => (
-                      <div key={photo.id} className="photo-card featured">
-                        <img 
-                          src={photo.displayUrl || photo.display_url} 
-                          alt={photo.original_name}
-                          loading="lazy"
-                        />
-                        <div className="photo-overlay">
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => togglePhotoFeatured(photo.id, true)}
-                            title="Remove from featured"
-                          >
-                            Remove from Featured
-                          </button>
-                        </div>
-                        <div className="photo-info">
-                          <span className="photo-name">{photo.original_name}</span>
-                          <span className="photo-shoot">{photo.shoot_title}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    <p>No photos are currently featured.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* All Photos */}
-              <div className="all-photos-section">
-                <h3>All Photos ({allPhotos.length})</h3>
-                <div className="photos-grid">
-                  {allPhotos.map(photo => (
-                    <div key={photo.id} className={`photo-card ${photo.featured ? 'featured' : ''}`}>
-                      <img 
-                        src={photo.displayUrl || photo.display_url} 
-                        alt={photo.original_name}
-                        loading="lazy"
-                      />
-                      <div className="photo-overlay">
-                        {photo.featured ? (
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => togglePhotoFeatured(photo.id, true)}
-                            title="Remove from featured"
-                          >
-                            Remove from Featured
-                          </button>
-                        ) : (
-                          <button 
-                            className="btn btn-primary btn-sm"
-                            onClick={() => togglePhotoFeatured(photo.id, false)}
-                            title="Add to featured"
-                          >
-                            Add to Featured
-                          </button>
-                        )}
-                      </div>
-                      <div className="photo-info">
-                        <span className="photo-name">{photo.original_name}</span>
-                        <span className="photo-shoot">{photo.shoot_title}</span>
-                        {photo.featured && <span className="featured-badge">⭐ Featured</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1954,7 +1824,7 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, isUploading, uploadProgress }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, isUploading, uploadProgress }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
@@ -2182,7 +2052,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, isUploading,
                 className={`featured-btn ${photo.featured ? 'featured' : ''}`}
                 onClick={() => {
                   console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
-                  toggleFeatured(photo.id, photo.featured)
+                  onToggleFeatured(photo.id, photo.featured)
                 }}
                 title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
               >

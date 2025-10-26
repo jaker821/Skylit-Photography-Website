@@ -129,8 +129,8 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
               <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" strokeWidth="2"/>
               <polyline points="21,15 16,10 5,21" stroke="currentColor" strokeWidth="2"/>
             </svg>
-            <h3>No Featured Work Yet</h3>
-            <p>Admin can select photos to feature on the home page</p>
+            <h3>No Featured Photos Yet</h3>
+            <p>No featured photos yet</p>
           </div>
         </div>
       </div>

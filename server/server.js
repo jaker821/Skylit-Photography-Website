@@ -1276,15 +1276,21 @@ app.get('/api/portfolio', async (req, res) => {
       };
     }));
 
-    // Get all categories
-    const categories = await db.all('SELECT name FROM pricing_categories ORDER BY name');
-    console.log(`📸 Found ${categories.length} categories in database`);
+    // Get unique categories from shoots (not from pricing_categories table)
+    const categorySet = new Set()
+    shootsWithPhotos.forEach(shoot => {
+      if (shoot.category) {
+        categorySet.add(shoot.category)
+      }
+    })
+    const categories = Array.from(categorySet).sort()
+    console.log(`📸 Found ${categories.length} unique categories in shoots`);
 
     console.log('📸 Portfolio data processed successfully');
 
     res.json({
       shoots: shootsWithPhotos,
-      categories: categories.map(c => c.name)
+      categories: categories
     });
   } catch (error) {
     console.error('Get portfolio error:', error);
@@ -1707,8 +1713,8 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
       
       // Insert photo into database
       const result = await db.run(
-        `INSERT INTO photos (shoot_id, original_name, filename, display_url, download_url, display_key, download_key, original_size, compressed_size, has_high_res, uploaded_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO photos (shoot_id, original_name, filename, display_url, download_url, display_key, download_key, original_size, compressed_size, has_high_res, featured, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           shootId,
           file.originalname,
@@ -1720,6 +1726,7 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
           originalSize,
           compressedSize,
           true, // hasHighRes
+          0, // featured - default to FALSE (0)
           new Date().toISOString()
         ]
       );
@@ -1735,6 +1742,7 @@ app.post('/api/portfolio/shoots/:id/photos', requireAdmin, (req, res, next) => {
         original_size: originalSize,
         compressed_size: compressedSize,
         has_high_res: true,
+        featured: false,              // Always FALSE on upload
         uploaded_at: new Date().toISOString()
       });
     }
