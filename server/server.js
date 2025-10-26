@@ -1296,14 +1296,18 @@ app.get('/api/portfolio', async (req, res) => {
   try {
     console.log('📸 Portfolio request received');
     
-    // Get all non-hidden shoots (without JOIN since Supabase wrapper doesn't handle it)
-    const shoots = await db.all('SELECT * FROM shoots WHERE (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC');
-    console.log(`📸 Found ${shoots.length} visible shoots in database`);
+    // Get all shoots and filter by is_hidden in JavaScript (since Supabase SQL parser is limited)
+    const allShoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+    // Filter out hidden shoots in JavaScript
+    const shoots = allShoots.filter(shoot => !shoot.is_hidden || shoot.is_hidden === 0 || shoot.is_hidden === false);
+    console.log(`📸 Found ${shoots.length} visible shoots in database (out of ${allShoots.length} total)`);
 
     // Get photos for each shoot and fetch category separately
     const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
-      // Only get non-hidden photos for public portfolio
-      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? AND (is_hidden IS NULL OR is_hidden = 0)', [shoot.id]);
+      // Get all photos and filter by is_hidden in JavaScript (since Supabase SQL parser is limited)
+      const allPhotos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      // Filter out hidden photos in JavaScript
+      const photos = allPhotos.filter(photo => !photo.is_hidden || photo.is_hidden === 0 || photo.is_hidden === false);
       
       // Fetch category information separately since LEFT JOIN doesn't work with Supabase wrapper
       let categoryName = 'Uncategorized'
@@ -1446,16 +1450,21 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
   try {
     const category = req.params.category;
     
-    let shoots;
+    let allShoots;
     if (category === 'all') {
-      shoots = await db.all('SELECT * FROM shoots WHERE (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC');
+      allShoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
     } else {
-      shoots = await db.all('SELECT * FROM shoots WHERE LOWER(category) = LOWER(?) AND (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC', [category]);
+      allShoots = await db.all('SELECT * FROM shoots WHERE LOWER(category) = LOWER(?) ORDER BY created_at DESC', [category]);
     }
+    // Filter out hidden shoots in JavaScript (since Supabase SQL parser doesn't handle complex WHERE clauses)
+    const shoots = allShoots.filter(shoot => !shoot.is_hidden || shoot.is_hidden === 0 || shoot.is_hidden === false);
     
     // Get photos for each shoot (only non-hidden photos)
     const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
-      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? AND (is_hidden IS NULL OR is_hidden = 0)', [shoot.id]);
+      // Get all photos and filter by is_hidden in JavaScript (since Supabase SQL parser is limited)
+      const allPhotos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      // Filter out hidden photos in JavaScript
+      const photos = allPhotos.filter(photo => !photo.is_hidden || photo.is_hidden === 0 || photo.is_hidden === false);
       return {
         id: shoot.id,
         title: shoot.title,
