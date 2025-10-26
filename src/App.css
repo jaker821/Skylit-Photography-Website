@@ -1676,7 +1676,6 @@ img {
   background: linear-gradient(135deg, var(--primary-purple-dark) 0%, var(--primary-purple) 100%);
   position: relative;
   overflow: hidden;
-  margin-top: var(--spacing-xl);
 }
 
 .featured-work-section::before {
@@ -5615,7 +5614,6 @@ img {
   /* Featured Work Gallery Mobile */
   .featured-work-section {
     padding: var(--spacing-xl) var(--spacing-md) var(--spacing-lg);
-    margin-top: var(--spacing-lg);
   }
 
   .featured-work-header {
