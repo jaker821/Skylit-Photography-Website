@@ -20,6 +20,7 @@ const AdminDashboard = () => {
   const [categories, setCategories] = useState([])
   const [users, setUsers] = useState([])
   const [pendingUsers, setPendingUsers] = useState([])
+  const [storageStats, setStorageStats] = useState(null)
   
   // Filter states
   const [sessionFilter, setSessionFilter] = useState('pending')
@@ -56,7 +57,8 @@ const AdminDashboard = () => {
         fetchShoots(),
         fetchPricing(),
         fetchCategories(),
-        fetchUsers()
+        fetchUsers(),
+        fetchStorageStats()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -143,6 +145,20 @@ const AdminDashboard = () => {
     }
   }
 
+  const fetchStorageStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/storage-stats`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setStorageStats(data)
+      }
+    } catch (error) {
+      console.error('Error fetching storage stats:', error)
+    }
+  }
+
   // Calculate financial stats
   const calculateFinancials = () => {
     const totalRevenue = invoices
@@ -160,7 +176,7 @@ const AdminDashboard = () => {
     return { totalRevenue, totalExpenses, pendingRevenue, netProfit }
   }
 
-  // Get upcoming sessions (next 30 days)
+  // Get upcoming sessions (next 30 days) - only confirmed "Booked" sessions
   const getUpcomingSessions = () => {
     const now = new Date()
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -168,7 +184,7 @@ const AdminDashboard = () => {
     return bookings
       .filter(booking => {
         const bookingDate = new Date(booking.date)
-        return bookingDate >= now && bookingDate <= thirtyDaysFromNow
+        return booking.status === 'Booked' && bookingDate >= now && bookingDate <= thirtyDaysFromNow
       })
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 5)
@@ -216,11 +232,17 @@ const AdminDashboard = () => {
     }
   }
 
-  // Create session
+  // Create or update session
   const handleCreateSession = async (sessionData) => {
     try {
-      const response = await fetch(`${API_URL}/bookings`, {
-        method: 'POST',
+      const url = selectedSession 
+        ? `${API_URL}/bookings/${selectedSession.id}`
+        : `${API_URL}/bookings`
+      
+      const method = selectedSession ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(sessionData)
@@ -229,9 +251,12 @@ const AdminDashboard = () => {
       if (response.ok) {
         await fetchBookings()
         setShowSessionForm(false)
+        setSelectedSession(null)
+        alert(selectedSession ? 'Session updated successfully!' : 'Session created successfully!')
       }
     } catch (error) {
-      console.error('Error creating session:', error)
+      console.error('Error saving session:', error)
+      alert('Failed to save session. Please try again.')
     }
   }
 
@@ -762,6 +787,64 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+            {/* Storage Usage Card */}
+            {storageStats && (
+              <div className="storage-stats-card">
+                <h2>Storage Usage</h2>
+                <div className="storage-visual">
+                  <div className="storage-circle-container">
+                    <svg className="storage-circle" viewBox="0 0 160 160">
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r="70"
+                        fill="none"
+                        stroke="rgba(255, 255, 255, 0.1)"
+                        strokeWidth="20"
+                      />
+                      <circle
+                        cx="80"
+                        cy="80"
+                        r="70"
+                        fill="none"
+                        stroke={parseFloat(storageStats.storageUsedPercent) > 80 ? '#f44336' : parseFloat(storageStats.storageUsedPercent) > 60 ? '#ff9800' : '#4caf50'}
+                        strokeWidth="20"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 70}`}
+                        strokeDashoffset={`${2 * Math.PI * 70 * (1 - parseFloat(storageStats.storageUsedPercent) / 100)}`}
+                        transform="rotate(-90 80 80)"
+                      />
+                      <text x="80" y="70" textAnchor="middle" className="storage-percent">
+                        {storageStats.storageUsedPercent}%
+                      </text>
+                      <text x="80" y="90" textAnchor="middle" className="storage-label">
+                        Used
+                      </text>
+                    </svg>
+                  </div>
+                  <div className="storage-info">
+                    <div className="storage-detail">
+                      <span className="storage-label-detail">Used:</span>
+                      <span className="storage-value">{storageStats.totalStorageGB} GB</span>
+                    </div>
+                    <div className="storage-detail">
+                      <span className="storage-label-detail">Available:</span>
+                      <span className="storage-value">{storageStats.storageRemainingGB} GB</span>
+                    </div>
+                    <div className="storage-detail">
+                      <span className="storage-label-detail">Total Quota:</span>
+                      <span className="storage-value">{storageStats.storageQuotaGB} GB</span>
+                    </div>
+                    {parseFloat(storageStats.storageUsedPercent) > 80 && (
+                      <div className="storage-warning">
+                        ⚠️ Storage is getting full! Consider deleting high-resolution photos.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="overview-grid">
               <div className="upcoming-sessions-card">
                 <h3>Upcoming Sessions</h3>
@@ -807,8 +890,12 @@ const AdminDashboard = () => {
 
             {showSessionForm && (
               <SessionForm 
+                session={selectedSession}
                 onSubmit={handleCreateSession}
-                onCancel={() => setShowSessionForm(false)}
+                onCancel={() => {
+                  setShowSessionForm(false)
+                  setSelectedSession(null)
+                }}
               />
             )}
 
@@ -825,13 +912,13 @@ const AdminDashboard = () => {
 
             {/* Session Status Sections */}
             <div className="sessions-workflow">
-              {/* Pending Sessions */}
-              <div className="session-section">
+              {/* Session Requests - NEW from client bookings */}
+              <div className="session-section" style={{ marginTop: '2rem' }}>
                 <h3 className="session-section-title">
-                  <span className="section-icon">⏳</span>
-                  Pending Sessions ({pendingSessions.length})
+                  <span className="section-icon">📋</span>
+                  Session Requests ({pendingSessions.length})
                 </h3>
-                <p className="section-description">User bookings awaiting your confirmation</p>
+                <p className="section-description">Review and approve or modify client booking requests</p>
                 {pendingSessions.length === 0 ? (
                   <p className="no-data">No pending sessions</p>
                 ) : (
@@ -852,9 +939,10 @@ const AdminDashboard = () => {
                           <p><strong>Date:</strong> {new Date(session.date).toLocaleDateString()}</p>
                           <p><strong>Time:</strong> {session.time || 'TBD'}</p>
                           <p><strong>Location:</strong> {session.location || 'TBD'}</p>
+                          <p><strong>Contact:</strong> {session.clientEmail || session.clientPhone || 'N/A'}</p>
                           {session.notes && <p><strong>Notes:</strong> {session.notes}</p>}
                         </div>
-                        <div className="session-card-actions">
+                        <div className="session-card-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                           <button 
                             className="btn btn-primary btn-full"
                             onClick={(e) => {
@@ -862,7 +950,17 @@ const AdminDashboard = () => {
                               handleConfirmSession(session.id)
                             }}
                           >
-                            ✓ Confirm & Book
+                            ✓ Approve & Confirm
+                          </button>
+                          <button 
+                            className="btn-small btn-secondary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedSession(session)
+                              setShowSessionForm(true)
+                            }}
+                          >
+                            ✏️ Edit Details
                           </button>
                         </div>
                       </div>
@@ -1576,7 +1674,7 @@ const SessionCalendar = ({ bookings }) => {
 }
 
 // Session Form Component (for creating quotes)
-const SessionForm = ({ onSubmit, onCancel }) => {
+const SessionForm = ({ session, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -1589,6 +1687,23 @@ const SessionForm = ({ onSubmit, onCancel }) => {
     status: 'Quoted' // Always create as Quoted when admin creates manually
   })
   
+  // Populate form data when editing an existing session
+  useEffect(() => {
+    if (session) {
+      setFormData({
+        clientName: session.clientName || '',
+        clientEmail: session.clientEmail || '',
+        sessionType: session.sessionType || '',
+        date: session.date || '',
+        time: session.time || '',
+        location: session.location || '',
+        quoteAmount: session.quoteAmount || '',
+        notes: session.notes || '',
+        status: session.status || 'Quoted'
+      })
+    }
+  }, [session])
+  
   const handleSubmit = (e) => {
     e.preventDefault()
     onSubmit(formData)
@@ -1596,8 +1711,10 @@ const SessionForm = ({ onSubmit, onCancel }) => {
   
   return (
     <div className="form-card">
-      <h3>Create Quote for Potential Client</h3>
-      <p className="form-description">Create a quote for clients who contact you outside the booking system</p>
+      <h3>{session ? 'Edit Session' : 'Create Quote for Potential Client'}</h3>
+      <p className="form-description">
+        {session ? 'Modify the session details and click Save Changes' : 'Create a quote for clients who contact you outside the booking system'}
+      </p>
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <div className="form-group">
@@ -1690,7 +1807,7 @@ const SessionForm = ({ onSubmit, onCancel }) => {
         </div>
         <div className="form-actions">
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button type="submit" className="btn btn-primary">Create Quote</button>
+          <button type="submit" className="btn btn-primary">{session ? 'Save Changes' : 'Create Quote'}</button>
         </div>
       </form>
     </div>

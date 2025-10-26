@@ -12,6 +12,7 @@ const UserDashboard = () => {
   const [authorizedShoots, setAuthorizedShoots] = useState([])
   const [selectedShoot, setSelectedShoot] = useState(null)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
   const [bookingData, setBookingData] = useState({
     sessionType: '',
     date: '',
@@ -107,29 +108,64 @@ const UserDashboard = () => {
 
   const handleDownloadAll = async (shootId) => {
     setIsDownloading(true)
+    setDownloadProgress(0)
+    
+    // Create timeout controller
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => {
+      controller.abort()
+    }, 300000) // 5 minute timeout
+    
     try {
+      console.log('Starting download for shoot:', shootId)
+      setDownloadProgress(10)
+      
       const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/download-all`, {
-        credentials: 'include'
+        credentials: 'include',
+        signal: controller.signal
       })
       
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'photos.zip'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-      } else {
-        alert('Failed to download photos. Please try again.')
+      clearTimeout(timeoutId)
+      
+      console.log('Response received, status:', response.status)
+      setDownloadProgress(30)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to download photos')
       }
+      
+      console.log('Reading response blob...')
+      setDownloadProgress(50)
+      
+      const blob = await response.blob()
+      console.log('Blob created, size:', blob.size, 'bytes')
+      setDownloadProgress(80)
+      
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'photos.zip'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      
+      setDownloadProgress(100)
+      console.log('Download complete')
+      
     } catch (error) {
       console.error('Error downloading photos:', error)
-      alert('An error occurred while downloading photos.')
+      
+      if (error.name === 'AbortError') {
+        alert('Download timed out. Please try again. Large files may take several minutes to download.')
+      } else {
+        alert(`Download failed: ${error.message || 'An error occurred while downloading photos.'}`)
+      }
     } finally {
+      clearTimeout(timeoutId)
       setIsDownloading(false)
+      setTimeout(() => setDownloadProgress(0), 1000)
     }
   }
 
@@ -454,14 +490,27 @@ const UserDashboard = () => {
             <div className="modal-body">
               {/* Only show download button if there are high-res photos */}
               {selectedShoot.photos?.some(photo => photo.hasHighRes) ? (
-                <button
-                  className="btn btn-primary btn-download-all"
-                  onClick={() => handleDownloadAll(selectedShoot.id)}
-                  disabled={isDownloading}
-                  style={{ marginBottom: '1.5rem' }}
-                >
-                  {isDownloading ? 'Downloading...' : 'Download High-Res Photos'}
-                </button>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <button
+                    className="btn btn-primary btn-download-all"
+                    onClick={() => handleDownloadAll(selectedShoot.id)}
+                    disabled={isDownloading}
+                    style={{ width: '100%', marginBottom: isDownloading ? '0.5rem' : 0 }}
+                  >
+                    {isDownloading ? `Downloading... ${downloadProgress}%` : 'Download High-Res Photos'}
+                  </button>
+                  {isDownloading && (
+                    <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ 
+                        width: `${downloadProgress}%`, 
+                        height: '100%', 
+                        background: 'var(--accent-gold)', 
+                        transition: 'width 0.3s ease',
+                        borderRadius: '3px'
+                      }}></div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="no-high-res-notice" style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(223, 208, 143, 0.1)', borderRadius: '8px', textAlign: 'center' }}>
                   <p style={{ color: 'var(--white)', margin: 0 }}>

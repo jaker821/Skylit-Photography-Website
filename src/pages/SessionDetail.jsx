@@ -82,32 +82,71 @@ const SessionDetail = () => {
     }
   }
 
+  const handleGenerateShoot = async () => {
+    try {
+      // Create a new shoot from this session
+      const clientEmail = session.client_email || session.email
+      const clientName = session.client_name || session.name
+      
+      const shootData = {
+        title: `${session.session_type} - ${clientName}`,
+        description: session.notes || `${session.session_type} photography session`,
+        category_id: null, // Will be set by admin later
+        date: session.date,
+        authorized_emails: [clientEmail.toLowerCase()] // Authorize client email
+      }
+
+      const response = await fetch(`${API_URL}/portfolio/shoots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(shootData)
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert('Shoot created successfully! Redirecting to Portfolio...')
+        navigate('/admin?tab=portfolio&shoot=' + data.shoot.id)
+      } else {
+        alert('Failed to create shoot')
+      }
+    } catch (error) {
+      console.error('Error creating shoot:', error)
+      alert('Error creating shoot')
+    }
+  }
+
   const handleCreateInvoice = async () => {
     try {
+      const invoiceData = {
+        sessionId: session.id,
+        clientName: session.client_name || session.name,
+        clientEmail: session.client_email || session.email,
+        amount: session.quote_amount || session.quote || 0,
+        items: [
+          {
+            description: `${session.session_type} Photography Session`,
+            quantity: 1,
+            rate: session.quote_amount || session.quote || 0
+          }
+        ],
+        status: 'Pending'
+      }
+
       const response = await fetch(`${API_URL}/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          sessionId: session.id,
-          clientName: session.name,
-          clientEmail: session.email,
-          amount: session.quote || 0,
-          items: [
-            {
-              description: `${session.sessionType} Photography Session`,
-              quantity: 1,
-              rate: session.quote || 0
-            }
-          ]
-        })
+        body: JSON.stringify(invoiceData)
       })
 
       if (response.ok) {
-        await handleStatusChange('invoiced')
+        // Update session status to Invoiced
+        await handleStatusChange('Invoiced')
         alert('Invoice created successfully!')
       } else {
-        alert('Failed to create invoice')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create invoice' }))
+        alert(errorData.error || 'Failed to create invoice')
       }
     } catch (error) {
       console.error('Error creating invoice:', error)
@@ -290,11 +329,11 @@ const SessionDetail = () => {
                 <h3>Client Information</h3>
                 <div className="info-item">
                   <strong>Name:</strong>
-                  <span>{session.name}</span>
+                  <span>{session.client_name || session.name}</span>
                 </div>
                 <div className="info-item">
                   <strong>Email:</strong>
-                  <span>{session.email}</span>
+                  <span>{session.client_email || session.email}</span>
                 </div>
                 <div className="info-item">
                   <strong>Phone:</strong>
@@ -307,33 +346,24 @@ const SessionDetail = () => {
                 <h3>Session Details</h3>
                 <div className="info-item">
                   <strong>Session Type:</strong>
-                  <span>{session.sessionType}</span>
+                  <span>{session.session_type}</span>
                 </div>
                 <div className="info-item">
-                  <strong>Preferred Date:</strong>
-                  <span>{new Date(session.preferredDate).toLocaleDateString()}</span>
+                  <strong>Date:</strong>
+                  <span>{new Date(session.date).toLocaleDateString()}</span>
+                </div>
+                <div className="info-item">
+                  <strong>Time:</strong>
+                  <span>{session.time || 'TBD'}</span>
+                </div>
+                <div className="info-item">
+                  <strong>Location:</strong>
+                  <span>{session.location || 'TBD'}</span>
                 </div>
                 <div className="info-item">
                   <strong>Booked On:</strong>
-                  <span>{new Date(session.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-
-              {/* Financial Information */}
-              <div className="info-card">
-                <h3>Financial Details</h3>
-                <div className="info-item">
-                  <strong>Package:</strong>
-                  <span>{session.package || 'Not specified'}</span>
-                </div>
-                <div className="info-item">
-                  <strong>Quote Amount:</strong>
-                  <span className="amount">${session.quote || 0}</span>
-                </div>
-                <div className="info-item">
-                  <strong>Add-ons:</strong>
-                  <span>{session.addOns?.join(', ') || 'None'}</span>
-                </div>
+                  <span>{new Date(session.created_at || session.createdAt).toLocaleDateString()}</span>
+                                </div>
               </div>
             </div>
 
@@ -376,12 +406,20 @@ const SessionDetail = () => {
                 )}
 
                 {session.status === 'booked' && (
-                  <button 
-                    className="btn btn-primary"
-                    onClick={handleCreateInvoice}
-                  >
-                    Create Invoice
-                  </button>
+                  <>
+                    <button 
+                      className="btn btn-success"
+                      onClick={handleGenerateShoot}
+                    >
+                      📸 Generate Shoot
+                    </button>
+                    <button 
+                      className="btn btn-primary"
+                      onClick={handleCreateInvoice}
+                    >
+                      💰 Invoice Session
+                    </button>
+                  </>
                 )}
 
                 {session.status === 'invoiced' && (
@@ -400,7 +438,7 @@ const SessionDetail = () => {
                   <div className="timeline-marker"></div>
                   <div className="timeline-content">
                     <strong>Session Created</strong>
-                    <span>{new Date(session.createdAt).toLocaleString()}</span>
+                    <span>{new Date(session.created_at || session.createdAt).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -437,4 +475,6 @@ const SessionDetail = () => {
 }
 
 export default SessionDetail
+
+
 

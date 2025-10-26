@@ -82,6 +82,31 @@ const GOOGLE_OAUTH_ENABLED = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOG
 
 if (GOOGLE_OAUTH_ENABLED) {
   console.log('✅ Google OAuth is ENABLED');
+}
+
+// ===================================
+// Email Configuration
+// ===================================
+const emailUser = process.env.EMAIL_USER;
+const emailPass = process.env.EMAIL_PASSWORD;
+const adminEmail = process.env.ADMIN_EMAIL || emailUser;
+
+// Create email transporter (will be used by both contact form and notifications)
+let transporter;
+if (emailUser && emailPass) {
+  transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: emailUser,
+      pass: emailPass
+    }
+  });
+  console.log('✅ Email service is ENABLED');
+} else {
+  console.log('⚠️  Email service is DISABLED - Set EMAIL_USER and EMAIL_PASSWORD to enable');
+}
+
+if (GOOGLE_OAUTH_ENABLED) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -2037,7 +2062,7 @@ app.post('/api/portfolio/shoots/:id/notify-user', requireAdmin, async (req, res)
     }
     
     // Check if email is configured
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    if (!transporter) {
       console.log('⚠️  Email not configured - notification not sent');
       return res.status(503).json({ error: 'Email service not configured' });
     }
@@ -2307,8 +2332,12 @@ app.get('/api/portfolio/shoots/:shootId/download-all', requireAuth, async (req, 
     archive.pipe(res);
     
     // Download and add each photo to the ZIP
-    for (const photo of photos) {
+    console.log(`📦 Starting ZIP creation for ${photos.length} photos`);
+    for (let i = 0; i < photos.length; i++) {
+      const photo = photos[i];
       try {
+        console.log(`   Adding photo ${i + 1}/${photos.length}: ${photo.original_name || photo.filename}`);
+        
         if (SPACES_ENABLED && s3Client) {
           // Download from DigitalOcean Spaces
           const fileData = await s3Client.getObject({
@@ -2325,11 +2354,14 @@ app.get('/api/portfolio/shoots/:shootId/download-all', requireAuth, async (req, 
           const fileName = photo.original_name || photo.filename;
           archive.append(fileBuffer, { name: fileName });
         }
+        
+        console.log(`   ✓ Added photo ${i + 1}/${photos.length}`);
       } catch (err) {
-        console.error(`Error adding photo ${photo.id} to zip:`, err);
+        console.error(`   ✗ Error adding photo ${photo.id} to zip:`, err);
         // Continue with other photos even if one fails
       }
     }
+    console.log('✓ All photos added to ZIP');
     
     // Track download
     const downloadStats = db.parseJSONField(shoot.download_stats) || { totalDownloads: 0, downloadHistory: [] };
@@ -2391,6 +2423,12 @@ app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
     
     const totalOriginalSize = sizeStats.totalOriginalSize || 0;
     const totalCompressedSize = sizeStats.totalCompressedSize || 0;
+    const totalStorageBytes = totalOriginalSize + totalCompressedSize;
+    
+    // Calculate storage quota (250 GB standard DigitalOcean Spaces plan = 262144000 KB)
+    const storageQuotaGB = 250;
+    const storageQuotaBytes = storageQuotaGB * 1024 * 1024 * 1024;
+    const storageUsedPercent = (totalStorageBytes / storageQuotaBytes) * 100;
     
     res.json({
       totalPhotos: totalPhotos.count,
@@ -2399,7 +2437,11 @@ app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
       photosWithHighRes: photosWithHighRes.count,
       totalOriginalSizeMB: (totalOriginalSize / 1024 / 1024).toFixed(2),
       totalCompressedSizeMB: (totalCompressedSize / 1024 / 1024).toFixed(2),
-      totalStorageMB: ((totalOriginalSize + totalCompressedSize) / 1024 / 1024).toFixed(2),
+      totalStorageMB: (totalStorageBytes / 1024 / 1024).toFixed(2),
+      totalStorageGB: (totalStorageBytes / 1024 / 1024 / 1024).toFixed(2),
+      storageQuotaGB: storageQuotaGB,
+      storageUsedPercent: storageUsedPercent.toFixed(1),
+      storageRemainingGB: ((storageQuotaBytes - totalStorageBytes) / 1024 / 1024 / 1024).toFixed(2),
       compressionRatio: totalOriginalSize > 0 ? 
         ((totalCompressedSize / totalOriginalSize) * 100).toFixed(1) + '%' : 'N/A'
     });
@@ -3072,11 +3114,7 @@ app.post('/api/contact/send', async (req, res) => {
     }
     
     // Check if email configuration exists
-    const adminEmail = process.env.ADMIN_EMAIL || 'skylit.photography25@gmail.com';
-    const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASSWORD;
-    
-    if (!emailUser || !emailPass) {
+    if (!transporter) {
       console.log('⚠️  Email not configured - skipping send');
       // In development, just log the email
       console.log('📧 Contact Form Submission:');
@@ -3091,15 +3129,6 @@ app.post('/api/contact/send', async (req, res) => {
         message: 'Thank you! Your message has been received.' 
       });
     }
-    
-    // Create reusable transporter object
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: emailUser,
-        pass: emailPass
-      }
-    });
     
     // Email content
     const emailHtml = `
@@ -3125,7 +3154,7 @@ app.post('/api/contact/send', async (req, res) => {
     // Send email
     const mailOptions = {
       from: `"${name}" <${emailUser}>`,
-      to: adminEmail,
+      to: adminEmail || emailUser,
       replyTo: email,
       subject: `New Contact: ${sessionType || 'General Inquiry'} - ${name}`,
       html: emailHtml,
