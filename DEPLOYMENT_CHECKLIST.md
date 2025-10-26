@@ -69,5 +69,5 @@ git push origin main
 - ✅ Database operations work correctly
 
 ## Support
-- **Email:** skylit.photography25@gmail.com
+- **Email:** admin@yourdomain.com
 - **Location:** Raleigh/Durham, NC

@@ -13,7 +13,7 @@ I've added email functionality to your contact form. Here's what was changed:
 
 ### Option 1: Gmail Setup (Recommended for Quick Start)
 
-1. **Go to your Gmail account** (skylit.photography25@gmail.com)
+1. **Go to your Gmail account** (your-email@gmail.com)
 
 2. **Enable 2-Factor Authentication** (Required to create App Password)
    - Go to: https://myaccount.google.com/security
@@ -28,9 +28,9 @@ I've added email functionality to your contact form. Here's what was changed:
 
 4. **Add to your `.env` file** (in the project root):
 ```env
-EMAIL_USER=skylit.photography25@gmail.com
-EMAIL_PASSWORD=abcd efgh ijkl mnop
-ADMIN_EMAIL=skylit.photography25@gmail.com
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password-here
+ADMIN_EMAIL=your-admin-email@gmail.com
 ```
 
 ### Option 2: SMTP Setup (For other email providers)

@@ -171,8 +171,8 @@ Required for Supabase and DigitalOcean Spaces:
 
 ## Default Admin Login
 
-- **Email:** admin@skylit.com
-- **Password:** admin123
+- **Email:** admin@yourdomain.com
+- **Password:** (Set during initial setup - change immediately in production)
 
 ## Deployment
 
@@ -235,7 +235,7 @@ If upgrading from a previous version:
 
 ## Contact
 
-- **Email:** skylit.photography25@gmail.com
+- **Email:** admin@yourdomain.com
 - **Location:** Raleigh/Durham, NC
 - **Website:** [Live Site](https://skylit-website-86r3u.ondigitalocean.app)
 
