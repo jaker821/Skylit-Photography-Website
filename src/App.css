@@ -1818,6 +1818,127 @@ img {
   }
 }
 
+/* Financial Dashboard Styles */
+.financial-dashboard {
+  padding: 2rem 0;
+}
+
+.section-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.financial-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.financial-card {
+  background: linear-gradient(135deg, rgba(78, 46, 58, 0.8), rgba(78, 46, 58, 0.6));
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid rgba(223, 208, 143, 0.1);
+}
+
+.financial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.financial-card .card-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.financial-card .card-content {
+  flex: 1;
+}
+
+.financial-card h3 {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.financial-card .amount {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--white);
+}
+
+.financial-card .amount.positive {
+  color: #4caf50;
+}
+
+.financial-card .amount.negative {
+  color: #f44336;
+}
+
+.financial-card .amount.neutral {
+  color: #ff9800;
+}
+
+.financial-card .card-subtitle {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.financial-section {
+  margin-top: 3rem;
+}
+
+.section-header-small {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid rgba(223, 208, 143, 0.2);
+}
+
+.section-header-small h3 {
+  color: var(--white);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.badge-count {
+  background: rgba(223, 208, 143, 0.2);
+  color: var(--accent-gold);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.category-badge {
+  background: rgba(223, 208, 143, 0.2);
+  color: var(--accent-gold);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.amount-cell {
+  font-weight: 600;
+  color: var(--white);
+}
+
 .slide-overlay {
   position: absolute;
   bottom: 0;

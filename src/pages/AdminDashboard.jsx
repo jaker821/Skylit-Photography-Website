@@ -344,17 +344,22 @@ const AdminDashboard = () => {
       
       if (response.ok) {
         const data = await response.json()
-        await fetchShoots()
         alert('Shoot created successfully! Redirecting to portfolio...')
-        // Switch to portfolio tab and select the new shoot
+        // Switch to portfolio tab
         setActiveTab('portfolio')
-        // Find the new shoot and select it
-        setTimeout(() => {
-          const newShoot = shoots.find(s => s.id === data.shoot.id) || data.shoot
-          if (newShoot) {
-            setSelectedShoot(newShoot)
+        
+        // Wait for shoots to be fetched, then find and select the new shoot
+        await fetchShoots()
+        
+        // Use the shoot data returned from the API response
+        // Ensure it has a photos array
+        if (data.shoot) {
+          const shootWithPhotos = {
+            ...data.shoot,
+            photos: data.shoot.photos || []
           }
-        }, 100)
+          setSelectedShoot(shootWithPhotos)
+        }
       } else {
         const error = await response.json()
         alert(`Failed to create shoot: ${error.error || 'Unknown error'}`)
@@ -1016,6 +1021,7 @@ const AdminDashboard = () => {
             {showInvoiceForm && selectedSession && (
               <InvoiceForm 
                 session={selectedSession}
+                packages={packages}
                 onSubmit={handleCreateInvoice}
                 onCancel={() => {
                   setShowInvoiceForm(false)
@@ -1331,9 +1337,12 @@ const AdminDashboard = () => {
 
         {/* EXPENSES TAB */}
         {activeTab === 'expenses' && (
-          <div className="tab-content">
+          <div className="tab-content financial-dashboard">
             <div className="section-header">
-              <h2>Expenses</h2>
+              <div>
+                <h2>📊 Financial Dashboard</h2>
+                <p className="section-subtitle">Manage your business finances in one place</p>
+              </div>
               <button className="btn btn-primary" onClick={() => setShowExpenseForm(true)}>
                 + Add Expense
               </button>
@@ -1346,78 +1355,219 @@ const AdminDashboard = () => {
               />
             )}
 
-            <div className="expense-summary-card">
-              <h3>Total Expenses: ${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}</h3>
+            {/* Financial Summary Cards */}
+            <div className="financial-summary-grid">
+              <div className="financial-card income">
+                <div className="card-icon">💰</div>
+                <div className="card-content">
+                  <h3>Total Revenue</h3>
+                  <p className="amount positive">
+                    ${invoices.filter(i => i.status === 'Paid').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">Paid invoices</span>
+                </div>
+              </div>
+
+              <div className="financial-card expenses">
+                <div className="card-icon">📉</div>
+                <div className="card-content">
+                  <h3>Total Expenses</h3>
+                  <p className="amount negative">
+                    -${expenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">All time</span>
+                </div>
+              </div>
+
+              <div className="financial-card profit">
+                <div className="card-icon">💵</div>
+                <div className="card-content">
+                  <h3>Net Profit</h3>
+                  <p className={`amount ${(calculateFinancials().netProfit >= 0) ? 'positive' : 'negative'}`}>
+                    ${calculateFinancials().netProfit.toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">Revenue - Expenses</span>
+                </div>
+              </div>
+
+              <div className="financial-card pending">
+                <div className="card-icon">⏳</div>
+                <div className="card-content">
+                  <h3>Pending Revenue</h3>
+                  <p className="amount neutral">
+                    ${calculateFinancials().pendingRevenue.toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">Awaiting payment</span>
+                </div>
+              </div>
             </div>
 
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Type/Category</th>
-                    <th>Description</th>
-                    <th>Cost</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expenses.map(expense => (
-                    <tr key={expense.id}>
-                      <td>{new Date(expense.date).toLocaleDateString()}</td>
-                      <td>{expense.category}</td>
-                      <td>{expense.description}</td>
-                      <td>${expense.amount.toFixed(2)}</td>
-                      <td>
-                        <button className="btn-small btn-secondary">View/Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Expenses Table */}
+            <div className="financial-section">
+              <div className="section-header-small">
+                <h3>📋 Expense History</h3>
+                <span className="badge-count">{expenses.length} expenses</span>
+              </div>
+              
+              {expenses.length === 0 ? (
+                <div className="no-data">
+                  <p>No expenses recorded yet</p>
+                  <button className="btn btn-secondary" onClick={() => setShowExpenseForm(true)}>
+                    Add Your First Expense
+                  </button>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenses.map(expense => (
+                        <tr key={expense.id}>
+                          <td>{new Date(expense.date).toLocaleDateString()}</td>
+                          <td>
+                            <span className="category-badge">{expense.category}</span>
+                          </td>
+                          <td>{expense.description}</td>
+                          <td className="amount-cell">-${expense.amount.toFixed(2)}</td>
+                          <td>
+                            <button className="btn-small btn-secondary">Edit</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* INVOICES TAB */}
         {activeTab === 'invoices' && (
-          <div className="tab-content">
-            <h2>Invoices</h2>
-            
-            <div className="table-container">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Client</th>
-                    <th>Amount</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map(invoice => (
-                    <tr key={invoice.id}>
-                      <td>{invoice.invoiceNumber}</td>
-                      <td>{invoice.clientName}</td>
-                      <td>${invoice.amount.toFixed(2)}</td>
-                      <td>{new Date(invoice.date).toLocaleDateString()}</td>
-                      <td>
-                        <span className={`status-badge status-${invoice.status.toLowerCase()}`}>
-                          {invoice.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button className="btn-small btn-secondary">Email</button>
-                          <button className="btn-small btn-primary">Save PDF</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="tab-content financial-dashboard">
+            <div className="section-header">
+              <div>
+                <h2>🧾 Invoices</h2>
+                <p className="section-subtitle">Track and manage client invoices</p>
+              </div>
+            </div>
+
+            {/* Invoice Summary Cards */}
+            <div className="financial-summary-grid">
+              <div className="financial-card income">
+                <div className="card-icon">✅</div>
+                <div className="card-content">
+                  <h3>Paid Invoices</h3>
+                  <p className="amount positive">
+                    ${invoices.filter(i => i.status === 'Paid').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">{invoices.filter(i => i.status === 'Paid').length} invoices</span>
+                </div>
+              </div>
+
+              <div className="financial-card pending">
+                <div className="card-icon">⏳</div>
+                <div className="card-content">
+                  <h3>Pending Payments</h3>
+                  <p className="amount neutral">
+                    ${invoices.filter(i => i.status === 'Pending').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
+                  </p>
+                  <span className="card-subtitle">{invoices.filter(i => i.status === 'Pending').length} invoices</span>
+                </div>
+              </div>
+
+              <div className="financial-card info">
+                <div className="card-icon">📄</div>
+                <div className="card-content">
+                  <h3>Total Invoices</h3>
+                  <p className="amount">
+                    {invoices.length}
+                  </p>
+                  <span className="card-subtitle">All time</span>
+                </div>
+              </div>
+
+              <div className="financial-card profit">
+                <div className="card-icon">📊</div>
+                <div className="card-content">
+                  <h3>Average Invoice</h3>
+                  <p className="amount">
+                    ${invoices.length > 0 ? (invoices.reduce((sum, inv) => sum + inv.amount, 0) / invoices.length).toFixed(2) : '0.00'}
+                  </p>
+                  <span className="card-subtitle">Per invoice</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Invoices Table */}
+            <div className="financial-section">
+              <div className="section-header-small">
+                <h3>📋 Invoice History</h3>
+                <span className="badge-count">{invoices.length} invoices</span>
+              </div>
+              
+              {invoices.length === 0 ? (
+                <div className="no-data">
+                  <p>No invoices created yet</p>
+                  <p className="text-secondary">Invoices are created when you mark a session as "Invoiced"</p>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Invoice #</th>
+                        <th>Client</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoices.sort((a, b) => new Date(b.date) - new Date(a.date)).map(invoice => (
+                        <tr key={invoice.id}>
+                          <td>
+                            <strong>#{invoice.invoiceNumber || invoice.id}</strong>
+                          </td>
+                          <td>{invoice.clientName}</td>
+                          <td>{new Date(invoice.date).toLocaleDateString()}</td>
+                          <td className="amount-cell">${invoice.amount.toFixed(2)}</td>
+                          <td>
+                            <span className={`status-badge status-${invoice.status.toLowerCase()}`}>
+                              {invoice.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-buttons">
+                              <button 
+                                className="btn-small btn-secondary"
+                                title="Email invoice to client"
+                              >
+                                📧 Email
+                              </button>
+                              <button 
+                                className="btn-small btn-primary"
+                                title="Download as PDF"
+                              >
+                                📥 PDF
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1940,12 +2090,17 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
 }
 
 // Invoice Form Component
-const InvoiceForm = ({ session, onSubmit, onCancel }) => {
+const InvoiceForm = ({ session, packages, onSubmit, onCancel }) => {
+  // Get package price if available
+  const packageId = session.package_id || session.packageId
+  const selectedPackage = packageId ? packages.find(p => p.id.toString() === packageId.toString()) : null
+  const packagePrice = selectedPackage?.price || session.quote_amount || session.quoteAmount || ''
+  
   const [formData, setFormData] = useState({
     sessionId: session.id,
     clientName: session.clientName || session.client_name || '',
     clientEmail: session.clientEmail || session.client_email || '',
-    amount: session.quoteAmount || session.quote_amount || '',
+    amount: packagePrice,
     description: `${session.sessionType || session.session_type} - ${new Date(session.date).toLocaleDateString()}`,
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
     status: 'Paid' // Set to 'Paid' by default since admin is creating invoice
@@ -1963,6 +2118,13 @@ const InvoiceForm = ({ session, onSubmit, onCancel }) => {
     <div className="form-card invoice-form">
       <h3>Create Invoice for {session.clientName || session.client_name}</h3>
       <p className="form-description">Session: {session.sessionType || session.session_type} on {new Date(session.date).toLocaleDateString()}</p>
+      {selectedPackage && (
+        <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(223, 208, 143, 0.1)', borderRadius: '4px' }}>
+          <p style={{ margin: 0, color: 'var(--white)' }}>
+            <strong>Package:</strong> {selectedPackage.name} - ${selectedPackage.price}
+          </p>
+        </div>
+      )}
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <div className="form-group">

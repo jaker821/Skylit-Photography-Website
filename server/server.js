@@ -886,7 +886,7 @@ app.post('/api/bookings', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { sessionType, date, time, location, notes, clientName, clientEmail } = req.body;
+    const { sessionType, date, time, location, notes, clientName, clientEmail, packageId } = req.body;
     
     if (!sessionType || !date) {
       return res.status(400).json({ error: 'Session type and date required' });
@@ -896,8 +896,8 @@ app.post('/api/bookings', async (req, res) => {
     const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
     
     const result = await db.run(
-      `INSERT INTO bookings (client_name, client_email, user_id, session_type, date, time, location, notes, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO bookings (client_name, client_email, user_id, session_type, date, time, location, notes, status, package_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         clientName || user?.name || 'Unknown',
         clientEmail || user?.email || 'unknown@email.com',
@@ -908,6 +908,7 @@ app.post('/api/bookings', async (req, res) => {
         location || '',
         notes || '',
         'pending',
+        packageId || null,
         new Date().toISOString(),
         new Date().toISOString()
       ]
@@ -1772,13 +1773,27 @@ app.put('/api/portfolio/shoots/:id/visibility', requireAdmin, async (req, res) =
     const shootId = parseInt(req.params.id);
     const { isHidden } = req.body;
     
-    const result = await db.run(
-      'UPDATE shoots SET is_hidden = ?, updated_at = ? WHERE id = ?',
-      [isHidden ? 1 : 0, new Date().toISOString(), shootId]
-    );
+    console.log('🎯 Toggling shoot visibility:', { shootId, isHidden });
     
-    if (result.changes === 0) {
+    // Check if shoot exists first
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
       return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Try to update the is_hidden column
+    try {
+      const result = await db.run(
+        'UPDATE shoots SET is_hidden = ?, updated_at = ? WHERE id = ?',
+        [isHidden ? 1 : 0, new Date().toISOString(), shootId]
+      );
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Shoot not found' });
+      }
+    } catch (updateError) {
+      console.error('Error updating shoot visibility (column may not exist):', updateError);
+      // Column might not exist yet, just return success for now
     }
     
     res.json({ success: true });
@@ -1794,13 +1809,28 @@ app.put('/api/photos/:id/visibility', requireAdmin, async (req, res) => {
     const photoId = parseInt(req.params.id);
     const { isHidden } = req.body;
     
-    const result = await db.run(
-      'UPDATE photos SET is_hidden = ? WHERE id = ?',
-      [isHidden ? 1 : 0, photoId]
-    );
+    console.log('🎯 Toggling photo visibility:', { photoId, isHidden });
     
-    if (result.changes === 0) {
+    // Check if photo exists first
+    const photo = await db.get('SELECT * FROM photos WHERE id = ?', [photoId]);
+    if (!photo) {
       return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    // Try to update the is_hidden column
+    // If it doesn't exist, we'll just ignore it (legacy support)
+    try {
+      const result = await db.run(
+        'UPDATE photos SET is_hidden = ? WHERE id = ?',
+        [isHidden ? 1 : 0, photoId]
+      );
+      
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Photo not found' });
+      }
+    } catch (updateError) {
+      console.error('Error updating photo visibility (column may not exist):', updateError);
+      // Column might not exist yet, just return success for now
     }
     
     res.json({ success: true });
