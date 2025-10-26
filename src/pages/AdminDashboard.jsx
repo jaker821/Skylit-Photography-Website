@@ -100,7 +100,10 @@ const AdminDashboard = () => {
   const fetchShoots = async () => {
     try {
       console.log('🌟 Fetching shoots...')
-      const response = await fetch(`${API_URL}/portfolio`)
+      // Use admin endpoint to get ALL shoots including hidden ones
+      const response = await fetch(`${API_URL}/admin/portfolio`, {
+        credentials: 'include'
+      })
       const data = await response.json()
       console.log('🌟 Shoots data received:', data.shoots?.length, 'shoots')
       if (data.shoots?.length > 0) {
@@ -1286,6 +1289,7 @@ const AdminDashboard = () => {
                 onToggleFeatured={(photoId, currentFeatured) => toggleFeatured(photoId, currentFeatured)}
                 onToggleShootVisibility={(shootId, isHidden) => handleToggleShootVisibility(shootId, isHidden)}
                 onTogglePhotoVisibility={(photoId, isHidden) => handleTogglePhotoVisibility(photoId, isHidden)}
+                onShootUpdate={() => fetchShoots()}
                 isUploading={isUploading}
                 uploadProgress={uploadProgress}
               />
@@ -2228,18 +2232,61 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onToggleShootVisibility, onTogglePhotoVisibility, isUploading, uploadProgress }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onToggleShootVisibility, onTogglePhotoVisibility, isUploading, uploadProgress, onShootUpdate }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
   const [loadingEmails, setLoadingEmails] = React.useState(false)
   const [downloadStats, setDownloadStats] = React.useState({ totalDownloads: 0, downloadHistory: [] })
+  const [editMode, setEditMode] = React.useState(false)
+  const [editFormData, setEditFormData] = React.useState({
+    title: shoot.title,
+    description: shoot.description,
+    category: shoot.category,
+    date: shoot.date
+  })
   
   // Fetch authorized emails when component mounts or shoot changes
   React.useEffect(() => {
     fetchAuthorizedEmails()
     fetchDownloadStats()
   }, [shoot.id])
+
+  // Update form data when shoot changes
+  React.useEffect(() => {
+    setEditFormData({
+      title: shoot.title,
+      description: shoot.description,
+      category: shoot.category,
+      date: shoot.date
+    })
+  }, [shoot])
+
+  // Handle save shoot edits
+  const handleSaveShootEdit = async () => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(editFormData)
+      })
+
+      if (response.ok) {
+        if (onShootUpdate) {
+          onShootUpdate()
+        }
+        setEditMode(false)
+        alert('Shoot updated successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to update shoot: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error updating shoot:', error)
+      alert('Failed to update shoot')
+    }
+  }
   
   const fetchAuthorizedEmails = async () => {
     try {
@@ -2387,34 +2434,99 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
     <div className="shoot-detail">
       <div className="shoot-detail-header">
         <button className="btn btn-secondary" onClick={onBack}>← Back to Shoots</button>
-        <h2>{shoot.title}</h2>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <button
-            className="btn btn-secondary"
-            onClick={() => onToggleShootVisibility(shoot.id, shoot.is_hidden || shoot.isHidden || false)}
-            title={(shoot.is_hidden || shoot.isHidden) ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
-          >
-            {(shoot.is_hidden || shoot.isHidden) ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
-          </button>
-          <div className="upload-button-wrapper">
-            <input
-              type="file"
-              id="photo-upload"
-              multiple
-              accept="image/*"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              disabled={isUploading}
-            />
-            <label 
-              htmlFor="photo-upload" 
-              className={`btn btn-primary ${isUploading ? 'disabled' : ''}`}
-              style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
-            >
-              {isUploading ? 'Uploading...' : '+ Upload Photos'}
-            </label>
-          </div>
-        </div>
+        {!editMode ? (
+          <>
+            <h2>{shoot.title}</h2>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setEditMode(true)}
+                title="Edit shoot details"
+              >
+                ✏️ Edit Shoot
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => onToggleShootVisibility(shoot.id, shoot.is_hidden || shoot.isHidden || false)}
+                title={(shoot.is_hidden || shoot.isHidden) ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
+              >
+                {(shoot.is_hidden || shoot.isHidden) ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
+              </button>
+              <div className="upload-button-wrapper">
+                <input
+                  type="file"
+                  id="photo-upload"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  disabled={isUploading}
+                />
+                <label 
+                  htmlFor="photo-upload" 
+                  className={`btn btn-primary ${isUploading ? 'disabled' : ''}`}
+                  style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
+                >
+                  {isUploading ? 'Uploading...' : '+ Upload Photos'}
+                </label>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="edit-shoot-form" style={{ flex: 1 }}>
+              <input
+                type="text"
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({...editFormData, title: e.target.value})}
+                placeholder="Shoot Title"
+                style={{ fontSize: '1.5rem', fontWeight: 'bold', padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
+              />
+              <input
+                type="text"
+                value={editFormData.category}
+                onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}
+                placeholder="Category"
+                style={{ padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
+              />
+              <input
+                type="date"
+                value={editFormData.date}
+                onChange={(e) => setEditFormData({...editFormData, date: e.target.value})}
+                style={{ padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
+              />
+              <textarea
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                placeholder="Description (optional)"
+                rows="2"
+                style={{ padding: '0.5rem', width: '100%' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleSaveShootEdit}
+              >
+                💾 Save
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => {
+                  setEditMode(false)
+                  setEditFormData({
+                    title: shoot.title,
+                    description: shoot.description,
+                    category: shoot.category,
+                    date: shoot.date
+                  })
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
       </div>
       
       {/* Upload Progress Bar */}

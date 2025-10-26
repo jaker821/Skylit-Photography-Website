@@ -1499,6 +1499,99 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
   }
 });
 
+// Get all shoots for admin (including hidden ones)
+app.get('/api/admin/portfolio', requireAdmin, async (req, res) => {
+  try {
+    console.log('📸 Admin portfolio request received');
+    
+    // Get ALL shoots (including hidden ones) for admin view
+    const shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+    console.log(`📸 Found ${shoots.length} total shoots (including hidden) in database`);
+
+    // Get photos for each shoot (including hidden photos for admin)
+    const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
+      // Get ALL photos (including hidden ones) for admin
+      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      
+      // Fetch category information separately since LEFT JOIN doesn't work with Supabase wrapper
+      let categoryName = 'Uncategorized'
+      if (shoot.category_id) {
+        try {
+          const category = await db.get('SELECT * FROM categories WHERE id = ?', [shoot.category_id])
+          if (category && category.name) {
+            categoryName = category.name
+          }
+        } catch (error) {
+          console.error(`Error fetching category for shoot ${shoot.id}:`, error)
+        }
+      }
+      
+      return {
+        id: shoot.id,
+        title: shoot.title,
+        description: shoot.description,
+        category: categoryName,
+        category_id: shoot.category_id,
+        date: shoot.date,
+        is_hidden: shoot.is_hidden,
+        isHidden: shoot.is_hidden, // camelCase for frontend
+        authorized_emails: shoot.authorized_emails,
+        download_stats: shoot.download_stats,
+        high_res_deleted_at: shoot.high_res_deleted_at,
+        created_at: shoot.created_at,
+        updated_at: shoot.updated_at,
+        authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],
+        downloadStats: db.parseJSONField(shoot.download_stats) || {},
+        photos: photos.map(photo => ({
+          id: photo.id,
+          original_name: photo.original_name,
+          filename: photo.filename,
+          display_url: photo.display_url,
+          download_url: photo.download_url,
+          display_key: photo.display_key,
+          download_key: photo.download_key,
+          original_size: photo.original_size,
+          compressed_size: photo.compressed_size,
+          has_high_res: photo.has_high_res,
+          uploaded_at: photo.uploaded_at,
+          featured: photo.featured,
+          is_hidden: photo.is_hidden,
+          isHidden: photo.is_hidden, // camelCase for frontend
+          // Add camelCase versions for frontend compatibility
+          displayUrl: photo.display_url,
+          downloadUrl: photo.download_url,
+          displayKey: photo.display_key,
+          downloadKey: photo.download_key,
+          originalSize: photo.original_size,
+          compressedSize: photo.compressed_size,
+          hasHighRes: photo.has_high_res,
+          uploadedAt: photo.uploaded_at
+        }))
+      };
+    }));
+
+    // Get unique categories from shoots
+    const categorySet = new Set()
+    shootsWithPhotos.forEach(shoot => {
+      if (shoot.category) {
+        categorySet.add(shoot.category)
+      }
+    })
+    const categories = Array.from(categorySet).sort()
+    console.log(`📸 Found ${categories.length} unique categories in shoots`);
+
+    console.log('📸 Admin portfolio data processed successfully');
+
+    res.json({
+      shoots: shootsWithPhotos,
+      categories: categories
+    });
+  } catch (error) {
+    console.error('Get admin portfolio error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get single shoot
 app.get('/api/portfolio/shoots/:id', async (req, res) => {
   try {
