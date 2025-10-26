@@ -298,10 +298,66 @@ const AdminDashboard = () => {
     }
   }
 
-  // Show invoice form with session data
-  const handleShowInvoiceForm = (session) => {
-    setSelectedSession(session)
-    setShowInvoiceForm(true)
+  // Auto-create invoice from session data
+  const handleInvoiceSession = async (session) => {
+    if (!confirm(`Create invoice for ${session.client_name || session.clientName}?`)) return
+    
+    try {
+      // Get package price if available
+      const packageId = session.package_id || session.packageId
+      let amount = session.quote_amount || session.quoteAmount
+      
+      if (!amount && packageId) {
+        const selectedPackage = packages.find(p => p.id.toString() === packageId.toString())
+        if (selectedPackage) {
+          amount = selectedPackage.price
+        }
+      }
+      
+      if (!amount) {
+        alert('No price found for this session. Please set a quote amount or select a package.')
+        return
+      }
+      
+      // Create invoice with session details
+      const invoiceData = {
+        sessionId: session.id,
+        clientName: session.client_name || session.clientName,
+        clientEmail: session.client_email || session.clientEmail,
+        amount: parseFloat(amount),
+        description: `${session.session_type || session.sessionType} - ${new Date(session.date).toLocaleDateString()}`,
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        status: 'Paid' // Default to paid since they're invoicing after completion
+      }
+      
+      const response = await fetch(`${API_URL}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(invoiceData)
+      })
+      
+      if (response.ok) {
+        // Update session status to Invoiced
+        const invoiceNumber = `INV-${Date.now()}`
+        await fetch(`${API_URL}/bookings/${session.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ status: 'Invoiced', invoice_id: invoiceNumber })
+        })
+        
+        await fetchInvoices()
+        await fetchBookings()
+        alert('Invoice created successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to create invoice: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error creating invoice:', error)
+      alert('Failed to create invoice')
+    }
   }
 
   // Create shoot
@@ -1163,10 +1219,10 @@ const AdminDashboard = () => {
                             className="btn-small btn-secondary"
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleShowInvoiceForm(session)
+                              handleInvoiceSession(session)
                             }}
                           >
-                            💰 Create Invoice
+                            💰 Invoice Session
                           </button>
                           <button 
                             className="btn-small btn-secondary"
