@@ -16,6 +16,7 @@ import Profile from './pages/Profile'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
 import SessionDetail from './pages/SessionDetail'
+import ClientPhotos from './pages/ClientPhotos'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -64,6 +65,14 @@ function App() {
                 element={
                   <ProtectedRoute adminOnly>
                     <SessionDetail />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/photos/:shootId" 
+                element={
+                  <ProtectedRoute>
+                    <ClientPhotos />
                   </ProtectedRoute>
                 } 
               />

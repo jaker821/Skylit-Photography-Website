@@ -987,9 +987,33 @@ app.put('/api/bookings/:id/status', requireAdmin, async (req, res) => {
 });
 
 // Delete booking (admin only)
-app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
+// Allow clients to delete their own pending bookings, or admins to delete any booking
+app.delete('/api/bookings/:id', requireAuth, async (req, res) => {
   try {
     const bookingId = parseInt(req.params.id);
+    
+    // Get the booking first
+    const booking = await db.get('SELECT * FROM bookings WHERE id = ?', [bookingId]);
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    // Check if user is admin
+    const user = await db.get('SELECT role FROM users WHERE id = ?', [req.session.userId]);
+    const isAdmin = user && user.role === 'admin';
+    
+    // If not admin, check if this is the user's booking and it's still pending
+    if (!isAdmin) {
+      if (booking.user_id !== req.session.userId) {
+        return res.status(403).json({ error: 'Not authorized to delete this booking' });
+      }
+      
+      // Users can only delete pending bookings
+      if (booking.status.toLowerCase() !== 'pending') {
+        return res.status(403).json({ error: 'Can only delete pending bookings' });
+      }
+    }
     
     const result = await db.run('DELETE FROM bookings WHERE id = ?', [bookingId]);
     
@@ -997,6 +1021,7 @@ app.delete('/api/bookings/:id', requireAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Booking not found' });
     }
     
+    console.log(`Booking ${bookingId} deleted by ${isAdmin ? 'admin' : 'user'}`);
     res.json({ success: true });
   } catch (error) {
     console.error('Delete booking error:', error);
@@ -1270,13 +1295,14 @@ app.get('/api/portfolio', async (req, res) => {
   try {
     console.log('📸 Portfolio request received');
     
-    // Get all shoots (without JOIN since Supabase wrapper doesn't handle it)
-    const shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
-    console.log(`📸 Found ${shoots.length} shoots in database`);
+    // Get all non-hidden shoots (without JOIN since Supabase wrapper doesn't handle it)
+    const shoots = await db.all('SELECT * FROM shoots WHERE (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC');
+    console.log(`📸 Found ${shoots.length} visible shoots in database`);
 
     // Get photos for each shoot and fetch category separately
     const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
-      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      // Only get non-hidden photos for public portfolio
+      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? AND (is_hidden IS NULL OR is_hidden = 0)', [shoot.id]);
       
       // Fetch category information separately since LEFT JOIN doesn't work with Supabase wrapper
       let categoryName = 'Uncategorized'
@@ -1421,14 +1447,14 @@ app.get('/api/portfolio/category/:category', async (req, res) => {
     
     let shoots;
     if (category === 'all') {
-      shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+      shoots = await db.all('SELECT * FROM shoots WHERE (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC');
     } else {
-      shoots = await db.all('SELECT * FROM shoots WHERE LOWER(category) = LOWER(?) ORDER BY created_at DESC', [category]);
+      shoots = await db.all('SELECT * FROM shoots WHERE LOWER(category) = LOWER(?) AND (is_hidden IS NULL OR is_hidden = 0) ORDER BY created_at DESC', [category]);
     }
     
-    // Get photos for each shoot
+    // Get photos for each shoot (only non-hidden photos)
     const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
-      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? AND (is_hidden IS NULL OR is_hidden = 0)', [shoot.id]);
       return {
         id: shoot.id,
         title: shoot.title,
@@ -1528,7 +1554,7 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
     };
     
     console.log(`📸 Returning shoot data for: ${shoot.title}`);
-    res.json(shootData);
+    res.json({ shoot: shootData });
   } catch (error) {
     console.error('Get shoot error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1736,6 +1762,50 @@ app.delete('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Delete shoot error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Hide/Unhide shoot (admin only)
+app.put('/api/portfolio/shoots/:id/visibility', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const { isHidden } = req.body;
+    
+    const result = await db.run(
+      'UPDATE shoots SET is_hidden = ?, updated_at = ? WHERE id = ?',
+      [isHidden ? 1 : 0, new Date().toISOString(), shootId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Toggle shoot visibility error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Hide/Unhide photo (admin only)
+app.put('/api/photos/:id/visibility', requireAdmin, async (req, res) => {
+  try {
+    const photoId = parseInt(req.params.id);
+    const { isHidden } = req.body;
+    
+    const result = await db.run(
+      'UPDATE photos SET is_hidden = ? WHERE id = ?',
+      [isHidden ? 1 : 0, photoId]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Toggle photo visibility error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

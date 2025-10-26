@@ -190,11 +190,15 @@ const AdminDashboard = () => {
       .slice(0, 5)
   }
 
-  // Get sessions by status
-  const pendingSessions = bookings.filter(b => b.status === 'Pending')
-  const quotedSessions = bookings.filter(b => b.status === 'Quoted')
-  const bookedSessions = bookings.filter(b => b.status === 'Booked')
-  const invoicedSessions = bookings.filter(b => b.status === 'Invoiced')
+  // Get sessions by status (case-insensitive)
+  const pendingSessions = bookings.filter(b => b.status?.toLowerCase() === 'pending')
+  const quotedSessions = bookings.filter(b => b.status?.toLowerCase() === 'quoted')
+  const bookedSessions = bookings.filter(b => b.status?.toLowerCase() === 'booked')
+  const invoicedSessions = bookings.filter(b => b.status?.toLowerCase() === 'invoiced')
+  
+  // Debug: Log bookings to check what's coming from the API
+  console.log('All bookings:', bookings)
+  console.log('Pending sessions:', pendingSessions)
 
   // Confirm pending session (move to booked)
   const handleConfirmSession = async (sessionId) => {
@@ -471,6 +475,63 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('🌟 Error toggling featured status:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
+  // Toggle shoot visibility (hide/show)
+  const handleToggleShootVisibility = async (shootId, isHidden) => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/visibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isHidden: !isHidden })
+      })
+
+      if (response.ok) {
+        await fetchShoots()
+        alert(isHidden ? 'Shoot is now visible' : 'Shoot is now hidden')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update shoot visibility')
+      }
+    } catch (error) {
+      console.error('Error toggling shoot visibility:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
+  // Toggle photo visibility (hide/show)
+  const handleTogglePhotoVisibility = async (photoId, isHidden) => {
+    try {
+      const response = await fetch(`${API_URL}/photos/${photoId}/visibility`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isHidden: !isHidden })
+      })
+
+      if (response.ok) {
+        await fetchShoots()
+        // Update selectedShoot if it exists
+        if (selectedShoot) {
+          setSelectedShoot(prevShoot => ({
+            ...prevShoot,
+            photos: prevShoot.photos.map(photo =>
+              photo.id === photoId
+                ? { ...photo, isHidden: !isHidden }
+                : photo
+            )
+          }))
+        }
+        alert(isHidden ? 'Photo is now visible' : 'Photo is now hidden')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update photo visibility')
+      }
+    } catch (error) {
+      console.error('Error toggling photo visibility:', error)
       alert('Server error. Please try again.')
     }
   }
@@ -855,8 +916,8 @@ const AdminDashboard = () => {
                     {upcomingSessions.map(session => (
                       <div key={session.id} className="session-item">
                         <div className="session-info">
-                          <h4>{session.clientName}</h4>
-                          <p>{session.sessionType} - {new Date(session.date).toLocaleDateString()}</p>
+                          <h4>{session.client_name || session.clientName}</h4>
+                          <p>{session.session_type || session.sessionType} - {new Date(session.date).toLocaleDateString()}</p>
                         </div>
                         <span className={`status-badge status-${session.status.toLowerCase()}`}>
                           {session.status}
@@ -931,15 +992,15 @@ const AdminDashboard = () => {
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="session-card-header">
-                          <h4>{session.clientName}</h4>
+                          <h4>{session.client_name || session.clientName}</h4>
                           <span className="status-badge status-pending">Pending</span>
                         </div>
                         <div className="session-card-body">
-                          <p><strong>Type:</strong> {session.sessionType}</p>
+                          <p><strong>Type:</strong> {session.session_type || session.sessionType}</p>
                           <p><strong>Date:</strong> {new Date(session.date).toLocaleDateString()}</p>
                           <p><strong>Time:</strong> {session.time || 'TBD'}</p>
                           <p><strong>Location:</strong> {session.location || 'TBD'}</p>
-                          <p><strong>Contact:</strong> {session.clientEmail || session.clientPhone || 'N/A'}</p>
+                          <p><strong>Contact:</strong> {session.client_email || session.clientEmail || 'N/A'}</p>
                           {session.notes && <p><strong>Notes:</strong> {session.notes}</p>}
                         </div>
                         <div className="session-card-actions" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -988,13 +1049,13 @@ const AdminDashboard = () => {
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="session-card-header">
-                          <h4>{session.clientName}</h4>
+                          <h4>{session.client_name || session.clientName}</h4>
                           <span className="status-badge status-quoted">Quoted</span>
                         </div>
                         <div className="session-card-body">
-                          <p><strong>Type:</strong> {session.sessionType}</p>
+                          <p><strong>Type:</strong> {session.session_type || session.sessionType}</p>
                           <p><strong>Date:</strong> {new Date(session.date).toLocaleDateString()}</p>
-                          <p><strong>Quote Amount:</strong> ${session.quoteAmount || 'TBD'}</p>
+                          <p><strong>Quote Amount:</strong> ${session.quote_amount || session.quoteAmount || 'TBD'}</p>
                           {session.notes && <p><strong>Notes:</strong> {session.notes}</p>}
                         </div>
                         <div className="session-card-actions">
@@ -1042,15 +1103,15 @@ const AdminDashboard = () => {
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="session-card-header">
-                          <h4>{session.clientName}</h4>
+                          <h4>{session.client_name || session.clientName}</h4>
                           <span className="status-badge status-booked">Booked</span>
                         </div>
                         <div className="session-card-body">
-                          <p><strong>Type:</strong> {session.sessionType}</p>
+                          <p><strong>Type:</strong> {session.session_type || session.sessionType}</p>
                           <p><strong>Date:</strong> {new Date(session.date).toLocaleDateString()}</p>
                           <p><strong>Time:</strong> {session.time || 'TBD'}</p>
                           <p><strong>Location:</strong> {session.location || 'TBD'}</p>
-                          <p><strong>Contact:</strong> {session.clientEmail}</p>
+                          <p><strong>Contact:</strong> {session.client_email || session.clientEmail}</p>
                         </div>
                         <div className="session-card-actions">
                           <button 
@@ -1097,13 +1158,13 @@ const AdminDashboard = () => {
                         style={{ cursor: 'pointer' }}
                       >
                         <div className="session-card-header">
-                          <h4>{session.clientName}</h4>
+                          <h4>{session.client_name || session.clientName}</h4>
                           <span className="status-badge status-invoiced">Invoiced</span>
                         </div>
                         <div className="session-card-body">
-                          <p><strong>Type:</strong> {session.sessionType}</p>
+                          <p><strong>Type:</strong> {session.session_type || session.sessionType}</p>
                           <p><strong>Date:</strong> {new Date(session.date).toLocaleDateString()}</p>
-                          {session.invoiceId && <p><strong>Invoice #:</strong> {session.invoiceId}</p>}
+                          {session.invoice_id && <p><strong>Invoice #:</strong> {session.invoice_id}</p>}
                         </div>
                         <div className="session-card-actions">
                           <button 
@@ -1155,6 +1216,8 @@ const AdminDashboard = () => {
                 onPhotoUpload={(files) => handlePhotoUpload(selectedShoot.id, files)}
                 onPhotoDelete={(photoId) => handleDeletePhoto(selectedShoot.id, photoId)}
                 onToggleFeatured={(photoId, currentFeatured) => toggleFeatured(photoId, currentFeatured)}
+                onToggleShootVisibility={(shootId, isHidden) => handleToggleShootVisibility(shootId, isHidden)}
+                onTogglePhotoVisibility={(photoId, isHidden) => handleTogglePhotoVisibility(photoId, isHidden)}
                 isUploading={isUploading}
                 uploadProgress={uploadProgress}
               />
@@ -1941,7 +2004,7 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, isUploading, uploadProgress }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onToggleShootVisibility, onTogglePhotoVisibility, isUploading, uploadProgress }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
@@ -2101,23 +2164,32 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
       <div className="shoot-detail-header">
         <button className="btn btn-secondary" onClick={onBack}>← Back to Shoots</button>
         <h2>{shoot.title}</h2>
-        <div className="upload-button-wrapper">
-          <input
-            type="file"
-            id="photo-upload"
-            multiple
-            accept="image/*"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-            disabled={isUploading}
-          />
-          <label 
-            htmlFor="photo-upload" 
-            className={`btn btn-primary ${isUploading ? 'disabled' : ''}`}
-            style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => onToggleShootVisibility(shoot.id, shoot.isHidden)}
+            title={shoot.isHidden ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
           >
-            {isUploading ? 'Uploading...' : '+ Upload Photos'}
-          </label>
+            {shoot.isHidden ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
+          </button>
+          <div className="upload-button-wrapper">
+            <input
+              type="file"
+              id="photo-upload"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+              disabled={isUploading}
+            />
+            <label 
+              htmlFor="photo-upload" 
+              className={`btn btn-primary ${isUploading ? 'disabled' : ''}`}
+              style={{ opacity: isUploading ? 0.6 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }}
+            >
+              {isUploading ? 'Uploading...' : '+ Upload Photos'}
+            </label>
+          </div>
         </div>
       </div>
       
@@ -2288,23 +2360,33 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                   <span className="high-res-badge">✓ High-Res</span>
                 )}
               </div>
-              <button 
-                className={`featured-btn ${photo.featured ? 'featured' : ''}`}
-                onClick={() => {
-                  console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
-                  onToggleFeatured(photo.id, photo.featured)
-                }}
-                title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
-                        stroke="currentColor" 
-                        strokeWidth="2" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round"
-                        fill={photo.featured ? "currentColor" : "none"}/>
-                </svg>
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button 
+                  className={`featured-btn ${photo.featured ? 'featured' : ''}`}
+                  onClick={() => {
+                    console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
+                    onToggleFeatured(photo.id, photo.featured)
+                  }}
+                  title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                          stroke="currentColor" 
+                          strokeWidth="2" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                          fill={photo.featured ? "currentColor" : "none"}/>
+                  </svg>
+                </button>
+                <button 
+                  className="featured-btn"
+                  onClick={() => onTogglePhotoVisibility(photo.id, photo.isHidden)}
+                  title={photo.isHidden ? 'Show photo in portfolio' : 'Hide photo from portfolio'}
+                  style={{ fontSize: '12px' }}
+                >
+                  {photo.isHidden ? '👁️' : '👁️‍🗨️'}
+                </button>
+              </div>
               <button 
                 className="delete-photo-btn"
                 onClick={() => {

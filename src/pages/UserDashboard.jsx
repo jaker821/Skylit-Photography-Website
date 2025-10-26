@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 
 const UserDashboard = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('sessions')
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bookings, setBookings] = useState([])
   const [packages, setPackages] = useState([])
   const [authorizedShoots, setAuthorizedShoots] = useState([])
-  const [selectedShoot, setSelectedShoot] = useState(null)
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState(0)
   const [bookingData, setBookingData] = useState({
     sessionType: '',
     date: '',
@@ -106,66 +105,26 @@ const UserDashboard = () => {
     }
   }
 
-  const handleDownloadAll = async (shootId) => {
-    setIsDownloading(true)
-    setDownloadProgress(0)
-    
-    // Create timeout controller
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => {
-      controller.abort()
-    }, 300000) // 5 minute timeout
-    
+  const handleCancelBooking = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking request?')) {
+      return
+    }
+
     try {
-      console.log('Starting download for shoot:', shootId)
-      setDownloadProgress(10)
-      
-      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/download-all`, {
-        credentials: 'include',
-        signal: controller.signal
+      const response = await fetch(`${API_URL}/bookings/${bookingId}`, {
+        method: 'DELETE',
+        credentials: 'include'
       })
-      
-      clearTimeout(timeoutId)
-      
-      console.log('Response received, status:', response.status)
-      setDownloadProgress(30)
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to download photos')
-      }
-      
-      console.log('Reading response blob...')
-      setDownloadProgress(50)
-      
-      const blob = await response.blob()
-      console.log('Blob created, size:', blob.size, 'bytes')
-      setDownloadProgress(80)
-      
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'photos.zip'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-      
-      setDownloadProgress(100)
-      console.log('Download complete')
-      
-    } catch (error) {
-      console.error('Error downloading photos:', error)
-      
-      if (error.name === 'AbortError') {
-        alert('Download timed out. Please try again. Large files may take several minutes to download.')
+
+      if (response.ok) {
+        alert('Booking cancelled successfully')
+        fetchBookings() // Refresh the bookings list
       } else {
-        alert(`Download failed: ${error.message || 'An error occurred while downloading photos.'}`)
+        alert('Failed to cancel booking')
       }
-    } finally {
-      clearTimeout(timeoutId)
-      setIsDownloading(false)
-      setTimeout(() => setDownloadProgress(0), 1000)
+    } catch (error) {
+      console.error('Error cancelling booking:', error)
+      alert('An error occurred while cancelling the booking')
     }
   }
 
@@ -362,7 +321,7 @@ const UserDashboard = () => {
               {bookings.map(booking => (
                 <div key={booking.id} className="booking-card">
                   <div className="booking-header">
-                    <h3>{booking.sessionType}</h3>
+                    <h3>{booking.session_type || booking.sessionType}</h3>
                     <span className={`status-badge status-${booking.status.toLowerCase()}`}>
                       {booking.status}
                     </span>
@@ -385,19 +344,31 @@ const UserDashboard = () => {
                       <span className="detail-icon">📍</span>
                       <span>{booking.location || 'TBD'}</span>
                     </div>
+                    {booking.notes && (
+                      <div className="detail-item">
+                        <span className="detail-icon">📝</span>
+                        <span>{booking.notes}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="booking-actions">
-                    {booking.status === 'Pending' && (
-                      <>
-                        <button className="btn-small btn-secondary">Reschedule</button>
-                        <button className="btn-small btn-danger">Cancel</button>
-                      </>
+                    {booking.status.toLowerCase() === 'pending' && (
+                      <button 
+                        className="btn-small btn-danger"
+                        onClick={() => handleCancelBooking(booking.id)}
+                      >
+                        Cancel Request
+                      </button>
                     )}
-                    {booking.status === 'Confirmed' && (
-                      <button className="btn-small btn-primary">View Details</button>
+                    {booking.status.toLowerCase() === 'booked' && (
+                      <p className="booking-message" style={{ color: 'var(--accent-gold)', margin: 0 }}>
+                        ✓ Your session has been confirmed!
+                      </p>
                     )}
-                    {booking.status === 'Completed' && (
-                      <button className="btn-small btn-primary">View Gallery</button>
+                    {booking.status.toLowerCase() === 'invoiced' && (
+                      <p className="booking-message" style={{ color: 'var(--white)', margin: 0 }}>
+                        Session completed
+                      </p>
                     )}
                   </div>
                 </div>
@@ -461,7 +432,7 @@ const UserDashboard = () => {
                     </div>
                     <button
                       className="btn btn-primary btn-full"
-                      onClick={() => setSelectedShoot(shoot)}
+                      onClick={() => navigate(`/photos/${shoot.id}`)}
                     >
                       View Photos
                     </button>
@@ -473,66 +444,6 @@ const UserDashboard = () => {
         )}
 
       </div>
-
-      {/* Photo View Modal */}
-      {selectedShoot && (
-        <div className="modal-overlay" onClick={() => setSelectedShoot(null)}>
-          <div className="modal-content photos-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{selectedShoot.title}</h2>
-              <button 
-                className="modal-close-btn" 
-                onClick={() => setSelectedShoot(null)}
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              {/* Only show download button if there are high-res photos */}
-              {selectedShoot.photos?.some(photo => photo.hasHighRes) ? (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <button
-                    className="btn btn-primary btn-download-all"
-                    onClick={() => handleDownloadAll(selectedShoot.id)}
-                    disabled={isDownloading}
-                    style={{ width: '100%', marginBottom: isDownloading ? '0.5rem' : 0 }}
-                  >
-                    {isDownloading ? `Downloading... ${downloadProgress}%` : 'Download High-Res Photos'}
-                  </button>
-                  {isDownloading && (
-                    <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ 
-                        width: `${downloadProgress}%`, 
-                        height: '100%', 
-                        background: 'var(--accent-gold)', 
-                        transition: 'width 0.3s ease',
-                        borderRadius: '3px'
-                      }}></div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="no-high-res-notice" style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(223, 208, 143, 0.1)', borderRadius: '8px', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--white)', margin: 0 }}>
-                    These photos are available for viewing only. High-resolution downloads are no longer available.
-                  </p>
-                </div>
-              )}
-              {selectedShoot.photos && selectedShoot.photos.length > 0 ? (
-                <div className="photos-grid-modal">
-                  {selectedShoot.photos.map(photo => (
-                    <div key={photo.id} className="photo-item-modal">
-                      <img src={photo.displayUrl} alt={selectedShoot.title} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p>No photos available</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
