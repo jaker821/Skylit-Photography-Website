@@ -533,32 +533,6 @@ const AdminDashboard = () => {
   }
 
   // Toggle shoot visibility (hide/show)
-  const handleToggleShootVisibility = async (shootId, currentHiddenState) => {
-    try {
-      console.log('🎯 Toggling shoot visibility:', { shootId, currentHiddenState })
-      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/visibility`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ isHidden: !currentHiddenState })
-      })
-
-      console.log('🎯 Response status:', response.status)
-
-      if (response.ok) {
-        await fetchShoots()
-        alert(currentHiddenState ? 'Shoot is now visible' : 'Shoot is now hidden')
-      } else {
-        const data = await response.json()
-        console.error('🎯 Error response:', data)
-        alert(data.error || 'Failed to update shoot visibility')
-      }
-    } catch (error) {
-      console.error('Error toggling shoot visibility:', error)
-      alert('Server error. Please try again.')
-    }
-  }
-
   // Toggle photo visibility (hide/show)
   const handleTogglePhotoVisibility = async (photoId, currentHiddenState) => {
     try {
@@ -1287,7 +1261,6 @@ const AdminDashboard = () => {
                 onPhotoUpload={(files) => handlePhotoUpload(selectedShoot.id, files)}
                 onPhotoDelete={(photoId) => handleDeletePhoto(selectedShoot.id, photoId)}
                 onToggleFeatured={(photoId, currentFeatured) => toggleFeatured(photoId, currentFeatured)}
-                onToggleShootVisibility={(shootId, isHidden) => handleToggleShootVisibility(shootId, isHidden)}
                 onTogglePhotoVisibility={(photoId, isHidden) => handleTogglePhotoVisibility(photoId, isHidden)}
                 onShootUpdate={() => fetchShoots()}
                 isUploading={isUploading}
@@ -2232,7 +2205,7 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onToggleShootVisibility, onTogglePhotoVisibility, isUploading, uploadProgress, onShootUpdate }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, isUploading, uploadProgress, onShootUpdate }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
@@ -2447,10 +2420,33 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
               </button>
               <button
                 className="btn btn-secondary"
-                onClick={() => onToggleShootVisibility(shoot.id, shoot.is_hidden || shoot.isHidden || false)}
-                title={(shoot.is_hidden || shoot.isHidden) ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
+                onClick={async () => {
+                  if (confirm(`Hide all ${shoot.photos.length} photos in this shoot from the portfolio?`)) {
+                    for (const photo of shoot.photos) {
+                      if (photo.is_hidden !== 1 && photo.isHidden !== true) {
+                        await onTogglePhotoVisibility(photo.id, false)
+                      }
+                    }
+                  }
+                }}
+                title="Hide all photos in this shoot from portfolio"
               >
-                {(shoot.is_hidden || shoot.isHidden) ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
+                👁️‍🗨️ Hide All Photos
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={async () => {
+                  if (confirm(`Show all ${shoot.photos.length} photos in this shoot in the portfolio?`)) {
+                    for (const photo of shoot.photos) {
+                      if (photo.is_hidden === 1 || photo.isHidden === true) {
+                        await onTogglePhotoVisibility(photo.id, true)
+                      }
+                    }
+                  }
+                }}
+                title="Show all photos in this shoot in portfolio"
+              >
+                👁️ Show All Photos
               </button>
               <div className="upload-button-wrapper">
                 <input
