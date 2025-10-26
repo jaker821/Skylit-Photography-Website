@@ -933,7 +933,7 @@ app.put('/api/bookings/:id', requireAdmin, async (req, res) => {
     const updateFields = [];
     const updateValues = [];
     
-    const allowedFields = ['client_name', 'client_email', 'session_type', 'date', 'time', 'location', 'notes', 'status'];
+    const allowedFields = ['client_name', 'client_email', 'session_type', 'date', 'time', 'location', 'notes', 'status', 'invoice_id', 'quote_amount'];
     
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
