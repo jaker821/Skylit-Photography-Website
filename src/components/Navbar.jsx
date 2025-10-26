@@ -53,6 +53,36 @@ const Navbar = () => {
     }
   }, [profileDropdownOpen])
 
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Don't close if clicking on the hamburger button or inside the nav-menu
+      if (mobileMenuOpen && 
+          !event.target.closest('.mobile-menu-toggle') && 
+          !event.target.closest('.nav-menu') &&
+          !event.target.closest('.nav-auth-section')) {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      // Also close on navigation links
+      const links = document.querySelectorAll('.nav-menu a')
+      links.forEach(link => {
+        link.addEventListener('click', closeMobileMenu)
+      })
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      const links = document.querySelectorAll('.nav-menu a')
+      links.forEach(link => {
+        link.removeEventListener('click', closeMobileMenu)
+      })
+    }
+  }, [mobileMenuOpen])
+
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container">
