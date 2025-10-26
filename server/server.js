@@ -9,6 +9,7 @@ const multerS3 = require('multer-s3');
 const AWS = require('aws-sdk');
 const sharp = require('sharp');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
 const fs = require('fs').promises;
 const path = require('path');
 const db = require('./database');
@@ -2789,6 +2790,109 @@ app.post('/api/admin/recover', async (req, res) => {
   } catch (error) {
     console.error('Admin recovery error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Contact Form Email
+// ===================================
+
+// Send contact form email
+app.post('/api/contact/send', async (req, res) => {
+  try {
+    const { name, email, phone, sessionType, date, message } = req.body;
+    
+    // Validate required fields
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'Name, email, and message are required' });
+    }
+    
+    // Check if email configuration exists
+    const adminEmail = process.env.ADMIN_EMAIL || 'skylit.photography25@gmail.com';
+    const emailUser = process.env.EMAIL_USER;
+    const emailPass = process.env.EMAIL_PASSWORD;
+    
+    if (!emailUser || !emailPass) {
+      console.log('⚠️  Email not configured - skipping send');
+      // In development, just log the email
+      console.log('📧 Contact Form Submission:');
+      console.log(`   From: ${name} <${email}>`);
+      console.log(`   Phone: ${phone || 'N/A'}`);
+      console.log(`   Session Type: ${sessionType || 'N/A'}`);
+      console.log(`   Date: ${date || 'N/A'}`);
+      console.log(`   Message: ${message}`);
+      
+      return res.json({ 
+        success: true, 
+        message: 'Thank you! Your message has been received.' 
+      });
+    }
+    
+    // Create reusable transporter object
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPass
+      }
+    });
+    
+    // Email content
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #6B46C1;">New Contact Form Submission</h2>
+        <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px;">
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+          <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+          <p><strong>Session Type:</strong> ${sessionType || 'Not specified'}</p>
+          ${date ? `<p><strong>Preferred Date:</strong> ${date}</p>` : ''}
+        </div>
+        <div style="margin-top: 20px; padding: 20px; background-color: #fff; border-left: 4px solid #6B46C1;">
+          <h3 style="color: #6B46C1; margin-top: 0;">Message:</h3>
+          <p style="white-space: pre-wrap; line-height: 1.6;">${message}</p>
+        </div>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.9em;">
+          <p>This email was sent from the Skylit Photography contact form.</p>
+        </div>
+      </div>
+    `;
+    
+    // Send email
+    const mailOptions = {
+      from: `"${name}" <${emailUser}>`,
+      to: adminEmail,
+      replyTo: email,
+      subject: `New Contact: ${sessionType || 'General Inquiry'} - ${name}`,
+      html: emailHtml,
+      text: `
+New Contact Form Submission
+
+Name: ${name}
+Email: ${email}
+Phone: ${phone || 'Not provided'}
+Session Type: ${sessionType || 'Not specified'}
+Preferred Date: ${date || 'Not specified'}
+
+Message:
+${message}
+
+---
+This email was sent from the Skylit Photography contact form.
+      `.trim()
+    };
+    
+    await transporter.sendMail(mailOptions);
+    console.log(`✅ Contact email sent from ${name} (${email})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Thank you! Your message has been sent successfully.' 
+    });
+    
+  } catch (error) {
+    console.error('Contact email error:', error);
+    res.status(500).json({ error: 'Failed to send message. Please try again later.' });
   }
 });
 

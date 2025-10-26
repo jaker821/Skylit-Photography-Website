@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { API_URL } from '../config'
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -11,6 +12,8 @@ const Contact = () => {
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e) => {
     setFormData({
@@ -19,24 +22,46 @@ const Contact = () => {
     })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // In a real application, send this data to a backend
-    console.log('Form submitted:', formData)
-    setSubmitted(true)
+    setError('')
+    setIsSubmitting(true)
     
-    // Reset form after 3 seconds
-    setTimeout(() => {
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        sessionType: '',
-        date: '',
-        message: ''
+    try {
+      const response = await fetch(`${API_URL}/contact/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(formData)
       })
-      setSubmitted(false)
-    }, 3000)
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        setSubmitted(true)
+        // Reset form after 3 seconds
+        setTimeout(() => {
+          setFormData({
+            name: '',
+            email: '',
+            phone: '',
+            sessionType: '',
+            date: '',
+            message: ''
+          })
+          setSubmitted(false)
+        }, 3000)
+      } else {
+        setError(data.error || 'Failed to send message. Please try again.')
+      }
+    } catch (err) {
+      console.error('Error submitting form:', err)
+      setError('Failed to send message. Please check your connection and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -58,6 +83,19 @@ const Contact = () => {
             {submitted && (
               <div className="success-message">
                 <p>✓ Thank you! Your message has been sent successfully.</p>
+              </div>
+            )}
+
+            {error && (
+              <div className="error-message" style={{ 
+                background: 'rgba(239, 68, 68, 0.1)', 
+                border: '1px solid rgba(239, 68, 68, 0.3)', 
+                color: '#dc2626', 
+                padding: '1rem', 
+                borderRadius: '8px', 
+                marginBottom: '1.5rem' 
+              }}>
+                <p>⚠️ {error}</p>
               </div>
             )}
 
@@ -144,8 +182,12 @@ const Contact = () => {
                 ></textarea>
               </div>
 
-              <button type="submit" className="btn btn-primary btn-full">
-                Send Message
+              <button 
+                type="submit" 
+                className="btn btn-primary btn-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Sending...' : 'Send Message'}
               </button>
             </form>
           </div>

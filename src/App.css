@@ -1672,7 +1672,7 @@ img {
 
 /* Featured Work Gallery Styles */
 .featured-work-section {
-  padding: var(--spacing-xxl) var(--spacing-lg) var(--spacing-2xl);
+  padding: var(--spacing-xxl) var(--spacing-lg) calc(var(--spacing-2xl) + var(--spacing-xl));
   background: linear-gradient(135deg, var(--primary-purple-dark) 0%, var(--primary-purple) 100%);
   position: relative;
   overflow: hidden;
@@ -5616,7 +5616,7 @@ img {
 
   /* Featured Work Gallery Mobile */
   .featured-work-section {
-    padding: var(--spacing-xl) var(--spacing-md) var(--spacing-xl);
+    padding: var(--spacing-xl) var(--spacing-md) var(--spacing-2xl);
   }
 
   .featured-work-header {

@@ -33,6 +33,10 @@ const Navbar = () => {
 
   const toggleProfileDropdown = () => {
     setProfileDropdownOpen(!profileDropdownOpen)
+    // Close mobile menu when profile dropdown is opened
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false)
+    }
   }
 
   const closeProfileDropdown = () => {
