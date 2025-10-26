@@ -24,16 +24,19 @@ const Starfield = () => {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
-    // Track mouse position
+    // Track mouse position - only on desktop for better mobile performance
     const handleMouseMove = (e) => {
-      mouseX = e.clientX
-      mouseY = e.clientY
+      if (window.innerWidth >= 768) {
+        mouseX = e.clientX
+        mouseY = e.clientY
+      }
     }
     window.addEventListener('mousemove', handleMouseMove)
 
-    // Create stars
+    // Create stars - fewer on mobile for better performance
     const stars = []
-    const numStars = 50
+    const isMobile = window.innerWidth < 768
+    const numStars = isMobile ? 25 : 50
 
     for (let i = 0; i < numStars; i++) {
       stars.push({
