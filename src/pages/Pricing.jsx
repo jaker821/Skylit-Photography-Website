@@ -5,10 +5,12 @@ import { API_URL } from '../config'
 const Pricing = () => {
   const [packages, setPackages] = useState([])
   const [addOns, setAddOns] = useState([])
+  const [weddingSettings, setWeddingSettings] = useState({ enabled: false, message: '', startingPrice: '' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchPricing()
+    fetchWeddingSettings()
   }, [])
 
   const fetchPricing = async () => {
@@ -28,6 +30,20 @@ const Pricing = () => {
       console.error('Error fetching pricing:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchWeddingSettings = async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings/wedding`)
+      if (response.ok) {
+        const data = await response.json()
+        setWeddingSettings(data.settings || { enabled: false, message: '', startingPrice: '' })
+      }
+    } catch (error) {
+      console.error('Error fetching wedding settings:', error)
+      // Default settings if not configured
+      setWeddingSettings({ enabled: false, message: '', startingPrice: '' })
     }
   }
 
@@ -154,20 +170,23 @@ const Pricing = () => {
           </div>
         </section>
 
-        {/* Wedding Packages Note */}
-        <section className="special-packages">
-          <div className="special-package-card">
-            <h3>Wedding Packages</h3>
-            <p>
-              Every wedding is unique, and I offer customized wedding packages 
-              tailored to your specific needs. Wedding packages start at $2,500 
-              and include full-day coverage, engagement session, and premium deliverables.
-            </p>
-            <Link to="/contact" className="btn btn-text">
-              Request Custom Quote →
-            </Link>
-          </div>
-        </section>
+        {/* Wedding Packages Note - Only show if enabled */}
+        {weddingSettings.enabled && (
+          <section className="special-packages">
+            <div className="special-package-card">
+              <h3>Wedding Packages</h3>
+              <p>
+                {weddingSettings.message || 'Every wedding is unique, and I offer customized wedding packages tailored to your specific needs.'}
+                {weddingSettings.startingPrice && (
+                  <> Wedding packages start at {weddingSettings.startingPrice} and include full-day coverage, engagement session, and premium deliverables.</>
+                )}
+              </p>
+              <Link to="/contact" className="btn btn-text">
+                Request Custom Quote →
+              </Link>
+            </div>
+          </section>
+        )}
 
         {/* Payment Info */}
         <section className="payment-info">

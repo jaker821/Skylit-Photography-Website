@@ -148,13 +148,13 @@ const Contact = () => {
                   required
                 >
                   <option value="">Select a session type</option>
-                  <option value="wedding">Wedding</option>
-                  <option value="engagement">Engagement</option>
-                  <option value="portrait">Portrait</option>
-                  <option value="family">Family</option>
-                  <option value="newborn">Newborn</option>
-                  <option value="event">Event</option>
-                  <option value="other">Other</option>
+                  <option value="Events">Events</option>
+                  <option value="Portraits">Portraits</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Car">Car</option>
+                  <option value="Engagement">Engagement</option>
+                  <option value="Pets">Pets</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 

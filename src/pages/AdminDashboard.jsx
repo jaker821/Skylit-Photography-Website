@@ -21,6 +21,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([])
   const [pendingUsers, setPendingUsers] = useState([])
   const [storageStats, setStorageStats] = useState(null)
+  const [weddingSettings, setWeddingSettings] = useState({ enabled: false, message: '', startingPrice: '' })
   
   // Filter states
   const [sessionFilter, setSessionFilter] = useState('pending')
@@ -58,7 +59,8 @@ const AdminDashboard = () => {
         fetchPricing(),
         fetchCategories(),
         fetchUsers(),
-        fetchStorageStats()
+        fetchStorageStats(),
+        fetchWeddingSettings()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -159,6 +161,43 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching storage stats:', error)
+    }
+  }
+
+  const fetchWeddingSettings = async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings/wedding`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setWeddingSettings(data.settings || { enabled: false, message: '', startingPrice: '' })
+      }
+    } catch (error) {
+      console.error('Error fetching wedding settings:', error)
+      // Default settings if not configured
+      setWeddingSettings({ enabled: false, message: '', startingPrice: '' })
+    }
+  }
+
+  const handleSaveWeddingSettings = async (settings) => {
+    try {
+      const response = await fetch(`${API_URL}/settings/wedding`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ settings })
+      })
+      
+      if (response.ok) {
+        await fetchWeddingSettings()
+        alert('Wedding settings saved successfully!')
+      } else {
+        alert('Failed to save wedding settings')
+      }
+    } catch (error) {
+      console.error('Error saving wedding settings:', error)
+      alert('Failed to save wedding settings')
     }
   }
 
@@ -909,6 +948,12 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('users')}
           >
             Users {pendingUsers.length > 0 && <span className="badge">{pendingUsers.length}</span>}
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            Settings
           </button>
         </div>
 
@@ -1897,7 +1942,101 @@ const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div className="tab-content">
+            <h2>Settings</h2>
+            <WeddingSettingsForm 
+              settings={weddingSettings}
+              onSave={handleSaveWeddingSettings}
+            />
+          </div>
+        )}
       </div>
+    </div>
+  )
+}
+
+// Wedding Settings Form Component
+const WeddingSettingsForm = ({ settings, onSave }) => {
+  const [formData, setFormData] = useState({
+    enabled: settings.enabled,
+    message: settings.message,
+    startingPrice: settings.startingPrice
+  })
+
+  useEffect(() => {
+    setFormData({
+      enabled: settings.enabled,
+      message: settings.message,
+      startingPrice: settings.startingPrice
+    })
+  }, [settings])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  return (
+    <div className="settings-form">
+      <h3>Wedding Packages Settings</h3>
+      <p>Control whether wedding packages are displayed on the pricing page.</p>
+      
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <input
+              type="checkbox"
+              name="enabled"
+              checked={formData.enabled}
+              onChange={handleChange}
+            />
+            <span style={{ fontWeight: 500 }}>Enable wedding packages on pricing page</span>
+          </label>
+        </div>
+
+        {formData.enabled && (
+          <>
+            <div className="form-group">
+              <label>Starting Price</label>
+              <input
+                type="text"
+                name="startingPrice"
+                value={formData.startingPrice}
+                onChange={handleChange}
+                placeholder="e.g., $2,500"
+              />
+              <small>This will be displayed as "Wedding packages start at..."</small>
+            </div>
+
+            <div className="form-group">
+              <label>Custom Message</label>
+              <textarea
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
+                rows="4"
+                placeholder="Enter a custom message about your wedding packages..."
+              />
+              <small>Leave blank to use the default message</small>
+            </div>
+          </>
+        )}
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
     </div>
   )
 }

@@ -1,7 +1,137 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
 import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
+
+// Starfield Animation Component
+const Starfield = () => {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    let animationFrameId
+    let mouseX = 0
+    let mouseY = 0
+
+    // Set canvas size
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+
+    // Track mouse position
+    const handleMouseMove = (e) => {
+      mouseX = e.clientX
+      mouseY = e.clientY
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+
+    // Create stars
+    const stars = []
+    const numStars = 50
+
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 2 + 1,
+        speed: Math.random() * 0.5 + 0.2,
+        opacity: Math.random() * 0.5 + 0.3,
+        glow: Math.random() > 0.7
+      })
+    }
+
+    // Animation loop
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      stars.forEach((star, index) => {
+        // Move stars slowly
+        star.y += star.speed
+
+        // Reset star when it goes off screen
+        if (star.y > canvas.height) {
+          star.y = 0
+          star.x = Math.random() * canvas.width
+        }
+
+        // Interact with mouse
+        const dx = star.x - mouseX
+        const dy = star.y - mouseY
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        // Pull stars slightly towards mouse when close
+        if (distance < 200) {
+          const force = (200 - distance) / 200
+          star.x -= (dx / distance) * force * 2
+          star.y -= (dy / distance) * force * 2
+        }
+
+        // Draw star with glow
+        const gradient = ctx.createRadialGradient(
+          star.x, star.y, 0,
+          star.x, star.y, star.radius * 3
+        )
+        
+        if (star.glow) {
+          gradient.addColorStop(0, `rgba(212, 175, 55, ${star.opacity})`)
+          gradient.addColorStop(0.5, `rgba(212, 175, 55, ${star.opacity * 0.5})`)
+          gradient.addColorStop(1, 'rgba(212, 175, 55, 0)')
+          
+          ctx.beginPath()
+          ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2)
+          ctx.fillStyle = gradient
+          ctx.fill()
+        }
+
+        // Draw main star
+        ctx.beginPath()
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(212, 175, 55, ${star.opacity})`
+        ctx.fill()
+        
+        // Add sparkle effect
+        if (star.glow && Math.random() > 0.98) {
+          ctx.shadowBlur = 10
+          ctx.shadowColor = 'rgba(212, 175, 55, 1)'
+          setTimeout(() => {
+            ctx.shadowBlur = 0
+          }, 100)
+        }
+      })
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    animate()
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('resize', resizeCanvas)
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 1
+      }}
+    />
+  )
+}
 
 const Home = () => {
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
@@ -45,6 +175,7 @@ const Home = () => {
     <div className="home-page">
       {/* Hero Section */}
       <section className="hero">
+        <Starfield />
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title animate-fade-in">

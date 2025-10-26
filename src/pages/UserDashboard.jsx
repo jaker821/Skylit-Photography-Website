@@ -172,12 +172,13 @@ const UserDashboard = () => {
                     required
                   >
                     <option value="">Select type</option>
-                    <option value="Wedding">Wedding</option>
+                    <option value="Events">Events</option>
+                    <option value="Portraits">Portraits</option>
+                    <option value="Motorcycle">Motorcycle</option>
+                    <option value="Car">Car</option>
                     <option value="Engagement">Engagement</option>
-                    <option value="Portrait">Portrait</option>
-                    <option value="Family">Family</option>
-                    <option value="Newborn">Newborn</option>
-                    <option value="Event">Event</option>
+                    <option value="Pets">Pets</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
