@@ -32,9 +32,7 @@ const Footer = () => {
         <div className="footer-section">
           <h4>Follow</h4>
           <div className="social-links">
-            <a href="#" aria-label="Instagram">Instagram</a>
-            <a href="#" aria-label="Facebook">Facebook</a>
-            <a href="#" aria-label="Pinterest">Pinterest</a>
+            <a href="https://www.instagram.com/skylit_photos/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">Instagram</a>
           </div>
         </div>
       </div>

@@ -227,9 +227,7 @@ const Contact = () => {
             <div className="social-media-section">
               <h3>Follow Me</h3>
               <div className="social-links-large">
-                <a href="#" className="social-link">Instagram</a>
-                <a href="#" className="social-link">Facebook</a>
-                <a href="#" className="social-link">Pinterest</a>
+                <a href="https://www.instagram.com/skylit_photos/" target="_blank" rel="noopener noreferrer" className="social-link">Instagram</a>
               </div>
             </div>
 

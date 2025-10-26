@@ -2173,6 +2173,19 @@ const PackageForm = ({ package: pkg, onSubmit, onCancel }) => {
     recommended: pkg?.recommended || false
   })
   
+  // Update form data when package changes (for editing)
+  useEffect(() => {
+    if (pkg) {
+      setFormData({
+        name: pkg.name || '',
+        price: pkg.price || '',
+        duration: pkg.duration || '',
+        features: pkg.features || [''],
+        recommended: pkg.recommended || false
+      })
+    }
+  }, [pkg])
+  
   const handleSubmit = (e) => {
     e.preventDefault()
     const data = {
@@ -2225,12 +2238,11 @@ const PackageForm = ({ package: pkg, onSubmit, onCancel }) => {
           </div>
         </div>
         <div className="form-group">
-          <label>Duration *</label>
+          <label>Duration</label>
           <input
             type="text"
             value={formData.duration}
             onChange={(e) => setFormData({...formData, duration: e.target.value})}
-            required
             placeholder="e.g., 1 hour, 2 hours, Half day"
           />
         </div>

@@ -15,7 +15,14 @@ const Pricing = () => {
     try {
       const response = await fetch(`${API_URL}/pricing`)
       const data = await response.json()
-      setPackages(data.packages || [])
+      // Sort packages by price (cheapest first)
+      const sortedPackages = (data.packages || []).sort((a, b) => {
+        // Extract numeric value from price (remove $ and commas)
+        const priceA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        const priceB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        return priceA - priceB
+      })
+      setPackages(sortedPackages)
       setAddOns(data.addOns || [])
     } catch (error) {
       console.error('Error fetching pricing:', error)
