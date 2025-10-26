@@ -79,7 +79,7 @@ const Portfolio = () => {
       </div>
 
       <div className="container">
-        {/* Category Filter - Only show if there are multiple categories */}
+        {/* Category Filter - Only show if there are multiple categories (All + at least 1 other) */}
         {categories.length > 1 && (
           <div className="portfolio-filters">
             {categories.map(category => (

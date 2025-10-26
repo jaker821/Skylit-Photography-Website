@@ -1732,58 +1732,40 @@ img {
   margin: 0 auto;
 }
 
-.featured-gallery {
-  position: relative;
-  max-width: 1200px;
+.featured-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 var(--spacing-md);
 }
 
-.gallery-container {
+.featured-photo-item {
   position: relative;
-  width: 100%;
-  height: 500px;
-  border-radius: var(--radius-xl);
   overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--background-dark);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.featured-photo-item:hover {
+  transform: translateY(-5px);
   box-shadow: var(--shadow-xl);
-  background: var(--white);
 }
 
-.gallery-track {
-  display: flex;
+.featured-photo-image {
   width: 100%;
-  height: 100%;
-}
-
-.gallery-slide {
-  min-width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-.slide-image-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 50%, #16213e 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.slide-image {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
   height: auto;
-  object-fit: contain;
-  transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  display: block;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
 }
 
-.gallery-slide:hover .slide-image {
-  transform: scale(1.02);
+.featured-photo-item:hover .featured-photo-image {
+  transform: scale(1.05);
 }
 
 .slide-overlay {
@@ -3827,7 +3809,7 @@ img {
 }
 
 .dashboard-header p {
-  color: var(--cream);
+  color: var(--white);
   font-size: 1.1rem;
   opacity: 1;
   font-weight: 500;
@@ -4931,6 +4913,16 @@ img {
   position: relative;
 }
 
+.shoot-detail .btn-primary,
+.shoot-detail .btn-secondary {
+  color: var(--accent-gold);
+}
+
+.shoot-detail .btn-primary:hover,
+.shoot-detail .btn-secondary:hover {
+  color: var(--accent-gold-light);
+}
+
 /* Upload Progress Bar */
 .upload-progress-container {
   margin: var(--spacing-lg) 0;
@@ -5632,12 +5624,14 @@ img {
     line-height: 1.4;
   }
 
-  .featured-gallery {
+  .featured-photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
   }
 
-  .gallery-container {
-    height: 300px;
+  .featured-photo-item {
+    border-radius: var(--radius-md);
   }
 
   .gallery-nav {
@@ -5963,6 +5957,12 @@ img {
 
   .section-title {
     font-size: 1.75rem;
+    padding: 0 var(--spacing-sm);
+  }
+
+  .featured-photos-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
   }
 
