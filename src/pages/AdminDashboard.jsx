@@ -320,6 +320,51 @@ const AdminDashboard = () => {
     }
   }
 
+  // Generate shoot from session
+  const handleGenerateShoot = async (session) => {
+    try {
+      const clientEmail = session.client_email || session.clientEmail
+      const clientName = session.client_name || session.clientName
+      const sessionType = session.session_type || session.sessionType
+      
+      const shootData = {
+        title: `${sessionType} - ${clientName}`,
+        description: session.notes || `${sessionType} photography session`,
+        category: sessionType, // Set category based on session type
+        date: session.date,
+        authorized_emails: [clientEmail.toLowerCase()] // Authorize client email
+      }
+
+      const response = await fetch(`${API_URL}/portfolio/shoots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(shootData)
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        await fetchShoots()
+        alert('Shoot created successfully! Redirecting to portfolio...')
+        // Switch to portfolio tab and select the new shoot
+        setActiveTab('portfolio')
+        // Find the new shoot and select it
+        setTimeout(() => {
+          const newShoot = shoots.find(s => s.id === data.shoot.id) || data.shoot
+          if (newShoot) {
+            setSelectedShoot(newShoot)
+          }
+        }, 100)
+      } else {
+        const error = await response.json()
+        alert(`Failed to create shoot: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error generating shoot:', error)
+      alert('Failed to create shoot')
+    }
+  }
+
   // Upload photos to shoot with progress tracking
   const handlePhotoUpload = async (shootId, files) => {
     const formData = new FormData()
@@ -480,20 +525,24 @@ const AdminDashboard = () => {
   }
 
   // Toggle shoot visibility (hide/show)
-  const handleToggleShootVisibility = async (shootId, isHidden) => {
+  const handleToggleShootVisibility = async (shootId, currentHiddenState) => {
     try {
+      console.log('🎯 Toggling shoot visibility:', { shootId, currentHiddenState })
       const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/visibility`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ isHidden: !isHidden })
+        body: JSON.stringify({ isHidden: !currentHiddenState })
       })
+
+      console.log('🎯 Response status:', response.status)
 
       if (response.ok) {
         await fetchShoots()
-        alert(isHidden ? 'Shoot is now visible' : 'Shoot is now hidden')
+        alert(currentHiddenState ? 'Shoot is now visible' : 'Shoot is now hidden')
       } else {
         const data = await response.json()
+        console.error('🎯 Error response:', data)
         alert(data.error || 'Failed to update shoot visibility')
       }
     } catch (error) {
@@ -503,14 +552,17 @@ const AdminDashboard = () => {
   }
 
   // Toggle photo visibility (hide/show)
-  const handleTogglePhotoVisibility = async (photoId, isHidden) => {
+  const handleTogglePhotoVisibility = async (photoId, currentHiddenState) => {
     try {
+      console.log('🎯 Toggling photo visibility:', { photoId, currentHiddenState })
       const response = await fetch(`${API_URL}/photos/${photoId}/visibility`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ isHidden: !isHidden })
+        body: JSON.stringify({ isHidden: !currentHiddenState })
       })
+
+      console.log('🎯 Response status:', response.status)
 
       if (response.ok) {
         await fetchShoots()
@@ -520,14 +572,15 @@ const AdminDashboard = () => {
             ...prevShoot,
             photos: prevShoot.photos.map(photo =>
               photo.id === photoId
-                ? { ...photo, isHidden: !isHidden }
+                ? { ...photo, is_hidden: !currentHiddenState, isHidden: !currentHiddenState }
                 : photo
             )
           }))
         }
-        alert(isHidden ? 'Photo is now visible' : 'Photo is now hidden')
+        alert(currentHiddenState ? 'Photo is now visible' : 'Photo is now hidden')
       } else {
         const data = await response.json()
+        console.error('🎯 Error response:', data)
         alert(data.error || 'Failed to update photo visibility')
       }
     } catch (error) {
@@ -1116,6 +1169,15 @@ const AdminDashboard = () => {
                         <div className="session-card-actions">
                           <button 
                             className="btn btn-primary btn-full"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleGenerateShoot(session)
+                            }}
+                          >
+                            📸 Generate Shoot
+                          </button>
+                          <button 
+                            className="btn-small btn-secondary"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleShowInvoiceForm(session)
@@ -1754,13 +1816,13 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
   useEffect(() => {
     if (session) {
       setFormData({
-        clientName: session.clientName || '',
-        clientEmail: session.clientEmail || '',
-        sessionType: session.sessionType || '',
+        clientName: session.clientName || session.client_name || '',
+        clientEmail: session.clientEmail || session.client_email || '',
+        sessionType: session.sessionType || session.session_type || '',
         date: session.date || '',
         time: session.time || '',
         location: session.location || '',
-        quoteAmount: session.quoteAmount || '',
+        quoteAmount: session.quoteAmount || session.quote_amount || '',
         notes: session.notes || '',
         status: session.status || 'Quoted'
       })
@@ -1881,12 +1943,12 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
 const InvoiceForm = ({ session, onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     sessionId: session.id,
-    clientName: session.clientName,
-    clientEmail: session.clientEmail,
-    amount: session.quoteAmount || '',
-    description: `${session.sessionType} - ${new Date(session.date).toLocaleDateString()}`,
+    clientName: session.clientName || session.client_name || '',
+    clientEmail: session.clientEmail || session.client_email || '',
+    amount: session.quoteAmount || session.quote_amount || '',
+    description: `${session.sessionType || session.session_type} - ${new Date(session.date).toLocaleDateString()}`,
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-    status: 'Pending'
+    status: 'Paid' // Set to 'Paid' by default since admin is creating invoice
   })
   
   const handleSubmit = (e) => {
@@ -1899,8 +1961,8 @@ const InvoiceForm = ({ session, onSubmit, onCancel }) => {
   
   return (
     <div className="form-card invoice-form">
-      <h3>Create Invoice for {session.clientName}</h3>
-      <p className="form-description">Session: {session.sessionType} on {new Date(session.date).toLocaleDateString()}</p>
+      <h3>Create Invoice for {session.clientName || session.client_name}</h3>
+      <p className="form-description">Session: {session.sessionType || session.session_type} on {new Date(session.date).toLocaleDateString()}</p>
       <form onSubmit={handleSubmit}>
         <div className="form-row">
           <div className="form-group">
@@ -2167,10 +2229,10 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button
             className="btn btn-secondary"
-            onClick={() => onToggleShootVisibility(shoot.id, shoot.isHidden)}
-            title={shoot.isHidden ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
+            onClick={() => onToggleShootVisibility(shoot.id, shoot.is_hidden || shoot.isHidden || false)}
+            title={(shoot.is_hidden || shoot.isHidden) ? 'Show shoot in portfolio' : 'Hide shoot from portfolio'}
           >
-            {shoot.isHidden ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
+            {(shoot.is_hidden || shoot.isHidden) ? '👁️ Show Shoot' : '👁️‍🗨️ Hide Shoot'}
           </button>
           <div className="upload-button-wrapper">
             <input
@@ -2360,33 +2422,34 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                   <span className="high-res-badge">✓ High-Res</span>
                 )}
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  className={`featured-btn ${photo.featured ? 'featured' : ''}`}
-                  onClick={() => {
-                    console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
-                    onToggleFeatured(photo.id, photo.featured)
-                  }}
-                  title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
-                          stroke="currentColor" 
-                          strokeWidth="2" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round"
-                          fill={photo.featured ? "currentColor" : "none"}/>
-                  </svg>
-                </button>
-                <button 
-                  className="featured-btn"
-                  onClick={() => onTogglePhotoVisibility(photo.id, photo.isHidden)}
-                  title={photo.isHidden ? 'Show photo in portfolio' : 'Hide photo from portfolio'}
-                  style={{ fontSize: '12px' }}
-                >
-                  {photo.isHidden ? '👁️' : '👁️‍🗨️'}
-                </button>
-              </div>
+              <button 
+                className={`featured-btn ${photo.featured ? 'featured' : ''}`}
+                onClick={() => {
+                  console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
+                  onToggleFeatured(photo.id, photo.featured)
+                }}
+                title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                        fill={photo.featured ? "currentColor" : "none"}/>
+                </svg>
+              </button>
+              <button 
+                className="featured-btn"
+                onClick={() => onTogglePhotoVisibility(photo.id, photo.is_hidden || photo.isHidden || false)}
+                title={(photo.is_hidden || photo.isHidden) ? 'Show photo in portfolio' : 'Hide photo from portfolio'}
+                style={{ 
+                  left: 'calc(var(--spacing-sm) + 36px)',
+                  fontSize: '12px'
+                }}
+              >
+                {(photo.is_hidden || photo.isHidden) ? '👁️' : '👁️‍🗨️'}
+              </button>
               <button 
                 className="delete-photo-btn"
                 onClick={() => {

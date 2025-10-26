@@ -1798,6 +1798,26 @@ img {
   transform: scale(1.05);
 }
 
+/* Client Photo Grid - Similar to Featured Work */
+.client-photo-portrait {
+  grid-column: span 1;
+  min-height: 400px;
+}
+
+.client-photo-landscape {
+  grid-column: span 2;
+}
+
+@media (max-width: 768px) {
+  .client-photo-landscape {
+    grid-column: span 1;
+  }
+  
+  .client-photo-portrait {
+    min-height: 300px;
+  }
+}
+
 .slide-overlay {
   position: absolute;
   bottom: 0;

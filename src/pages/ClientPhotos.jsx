@@ -8,10 +8,26 @@ const ClientPhotos = () => {
   const navigate = useNavigate()
   const [shoot, setShoot] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [photoOrientations, setPhotoOrientations] = useState({})
 
   useEffect(() => {
     fetchShoot()
   }, [shootId])
+
+  // Load image dimensions to determine orientation
+  useEffect(() => {
+    if (shoot && shoot.photos) {
+      const orientations = {}
+      shoot.photos.forEach(photo => {
+        const img = new Image()
+        img.src = photo.displayUrl || photo.display_url
+        img.onload = () => {
+          orientations[photo.id] = img.naturalWidth >= img.naturalHeight ? 'landscape' : 'portrait'
+          setPhotoOrientations({ ...orientations })
+        }
+      })
+    }
+  }, [shoot])
 
   const fetchShoot = async () => {
     try {
@@ -101,46 +117,57 @@ const ClientPhotos = () => {
 
       {/* Photos Grid */}
       {shoot.photos && shoot.photos.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-          {shoot.photos.map(photo => (
-            <div 
-              key={photo.id} 
-              style={{ 
-                background: 'rgba(78, 46, 58, 0.3)', 
-                borderRadius: '8px', 
-                overflow: 'hidden',
-                transition: 'transform 0.2s'
-              }}
-            >
-              <div style={{ position: 'relative' }}>
-                <img 
-                  src={photo.displayUrl || photo.display_url} 
-                  alt={shoot.title} 
-                  style={{ width: '100%', height: 'auto', display: 'block' }}
-                />
-                {photo.hasHighRes && (
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => handleDownloadPhoto(photo)}
-                    style={{
-                      position: 'absolute',
-                      bottom: '1rem',
-                      right: '1rem',
-                      background: 'var(--accent-gold)',
-                      color: 'var(--primary-purple)',
-                      border: 'none',
-                      padding: '0.5rem 1rem',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    ⬇ Download High-Res
-                  </button>
-                )}
+        <div 
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+            gap: '1.5rem',
+            paddingBottom: '2rem'
+          }}
+        >
+          {shoot.photos.map(photo => {
+            const orientation = photoOrientations[photo.id] || 'portrait'
+            return (
+              <div 
+                key={photo.id} 
+                className={orientation === 'landscape' ? 'client-photo-landscape' : 'client-photo-portrait'}
+                style={{ 
+                  background: 'rgba(78, 46, 58, 0.3)', 
+                  borderRadius: '8px', 
+                  overflow: 'hidden',
+                  transition: 'transform 0.2s'
+                }}
+              >
+                <div style={{ position: 'relative' }}>
+                  <img 
+                    src={photo.displayUrl || photo.display_url} 
+                    alt={shoot.title} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  {photo.hasHighRes && (
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleDownloadPhoto(photo)}
+                      style={{
+                        position: 'absolute',
+                        bottom: '1rem',
+                        right: '1rem',
+                        background: 'var(--accent-gold)',
+                        color: 'var(--primary-purple)',
+                        border: 'none',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ⬇ Download High-Res
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <div style={{ textAlign: 'center', color: 'var(--white)', padding: '3rem' }}>
