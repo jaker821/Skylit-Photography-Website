@@ -343,9 +343,10 @@ app.post('/api/auth/register', async (req, res) => {
 
     // Create new user with pending approval status
     const result = await db.run(
-      `INSERT INTO users (email, password_hash, phone, role, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO users (name, email, password_hash, phone, role, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
+        name,
         email,
         hashedPassword,
         formattedPhone,
@@ -444,7 +445,7 @@ app.get('/api/auth/session', async (req, res) => {
       return res.status(401).json({ authenticated: false });
     }
 
-    const user = await db.get('SELECT id, email, phone, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
+    const user = await db.get('SELECT id, name, email, phone, role, status, created_at, updated_at FROM users WHERE id = ?', [req.session.userId]);
 
     if (!user) {
       return res.status(401).json({ authenticated: false });
@@ -594,7 +595,8 @@ app.get('/api/pricing', async (req, res) => {
     // Parse JSON fields for packages
     const formattedPackages = packages.map(pkg => ({
       ...pkg,
-      features: pkg.features ? JSON.parse(pkg.features) : []
+      features: pkg.features ? JSON.parse(pkg.features) : [],
+      recommended: pkg.recommended === 1 || pkg.recommended === true || pkg.recommended === '1'
     }));
     
     res.json({
@@ -643,17 +645,19 @@ function requireAdmin(req, res, next) {
 app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
   try {
     const packageId = parseInt(req.params.id);
-    const { name, description, price, features } = req.body;
+    const { name, description, price, features, duration, recommended } = req.body;
 
     const result = await db.run(
       `UPDATE pricing_packages 
-       SET name = ?, description = ?, price = ?, features = ?, updated_at = ?
+       SET name = ?, description = ?, price = ?, duration = ?, features = ?, recommended = ?, updated_at = ?
        WHERE id = ?`,
       [
         name,
-        description,
+        description || '',
         price,
+        duration || '',
         db.stringifyJSONField(features || []),
+        recommended ? 1 : 0,
         new Date().toISOString(),
         packageId
       ]
@@ -664,8 +668,15 @@ app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
     }
 
     const updatedPackage = await db.get('SELECT * FROM pricing_packages WHERE id = ?', [packageId]);
+    
+    // Format the package for response
+    const formattedPackage = {
+      ...updatedPackage,
+      features: updatedPackage.features ? JSON.parse(updatedPackage.features) : [],
+      recommended: updatedPackage.recommended === 1 || updatedPackage.recommended === true
+    };
 
-    res.json({ success: true, package: updatedPackage });
+    res.json({ success: true, package: formattedPackage });
   } catch (error) {
     console.error('Update package error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -675,24 +686,33 @@ app.put('/api/pricing/packages/:id', requireAdmin, async (req, res) => {
 // Add package (admin only)
 app.post('/api/pricing/packages', requireAdmin, async (req, res) => {
   try {
-    const { name, description, price, features } = req.body;
+    const { name, description, price, features, duration, recommended } = req.body;
 
     const result = await db.run(
-      `INSERT INTO pricing_packages (name, description, price, features, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO pricing_packages (name, description, price, duration, features, recommended, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         name,
-        description,
+        description || '',
         price,
+        duration || '',
         db.stringifyJSONField(features || []),
+        recommended ? 1 : 0,
         new Date().toISOString(),
         new Date().toISOString()
       ]
     );
 
     const newPackage = await db.get('SELECT * FROM pricing_packages WHERE id = ?', [result.id]);
+    
+    // Format the package for response
+    const formattedPackage = {
+      ...newPackage,
+      features: newPackage.features ? JSON.parse(newPackage.features) : [],
+      recommended: newPackage.recommended === 1 || newPackage.recommended === true
+    };
 
-    res.json({ success: true, package: newPackage });
+    res.json({ success: true, package: formattedPackage });
   } catch (error) {
     console.error('Create package error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -1305,6 +1325,65 @@ app.get('/api/portfolio', async (req, res) => {
     });
   } catch (error) {
     console.error('Get portfolio error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get user's authorized shoots (any authenticated user)
+app.get('/api/portfolio/my-shoots', requireAuth, async (req, res) => {
+  try {
+    // Get user email
+    const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get all shoots
+    const allShoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
+    
+    // Filter shoots where user's email is in authorized_emails
+    const authorizedShoots = [];
+    
+    for (const shoot of allShoots) {
+      const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
+      if (authorizedEmails.includes(user.email.toLowerCase())) {
+        // Get photos for this shoot
+        const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? ORDER BY uploaded_at DESC', [shoot.id]);
+        
+        // Get category name if exists
+        let categoryName = 'Uncategorized'
+        if (shoot.category_id) {
+          try {
+            const category = await db.get('SELECT * FROM categories WHERE id = ?', [shoot.category_id])
+            if (category && category.name) {
+              categoryName = category.name
+            }
+          } catch (error) {
+            console.error(`Error fetching category for shoot ${shoot.id}:`, error)
+          }
+        }
+
+        authorizedShoots.push({
+          id: shoot.id,
+          title: shoot.title,
+          description: shoot.description,
+          category: categoryName,
+          date: shoot.date,
+          photos: photos.map(photo => ({
+            id: photo.id,
+            displayUrl: photo.display_url,
+            downloadUrl: photo.download_url,
+            hasHighRes: photo.has_high_res
+          })),
+          createdAt: shoot.created_at,
+          updatedAt: shoot.updated_at
+        });
+      }
+    }
+
+    res.json({ shoots: authorizedShoots });
+  } catch (error) {
+    console.error('Get my shoots error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

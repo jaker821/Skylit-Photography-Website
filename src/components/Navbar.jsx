@@ -31,6 +31,12 @@ const Navbar = () => {
     setMobileMenuOpen(false)
   }
 
+  const handleLogoClick = () => {
+    closeMobileMenu()
+    // Scroll to top when clicking logo
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   const toggleProfileDropdown = () => {
     setProfileDropdownOpen(!profileDropdownOpen)
     // Close mobile menu when profile dropdown is opened
@@ -91,7 +97,7 @@ const Navbar = () => {
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-container">
         {/* Logo */}
-        <Link to="/" className="logo" onClick={closeMobileMenu}>
+        <Link to="/" className="logo" onClick={handleLogoClick}>
           <img src={logo} alt="Skylit Photography Logo" className="logo-image" />
           <div className="logo-text-container">
             <span className="logo-text">Skylit Photography</span>

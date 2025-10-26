@@ -4,19 +4,25 @@ import { API_URL } from '../config'
 
 const UserDashboard = () => {
   const { user } = useAuth()
+  const [activeTab, setActiveTab] = useState('sessions')
   const [showBookingForm, setShowBookingForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [bookings, setBookings] = useState([])
+  const [packages, setPackages] = useState([])
+  const [authorizedShoots, setAuthorizedShoots] = useState([])
   const [bookingData, setBookingData] = useState({
     sessionType: '',
     date: '',
     time: '',
     location: '',
-    notes: ''
+    notes: '',
+    packageId: ''
   })
 
   useEffect(() => {
     fetchBookings()
+    fetchPricing()
+    fetchAuthorizedShoots()
   }, [])
 
   const fetchBookings = async () => {
@@ -30,6 +36,34 @@ const UserDashboard = () => {
       console.error('Error fetching bookings:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchPricing = async () => {
+    try {
+      const response = await fetch(`${API_URL}/pricing`)
+      const data = await response.json()
+      // Sort packages by price (cheapest first)
+      const sortedPackages = (data.packages || []).sort((a, b) => {
+        const priceA = parseFloat(a.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        const priceB = parseFloat(b.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        return priceA - priceB
+      })
+      setPackages(sortedPackages)
+    } catch (error) {
+      console.error('Error fetching pricing:', error)
+    }
+  }
+
+  const fetchAuthorizedShoots = async () => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/my-shoots`, {
+        credentials: 'include'
+      })
+      const data = await response.json()
+      setAuthorizedShoots(data.shoots || [])
+    } catch (error) {
+      console.error('Error fetching authorized shoots:', error)
     }
   }
 
@@ -60,7 +94,8 @@ const UserDashboard = () => {
           date: '',
           time: '',
           location: '',
-          notes: ''
+          notes: '',
+          packageId: ''
         })
       }
     } catch (error) {
@@ -122,6 +157,53 @@ const UserDashboard = () => {
                 </div>
 
                 <div className="form-group">
+                  <label htmlFor="packageId">Pricing Package *</label>
+                  <select
+                    id="packageId"
+                    name="packageId"
+                    value={bookingData.packageId}
+                    onChange={handleBookingChange}
+                    required
+                  >
+                    <option value="">Select package</option>
+                    {packages.map(pkg => (
+                      <option key={pkg.id} value={pkg.id}>
+                        {pkg.name} - ${pkg.price} {pkg.duration && `(${pkg.duration})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Display selected package details */}
+              {bookingData.packageId && (
+                <div className="selected-package-details">
+                  <h3>Package Includes:</h3>
+                  {(() => {
+                    const selectedPackage = packages.find(p => p.id.toString() === bookingData.packageId)
+                    if (!selectedPackage) return null
+                    return (
+                      <div className="package-info">
+                        <div className="package-header">
+                          <span className="package-name">{selectedPackage.name}</span>
+                          <span className="package-price">${selectedPackage.price}</span>
+                        </div>
+                        {selectedPackage.duration && (
+                          <p className="package-duration">{selectedPackage.duration}</p>
+                        )}
+                        <ul className="package-features">
+                          {(selectedPackage.features || []).map((feature, idx) => (
+                            <li key={idx}><span className="check-icon">✓</span>{feature}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
+
+              <div className="form-row">
+                <div className="form-group">
                   <label htmlFor="date">Preferred Date *</label>
                   <input
                     type="date"
@@ -132,9 +214,7 @@ const UserDashboard = () => {
                     required
                   />
                 </div>
-              </div>
 
-              <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="time">Preferred Time *</label>
                   <input
@@ -146,19 +226,19 @@ const UserDashboard = () => {
                     required
                   />
                 </div>
+              </div>
 
-                <div className="form-group">
-                  <label htmlFor="location">Location *</label>
-                  <input
-                    type="text"
-                    id="location"
-                    name="location"
-                    value={bookingData.location}
-                    onChange={handleBookingChange}
-                    required
-                    placeholder="Preferred location"
-                  />
-                </div>
+              <div className="form-group">
+                <label htmlFor="location">Location *</label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={bookingData.location}
+                  onChange={handleBookingChange}
+                  required
+                  placeholder="Preferred location"
+                />
               </div>
 
               <div className="form-group">
@@ -180,9 +260,26 @@ const UserDashboard = () => {
           </div>
         )}
 
-        {/* Bookings List */}
-        <div className="bookings-section">
-          <h2>Your Bookings</h2>
+        {/* Tabs */}
+        <div className="dashboard-tabs">
+          <button
+            className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sessions')}
+          >
+            Sessions
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'photos' ? 'active' : ''}`}
+            onClick={() => setActiveTab('photos')}
+          >
+            Photos
+          </button>
+        </div>
+
+        {/* Sessions Tab */}
+        {activeTab === 'sessions' && (
+          <div className="bookings-section">
+            <h2 className="bookings-section-title">Your Bookings</h2>
           
           {bookings.length === 0 ? (
             <div className="no-bookings">
@@ -241,26 +338,74 @@ const UserDashboard = () => {
               ))}
             </div>
           )}
-        </div>
-
-        {/* Account Info */}
-        <div className="account-info-section">
-          <h2>Account Information</h2>
-          <div className="info-card">
-            <div className="info-row">
-              <span className="info-label">Name:</span>
-              <span className="info-value">{user?.name}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Email:</span>
-              <span className="info-value">{user?.email}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Member Since:</span>
-              <span className="info-value">October 2025</span>
-            </div>
           </div>
-        </div>
+        )}
+
+        {/* Photos Tab */}
+        {activeTab === 'photos' && (
+          <div className="authorized-shoots-section">
+            <h2 className="bookings-section-title">Your Photos</h2>
+            
+            {authorizedShoots.length === 0 ? (
+              <div className="no-bookings">
+                <p>You don't have access to any photo shoots yet.</p>
+                <p style={{ opacity: 0.7, marginTop: '0.5rem' }}>
+                  Contact the photographer to request access to your session photos.
+                </p>
+              </div>
+            ) : (
+              <div className="shoots-grid">
+                {authorizedShoots.map(shoot => (
+                  <div key={shoot.id} className="shoot-card">
+                    <div className="shoot-header">
+                      <h3>{shoot.title}</h3>
+                      {shoot.category && (
+                        <span className="shoot-category">{shoot.category}</span>
+                      )}
+                    </div>
+                    {shoot.description && (
+                      <p className="shoot-description">{shoot.description}</p>
+                    )}
+                    <div className="shoot-photos-preview">
+                      {shoot.photos && shoot.photos.length > 0 ? (
+                        <div className="photos-grid-preview">
+                          {shoot.photos.slice(0, 4).map(photo => (
+                            <img
+                              key={photo.id}
+                              src={photo.displayUrl}
+                              alt={shoot.title}
+                              className="photo-thumbnail"
+                            />
+                          ))}
+                          {shoot.photos.length > 4 && (
+                            <div className="more-photos-indicator">
+                              +{shoot.photos.length - 4} more
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="no-photos">No photos yet</p>
+                      )}
+                    </div>
+                    <div className="shoot-stats">
+                      <span>{shoot.photos?.length || 0} photos</span>
+                      {shoot.date && (
+                        <span>{new Date(shoot.date).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                    <button
+                      className="btn btn-primary btn-full"
+                      onClick={() => window.location.href = `/session/${shoot.id}`}
+                    >
+                      View Photos
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
     </div>
   )
