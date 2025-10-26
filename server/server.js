@@ -2476,12 +2476,23 @@ app.put('/api/photos/:id/featured', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { featured } = req.body;
     
-    console.log(`🌟 Featured update request: photo ${id}, featured: ${featured}`);
+    console.log(`🌟 Featured update request: photo ${id}, featured: ${featured} (type: ${typeof featured})`);
+    
+    // Convert boolean to integer explicitly for database consistency
+    const featuredValue = featured === true ? 1 : 0;
+    
+    console.log(`🌟 Converting featured value: ${featured} => ${featuredValue}`);
+    
+    // Get current photo status before update
+    const currentPhoto = await db.get('SELECT * FROM photos WHERE id = ?', [id]);
+    if (currentPhoto) {
+      console.log(`🌟 Current photo featured status: ${currentPhoto.featured} (type: ${typeof currentPhoto.featured})`);
+    }
     
     // Update photo featured status
     const result = await db.run(
       'UPDATE photos SET featured = ? WHERE id = ?',
-      [featured, id]
+      [featuredValue, id]
     );
     
     console.log(`🌟 Database update result: ${result.changes} rows affected`);
@@ -2491,7 +2502,10 @@ app.put('/api/photos/:id/featured', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Photo not found' });
     }
     
-    console.log(`🌟 Photo ${id} featured status updated to ${featured}`);
+    // Verify the update
+    const updatedPhoto = await db.get('SELECT * FROM photos WHERE id = ?', [id]);
+    console.log(`🌟 Photo ${id} featured status updated from ${currentPhoto?.featured} to ${updatedPhoto?.featured}`);
+    
     res.json({ success: true, message: `Photo ${featured ? 'added to' : 'removed from'} featured work` });
   } catch (error) {
     console.error('Toggle featured photo error:', error);
@@ -2603,16 +2617,33 @@ app.get('/api/about-photo', async (req, res) => {
 app.get('/api/featured-photos', async (req, res) => {
   try {
     console.log('🌟 Featured photos API called');
-    const photos = await db.all(`
+    
+    // Get all photos first
+    const allPhotos = await db.all('SELECT * FROM photos');
+    console.log('🌟 Total photos in database:', allPhotos.length);
+    
+    // Log featured status of each photo
+    allPhotos.forEach(photo => {
+      console.log(`🌟 Photo ${photo.id}: featured = ${photo.featured} (type: ${typeof photo.featured})`);
+    });
+    
+    // Filter for featured photos in JavaScript since database abstraction may have issues
+    const photosData = await db.all(`
       SELECT p.*, s.title as shoot_title, c.name as shoot_category
       FROM photos p
       JOIN shoots s ON p.shoot_id = s.id
       LEFT JOIN categories c ON s.category_id = c.id
-      WHERE p.featured = true
-      ORDER BY p.uploaded_at DESC
     `);
     
-    console.log('🌟 Found', photos.length, 'featured photos');
+    // Filter for featured photos (handle both boolean, integer, and null values)
+    const photos = photosData.filter(photo => {
+      // Only return photos where featured is explicitly true/1/'1', not null/undefined/false
+      const isFeatured = photo.featured === true || photo.featured === 1 || photo.featured === '1';
+      console.log(`🌟 Photo ${photo.id} featured check: ${photo.featured} (type: ${typeof photo.featured}) => ${isFeatured}`);
+      return isFeatured;
+    });
+    
+    console.log('🌟 Found', photos.length, 'featured photos after filtering');
     
     // Add camelCase versions for frontend compatibility
     const formattedPhotos = photos.map(photo => ({
