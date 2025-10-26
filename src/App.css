@@ -1734,7 +1734,7 @@ img {
 
 .featured-photos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
@@ -1751,6 +1751,17 @@ img {
   cursor: pointer;
 }
 
+/* Portrait photos - span 1 column, tall */
+.featured-photo-portrait {
+  grid-column: span 1;
+  min-height: 400px;
+}
+
+/* Landscape photos - span 2 columns, wide */
+.featured-photo-landscape {
+  grid-column: span 2;
+}
+
 .featured-photo-item:hover {
   transform: translateY(-5px);
   box-shadow: var(--shadow-xl);
@@ -1758,8 +1769,7 @@ img {
 
 .featured-photo-image {
   width: 100%;
-  height: auto;
-  display: block;
+  height: 100%;
   object-fit: cover;
   transition: transform var(--transition-normal);
 }
@@ -4913,13 +4923,11 @@ img {
   position: relative;
 }
 
-.shoot-detail .btn-primary,
-.shoot-detail .btn-secondary {
+.shoot-detail .btn-primary {
   color: var(--accent-gold);
 }
 
-.shoot-detail .btn-primary:hover,
-.shoot-detail .btn-secondary:hover {
+.shoot-detail .btn-primary:hover {
   color: var(--accent-gold-light);
 }
 
@@ -5625,7 +5633,7 @@ img {
   }
 
   .featured-photos-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: 1fr;
     gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
   }
@@ -5964,6 +5972,14 @@ img {
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
+  }
+
+  .featured-photo-landscape {
+    grid-column: span 1;
+  }
+
+  .featured-photo-portrait {
+    min-height: 300px;
   }
 
   .page-header {

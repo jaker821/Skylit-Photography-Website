@@ -1223,25 +1223,35 @@ app.get('/api/portfolio', async (req, res) => {
   try {
     console.log('📸 Portfolio request received');
     
-    // Get all shoots with category information
-    const shoots = await db.all(`
-      SELECT s.*, c.name as category_name, c.description as category_description
-      FROM shoots s
-      LEFT JOIN categories c ON s.category_id = c.id
-      ORDER BY s.created_at DESC
-    `);
+    // Get all shoots (without JOIN since Supabase wrapper doesn't handle it)
+    const shoots = await db.all('SELECT * FROM shoots ORDER BY created_at DESC');
     console.log(`📸 Found ${shoots.length} shoots in database`);
 
-    // Get photos for each shoot
+    // Get photos for each shoot and fetch category separately
     const shootsWithPhotos = await Promise.all(shoots.map(async (shoot) => {
       const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shoot.id]);
+      
+      // Fetch category information separately since LEFT JOIN doesn't work with Supabase wrapper
+      let categoryName = 'Uncategorized'
+      if (shoot.category_id) {
+        try {
+          const category = await db.get('SELECT * FROM categories WHERE id = ?', [shoot.category_id])
+          if (category && category.name) {
+            categoryName = category.name
+          }
+        } catch (error) {
+          console.error(`Error fetching category for shoot ${shoot.id}:`, error)
+        }
+      }
+      
+      console.log(`📸 Shoot "${shoot.title}": category_id=${shoot.category_id}, category_name=${categoryName}`);
+      
       return {
         id: shoot.id,
         title: shoot.title,
         description: shoot.description,
-        category: shoot.category_name || shoot.category, // Fallback to old category field
+        category: categoryName,
         category_id: shoot.category_id,
-        category_description: shoot.category_description,
         date: shoot.date,
         authorized_emails: shoot.authorized_emails,
         download_stats: shoot.download_stats,

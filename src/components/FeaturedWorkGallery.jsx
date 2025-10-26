@@ -4,6 +4,7 @@ import { API_URL } from '../config'
 const FeaturedWorkGallery = ({ refreshTrigger }) => {
   const [featuredPhotos, setFeaturedPhotos] = useState([])
   const [loading, setLoading] = useState(true)
+  const [photoOrientations, setPhotoOrientations] = useState({})
 
   useEffect(() => {
     fetchFeaturedPhotos()
@@ -15,6 +16,36 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
       fetchFeaturedPhotos()
     }
   }, [refreshTrigger])
+
+  // Detect image orientation when photos change
+  useEffect(() => {
+    const loadImageOrientations = async () => {
+      const orientations = {}
+      
+      for (const photo of featuredPhotos) {
+        const img = new Image()
+        img.src = photo.displayUrl || photo.display_url
+        
+        await new Promise((resolve) => {
+          img.onload = () => {
+            const isLandscape = img.naturalWidth > img.naturalHeight
+            orientations[photo.id] = isLandscape ? 'landscape' : 'portrait'
+            resolve()
+          }
+          img.onerror = () => {
+            orientations[photo.id] = 'portrait' // Default to portrait if load fails
+            resolve()
+          }
+        })
+      }
+      
+      setPhotoOrientations(orientations)
+    }
+    
+    if (featuredPhotos.length > 0) {
+      loadImageOrientations()
+    }
+  }, [featuredPhotos])
 
   const fetchFeaturedPhotos = async () => {
     try {
@@ -86,16 +117,22 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
       </div>
       
       <div className="featured-photos-grid">
-        {featuredPhotos.map((photo, index) => (
-          <div key={photo.id} className="featured-photo-item">
-            <img 
-              src={photo.displayUrl || photo.display_url} 
-              alt={`Featured work from ${photo.shootTitle || photo.shoot_title}`}
-              className="featured-photo-image"
-              loading={index < 4 ? "eager" : "lazy"}
-            />
-          </div>
-        ))}
+        {featuredPhotos.map((photo, index) => {
+          const orientation = photoOrientations[photo.id] || 'portrait'
+          return (
+            <div 
+              key={photo.id} 
+              className={`featured-photo-item featured-photo-${orientation}`}
+            >
+              <img 
+                src={photo.displayUrl || photo.display_url} 
+                alt={`Featured work from ${photo.shootTitle || photo.shoot_title}`}
+                className="featured-photo-image"
+                loading={index < 4 ? "eager" : "lazy"}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
