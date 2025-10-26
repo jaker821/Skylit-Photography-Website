@@ -10,6 +10,7 @@ const AWS = require('aws-sdk');
 const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+const archiver = require('archiver');
 const fs = require('fs').promises;
 const path = require('path');
 const db = require('./database');
@@ -2013,6 +2014,73 @@ app.get('/api/portfolio/shoots/:id/authorized-emails', requireAdmin, async (req,
   }
 });
 
+// Send notification email to authorized user (admin only)
+app.post('/api/portfolio/shoots/:id/notify-user', requireAdmin, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.id);
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Get shoot from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Check if email is authorized
+    const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
+    if (!authorizedEmails.includes(email.toLowerCase())) {
+      return res.status(403).json({ error: 'Email is not authorized for this shoot' });
+    }
+    
+    // Check if email is configured
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.log('⚠️  Email not configured - notification not sent');
+      return res.status(503).json({ error: 'Email service not configured' });
+    }
+    
+    // Send notification email
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: `Your ${shoot.title} Photos Are Ready! 📸`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #4E2E3A;">Your Photos Are Ready! 📸</h2>
+            <p>Hello!</p>
+            <p>Great news! Your photos from <strong>${shoot.title}</strong> are now ready for you to view and download.</p>
+            <p>You can access your photos by logging into your account on our website.</p>
+            <div style="background-color: #DFD08F; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #4E2E3A; margin-top: 0;">Next Steps:</h3>
+              <ol style="color: #4E2E3A;">
+                <li>Log in to your account</li>
+                <li>Go to your Dashboard</li>
+                <li>Click on the "Photos" tab</li>
+                <li>View and download your high-resolution photos!</li>
+              </ol>
+            </div>
+            <p>If you have any questions, please don't hesitate to reach out to us.</p>
+            <p>Best regards,<br>The Skylit Photography Team</p>
+          </div>
+        `
+      });
+      
+      console.log(`📧 Notification email sent to ${email} for shoot "${shoot.title}"`);
+      res.json({ success: true, message: 'Notification email sent successfully' });
+    } catch (emailError) {
+      console.error('Email send error:', emailError);
+      res.status(500).json({ error: 'Failed to send notification email' });
+    }
+  } catch (error) {
+    console.error('Send notification error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Check if current user has access to shoot (any authenticated user)
 app.get('/api/portfolio/shoots/:id/has-access', requireAuth, async (req, res) => {
   try {
@@ -2178,6 +2246,123 @@ app.delete('/api/portfolio/shoots/:id/originals', requireAdmin, async (req, res)
   } catch (error) {
     console.error('Delete originals error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Download all high-res photos from a shoot as ZIP (authenticated users with permission)
+app.get('/api/portfolio/shoots/:shootId/download-all', requireAuth, async (req, res) => {
+  try {
+    const shootId = parseInt(req.params.shootId);
+    
+    // Get shoot from database
+    const shoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
+    if (!shoot) {
+      return res.status(404).json({ error: 'Shoot not found' });
+    }
+    
+    // Check permissions
+    const isAdmin = req.session.userRole === 'admin';
+    
+    if (!isAdmin) {
+      // Get user email from database
+      const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
+      if (!user) {
+        return res.status(403).json({ error: 'User not found' });
+      }
+      
+      // Check if user is authorized
+      const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
+      if (!authorizedEmails.includes(user.email.toLowerCase())) {
+        return res.status(403).json({ error: 'Not authorized to download photos from this shoot' });
+      }
+    }
+    
+    // Get all high-res photos for this shoot
+    const photos = await db.all(
+      'SELECT * FROM photos WHERE shoot_id = ? AND has_high_res = 1 AND download_key IS NOT NULL', 
+      [shootId]
+    );
+    
+    if (photos.length === 0) {
+      return res.status(404).json({ error: 'No high-resolution photos available for this shoot' });
+    }
+    
+    // Set headers for file download
+    const sanitizedShootTitle = shoot.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedShootTitle}_photos.zip"`);
+    
+    // Create ZIP archive
+    const archive = archiver('zip', {
+      zlib: { level: 9 } // Maximum compression
+    });
+    
+    archive.on('error', (err) => {
+      console.error('Archive error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Failed to create zip file' });
+      }
+    });
+    
+    archive.pipe(res);
+    
+    // Download and add each photo to the ZIP
+    for (const photo of photos) {
+      try {
+        if (SPACES_ENABLED && s3Client) {
+          // Download from DigitalOcean Spaces
+          const fileData = await s3Client.getObject({
+            Bucket: process.env.SPACES_BUCKET,
+            Key: photo.download_key
+          }).promise();
+          
+          const fileName = photo.original_name || photo.filename;
+          archive.append(fileData.Body, { name: fileName });
+        } else {
+          // Download from local storage
+          const filePath = path.join(__dirname, 'uploads', photo.filename);
+          const fileBuffer = await fs.readFile(filePath);
+          const fileName = photo.original_name || photo.filename;
+          archive.append(fileBuffer, { name: fileName });
+        }
+      } catch (err) {
+        console.error(`Error adding photo ${photo.id} to zip:`, err);
+        // Continue with other photos even if one fails
+      }
+    }
+    
+    // Track download
+    const downloadStats = db.parseJSONField(shoot.download_stats) || { totalDownloads: 0, downloadHistory: [] };
+    const user = await db.get('SELECT email FROM users WHERE id = ?', [req.session.userId]);
+    
+    downloadStats.totalDownloads += photos.length;
+    downloadStats.downloadHistory.push({
+      type: 'bulk',
+      photoCount: photos.length,
+      userEmail: user?.email || 'unknown',
+      downloadedAt: new Date().toISOString()
+    });
+    
+    // Keep only last 100 downloads
+    if (downloadStats.downloadHistory.length > 100) {
+      downloadStats.downloadHistory = downloadStats.downloadHistory.slice(-100);
+    }
+    
+    // Update download stats
+    await db.run(
+      'UPDATE shoots SET download_stats = ?, updated_at = ? WHERE id = ?',
+      [db.stringifyJSONField(downloadStats), new Date().toISOString(), shoot.id]
+    );
+    
+    console.log(`📥 Bulk download: ${user?.email} downloaded ${photos.length} photos from shoot "${shoot.title}"`);
+    
+    // Finalize the archive
+    await archive.finalize();
+  } catch (error) {
+    console.error('Download all photos error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Server error' });
+    }
   }
 });
 

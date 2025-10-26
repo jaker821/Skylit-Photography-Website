@@ -1829,10 +1829,12 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
   const [loadingEmails, setLoadingEmails] = React.useState(false)
+  const [downloadStats, setDownloadStats] = React.useState({ totalDownloads: 0, downloadHistory: [] })
   
   // Fetch authorized emails when component mounts or shoot changes
   React.useEffect(() => {
     fetchAuthorizedEmails()
+    fetchDownloadStats()
   }, [shoot.id])
   
   const fetchAuthorizedEmails = async () => {
@@ -1846,6 +1848,20 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
       }
     } catch (error) {
       console.error('Error fetching authorized emails:', error)
+    }
+  }
+  
+  const fetchDownloadStats = async () => {
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setDownloadStats(data.downloadStats || { totalDownloads: 0, downloadHistory: [] })
+      }
+    } catch (error) {
+      console.error('Error fetching download stats:', error)
     }
   }
   
@@ -1898,6 +1914,58 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
     } catch (error) {
       console.error('Error removing email:', error)
       alert('Network error removing email')
+    } finally {
+      setLoadingEmails(false)
+    }
+  }
+  
+  const handleNotifyUser = async (email) => {
+    if (!confirm(`Send notification email to ${email}?`)) return
+    
+    setLoadingEmails(true)
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}/notify-user`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+      
+      if (response.ok) {
+        alert('Notification email sent successfully!')
+      } else {
+        const error = await response.json()
+        alert(`Failed to send notification: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error)
+      alert('Network error sending notification')
+    } finally {
+      setLoadingEmails(false)
+    }
+  }
+  
+  const handleDeleteHighRes = async () => {
+    if (!confirm(`Delete all high-resolution photos for "${shoot.title}"? This action cannot be undone.`)) return
+    
+    setLoadingEmails(true)
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}/originals`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        alert('High-resolution photos deleted successfully! Users will now only see web-quality previews.')
+        // Refresh the page or refetch shoot data to update the display
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete high-res photos: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting high-res photos:', error)
+      alert('Network error deleting high-res photos')
     } finally {
       setLoadingEmails(false)
     }
@@ -2005,20 +2073,75 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                   <p className="no-emails-message">No users have access yet. Add emails above.</p>
                 ) : (
                   <ul className="emails-list">
-                    {authorizedEmails.map(email => (
-                      <li key={email} className="email-item">
-                        <span className="email-address">{email}</span>
-                        <button
-                          onClick={() => handleRemoveEmail(email)}
-                          className="btn btn-danger btn-sm"
-                          disabled={loadingEmails}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
+                    {authorizedEmails.map(email => {
+                      // Check if user has downloaded
+                      const userDownloads = downloadStats.downloadHistory?.filter(
+                        d => d.userEmail?.toLowerCase() === email.toLowerCase()
+                      ) || []
+                      const hasDownloaded = userDownloads.length > 0
+                      
+                      return (
+                        <li key={email} className="email-item">
+                          <div className="email-info">
+                            <span className="email-address">{email}</span>
+                            {hasDownloaded && (
+                              <span className="download-status downloaded">✓ Downloaded ({userDownloads.length} times)</span>
+                            )}
+                          </div>
+                          <div className="email-actions">
+                            <button
+                              onClick={() => handleNotifyUser(email)}
+                              className="btn btn-primary btn-sm"
+                              disabled={loadingEmails}
+                              title="Notify user that photos are ready"
+                            >
+                              📧 Notify
+                            </button>
+                            <button
+                              onClick={() => handleRemoveEmail(email)}
+                              className="btn btn-danger btn-sm"
+                              disabled={loadingEmails}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
+              </div>
+              
+              {/* Download Statistics */}
+              {downloadStats.totalDownloads > 0 && (
+                <div className="download-stats-section">
+                  <h4>Download Statistics</h4>
+                  <div className="stats-grid">
+                    <div className="stat-item">
+                      <span className="stat-label">Total Downloads</span>
+                      <span className="stat-value">{downloadStats.totalDownloads}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">Users Downloaded</span>
+                      <span className="stat-value">
+                        {new Set(downloadStats.downloadHistory?.map(d => d.userEmail)).size || 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Delete High-Res Button */}
+              <div className="delete-high-res-section">
+                <button
+                  onClick={handleDeleteHighRes}
+                  className="btn btn-danger btn-full"
+                  disabled={loadingEmails}
+                  title="Permanently delete all high-resolution photos. Users will only see web-quality previews."
+                >
+                  🗑️ Delete All High-Res Photos (Free Storage Space)
+                </button>
+                <p className="warning-text">⚠️ This will permanently delete all high-resolution photos. Users will only be able to view web-quality previews.</p>
               </div>
             </div>
           )}

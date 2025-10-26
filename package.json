@@ -25,6 +25,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1",
     "@vitejs/plugin-react": "^4.2.0",
+    "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

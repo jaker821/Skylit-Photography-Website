@@ -4535,12 +4535,13 @@ img {
   font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.5px;
+  color: var(--primary-purple-dark);     /* Dark purple for readability on cream background */
 }
 
 .data-table td {
   padding: var(--spacing-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--white);                   /* White text for better readability on purple background */
+  border-bottom: 1px solid rgba(78, 46, 58, 0.2);  /* Purple border for visibility on cream background */
+  color: var(--primary-purple-dark);     /* Dark purple for readability on cream background in admin dashboard */
   font-weight: 500;
 }
 
@@ -5401,6 +5402,91 @@ img {
   font-family: monospace;
   font-size: 0.95rem;
   font-weight: 500;
+}
+
+.email-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.email-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1;
+}
+
+.download-status {
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.download-status.downloaded {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.download-stats-section {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: rgba(223, 208, 143, 0.05);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(223, 208, 143, 0.2);
+}
+
+.download-stats-section h4 {
+  color: var(--white);
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.stat-label {
+  color: var(--white);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.stat-value {
+  color: var(--accent-gold);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.delete-high-res-section {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  background: rgba(220, 38, 38, 0.05);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.delete-high-res-section .warning-text {
+  color: var(--white);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-sm);
+  opacity: 0.7;
+  text-align: center;
+}
+
+.btn-full {
+  width: 100%;
 }
 
 .btn-sm {
@@ -6531,7 +6617,7 @@ img {
 .no-data {
   text-align: center;
   padding: var(--spacing-xl);
-  color: var(--gray);
+  color: var(--primary-purple-dark);     /* Dark purple for readability on cream background */
   font-style: italic;
 }
 
@@ -7115,6 +7201,130 @@ img {
 
   .settings-card h3 {
     font-size: 1.2rem;
+  }
+}
+
+/* ===================================
+   Photo View Modal
+   =================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  overflow-y: auto;
+}
+
+.modal-content.photos-modal {
+  background: var(--card-background);
+  border-radius: var(--radius-lg);
+  max-width: 1200px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-header h2 {
+  color: var(--accent-gold-light);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: var(--white);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--card-background-light);
+  color: var(--accent-gold);
+}
+
+.modal-body {
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.btn-download-all {
+  width: 100%;
+}
+
+.photos-grid-modal {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.photo-item-modal {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--background-dark);
+}
+
+.photo-item-modal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
+}
+
+.photo-item-modal:hover img {
+  transform: scale(1.05);
+}
+
+/* Mobile responsive for photo modal */
+@media (max-width: 768px) {
+  .modal-content.photos-modal {
+    max-height: 95vh;
+  }
+  
+  .modal-header {
+    padding: var(--spacing-md);
+  }
+  
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .modal-body {
+    padding: var(--spacing-md);
+  }
+  
+  .photos-grid-modal {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--spacing-sm);
   }
 }
 

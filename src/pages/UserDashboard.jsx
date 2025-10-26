@@ -10,6 +10,8 @@ const UserDashboard = () => {
   const [bookings, setBookings] = useState([])
   const [packages, setPackages] = useState([])
   const [authorizedShoots, setAuthorizedShoots] = useState([])
+  const [selectedShoot, setSelectedShoot] = useState(null)
+  const [isDownloading, setIsDownloading] = useState(false)
   const [bookingData, setBookingData] = useState({
     sessionType: '',
     date: '',
@@ -100,6 +102,34 @@ const UserDashboard = () => {
       }
     } catch (error) {
       console.error('Error creating booking:', error)
+    }
+  }
+
+  const handleDownloadAll = async (shootId) => {
+    setIsDownloading(true)
+    try {
+      const response = await fetch(`${API_URL}/portfolio/shoots/${shootId}/download-all`, {
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'photos.zip'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      } else {
+        alert('Failed to download photos. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error downloading photos:', error)
+      alert('An error occurred while downloading photos.')
+    } finally {
+      setIsDownloading(false)
     }
   }
 
@@ -395,7 +425,7 @@ const UserDashboard = () => {
                     </div>
                     <button
                       className="btn btn-primary btn-full"
-                      onClick={() => window.location.href = `/session/${shoot.id}`}
+                      onClick={() => setSelectedShoot(shoot)}
                     >
                       View Photos
                     </button>
@@ -407,6 +437,53 @@ const UserDashboard = () => {
         )}
 
       </div>
+
+      {/* Photo View Modal */}
+      {selectedShoot && (
+        <div className="modal-overlay" onClick={() => setSelectedShoot(null)}>
+          <div className="modal-content photos-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{selectedShoot.title}</h2>
+              <button 
+                className="modal-close-btn" 
+                onClick={() => setSelectedShoot(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {/* Only show download button if there are high-res photos */}
+              {selectedShoot.photos?.some(photo => photo.hasHighRes) ? (
+                <button
+                  className="btn btn-primary btn-download-all"
+                  onClick={() => handleDownloadAll(selectedShoot.id)}
+                  disabled={isDownloading}
+                  style={{ marginBottom: '1.5rem' }}
+                >
+                  {isDownloading ? 'Downloading...' : 'Download High-Res Photos'}
+                </button>
+              ) : (
+                <div className="no-high-res-notice" style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(223, 208, 143, 0.1)', borderRadius: '8px', textAlign: 'center' }}>
+                  <p style={{ color: 'var(--white)', margin: 0 }}>
+                    These photos are available for viewing only. High-resolution downloads are no longer available.
+                  </p>
+                </div>
+              )}
+              {selectedShoot.photos && selectedShoot.photos.length > 0 ? (
+                <div className="photos-grid-modal">
+                  {selectedShoot.photos.map(photo => (
+                    <div key={photo.id} className="photo-item-modal">
+                      <img src={photo.displayUrl} alt={selectedShoot.title} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No photos available</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
