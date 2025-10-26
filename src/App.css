@@ -1692,7 +1692,7 @@ img {
 
 /* Featured Work Gallery Styles */
 .featured-work-section {
-  padding: var(--spacing-xxl) var(--spacing-lg) calc(var(--spacing-2xl) + var(--spacing-2xl) + var(--spacing-lg));
+  padding: var(--spacing-xxl) var(--spacing-lg) calc(var(--spacing-2xl) + var(--spacing-2xl) + var(--spacing-2xl) + var(--spacing-lg));
   background: linear-gradient(135deg, var(--primary-purple-dark) 0%, var(--primary-purple) 100%);
   position: relative;
   overflow: hidden;
@@ -1758,7 +1758,7 @@ img {
   gap: var(--spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-md) var(--spacing-xl) var(--spacing-md);
 }
 
 .featured-photo-item {
@@ -3842,7 +3842,7 @@ img {
 }
 
 .dashboard-header p {
-  color: var(--white);
+  color: var(--white) !important;
   font-size: 1.1rem;
   opacity: 1;
   font-weight: 500;
@@ -3888,6 +3888,24 @@ img {
 
 .dashboard-tabs .tab-btn.active {
   color: var(--primary-purple-dark);
+  border-bottom-color: var(--accent-gold);
+}
+
+/* User Dashboard Specific - Light text on dark background */
+.user-dashboard .dashboard-tabs {
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.user-dashboard .dashboard-tabs .tab-btn {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.user-dashboard .dashboard-tabs .tab-btn:hover {
+  color: var(--white);
+}
+
+.user-dashboard .dashboard-tabs .tab-btn.active {
+  color: var(--accent-gold);
   border-bottom-color: var(--accent-gold);
 }
 
@@ -3983,6 +4001,12 @@ img {
 .bookings-section-title {
   margin-bottom: var(--spacing-lg);
   color: var(--primary-purple);   /* Lighter purple for better visibility */
+}
+
+/* User Dashboard Specific - Light text on dark background */
+.user-dashboard .bookings-section h2,
+.user-dashboard .bookings-section-title {
+  color: var(--white);
 }
 
 /* Authorized Shoots Section */
@@ -4191,6 +4215,16 @@ img {
 .no-bookings p {
   color: var(--gray);
   margin-bottom: var(--spacing-md);
+}
+
+/* User Dashboard Specific - Dark background for no-bookings */
+.user-dashboard .no-bookings {
+  background: rgba(78, 46, 58, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-dashboard .no-bookings p {
+  color: var(--white);
 }
 
 .account-info-section {

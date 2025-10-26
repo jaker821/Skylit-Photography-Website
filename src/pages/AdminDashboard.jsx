@@ -1859,7 +1859,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail.trim() })
+        body: JSON.stringify({ emails: [newEmail.trim()] })
       })
       
       if (response.ok) {
