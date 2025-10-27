@@ -1220,21 +1220,25 @@ const AdminDashboard = () => {
               )}
             </div>
             
-            <SessionManagementTable
-              sessions={bookings}
-              onApprove={(session) => handleConfirmSession(session.id)}
-              onGenerateShoot={(session) => handleGenerateShoot(session)}
-              onInvoice={(session) => handleInvoiceSession(session)}
-              onEdit={(session) => {
-                setSelectedSession(session)
-                setShowSessionForm(true)
-              }}
-              onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
-              onSendEmail={(session) => {
-                setEmailSession(session)
-                setShowEmailModal(true)
-              }}
-            />
+            {Array.isArray(bookings) && bookings.length > 0 ? (
+              <SessionManagementTable
+                sessions={bookings}
+                onApprove={(session) => handleConfirmSession(session.id)}
+                onGenerateShoot={(session) => handleGenerateShoot(session)}
+                onInvoice={(session) => handleInvoiceSession(session)}
+                onEdit={(session) => {
+                  setSelectedSession(session)
+                  setShowSessionForm(true)
+                }}
+                onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
+                onSendEmail={(session) => {
+                  setEmailSession(session)
+                  setShowEmailModal(true)
+                }}
+              />
+            ) : (
+              <div className="no-data">Loading sessions...</div>
+            )}
 
             {showEmailModal && (
               <EmailTemplateModal
