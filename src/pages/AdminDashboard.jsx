@@ -1248,8 +1248,7 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
-                <button 
-                  className="btn btn-primary"
+
         {/* EXPENSES TAB */}
         {activeTab === 'expenses' && (
           <div className="tab-content financial-dashboard">
