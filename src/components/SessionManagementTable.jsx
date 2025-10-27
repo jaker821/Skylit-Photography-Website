@@ -13,6 +13,11 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
   })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
 
+  // Ensure sessions is an array
+  if (!Array.isArray(sessions)) {
+    return <div className="no-data">No sessions available</div>
+  }
+
   // Filter sessions based on search and filters
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = !searchTerm || 
@@ -33,24 +38,29 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
   const sortedSessions = [...filteredSessions].sort((a, b) => {
     if (!sortConfig.key) return 0
     
-    const aValue = a[sortConfig.key]
-    const bValue = b[sortConfig.key]
+    const aValue = a?.[sortConfig.key] ?? null
+    const bValue = b?.[sortConfig.key] ?? null
     
-    if (sortConfig.key === 'date') {
-      return sortConfig.direction === 'asc' 
-        ? new Date(aValue) - new Date(bValue)
-        : new Date(bValue) - new Date(aValue)
+    try {
+      if (sortConfig.key === 'date') {
+        return sortConfig.direction === 'asc' 
+          ? new Date(aValue) - new Date(bValue)
+          : new Date(bValue) - new Date(aValue)
+      }
+      
+      if (sortConfig.key === 'id' || sortConfig.key === 'quote_amount') {
+        const aNum = sortConfig.key === 'quote_amount' ? (aValue ?? 0) : (aValue ?? 0)
+        const bNum = sortConfig.key === 'quote_amount' ? (bValue ?? 0) : (bValue ?? 0)
+        return sortConfig.direction === 'asc' ? (aNum - bNum) : (bNum - aNum)
+      }
+      
+      return sortConfig.direction === 'asc'
+        ? String(aValue || '').localeCompare(String(bValue || ''))
+        : String(bValue || '').localeCompare(String(aValue || ''))
+    } catch (error) {
+      console.error('Sorting error:', error)
+      return 0
     }
-    
-    if (sortConfig.key === 'id' || sortConfig.key === 'quote_amount') {
-      const aNum = sortConfig.key === 'quote_amount' ? (aValue || 0) : (aValue || 0)
-      const bNum = sortConfig.key === 'quote_amount' ? (bValue || 0) : (bValue || 0)
-      return sortConfig.direction === 'asc' ? (aNum - bNum) : (bNum - aNum)
-    }
-    
-    return sortConfig.direction === 'asc'
-      ? String(aValue || '').localeCompare(String(bValue || ''))
-      : String(bValue || '').localeCompare(String(aValue || ''))
   })
 
   const handleSort = (key) => {
