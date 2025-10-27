@@ -666,6 +666,41 @@ const AdminDashboard = () => {
     }
   }
 
+  // Toggle cover photo
+  const handleToggleCoverPhoto = async (photoId, currentCoverState) => {
+    try {
+      console.log('🖼️ Toggling cover photo:', { photoId, currentCoverState })
+      const response = await fetch(`${API_URL}/photos/${photoId}/cover`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ cover_photo: !currentCoverState })
+      })
+
+      if (response.ok) {
+        await fetchShoots()
+        // Update selectedShoot if it exists
+        if (selectedShoot) {
+          setSelectedShoot(prevShoot => ({
+            ...prevShoot,
+            photos: prevShoot.photos.map(photo =>
+              photo.id === photoId
+                ? { ...photo, cover_photo: !currentCoverState }
+                : { ...photo, cover_photo: photo.id === photoId ? !currentCoverState : false }
+            )
+          }))
+        }
+        alert(currentCoverState ? 'Photo removed as cover photo' : 'Photo set as cover photo')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update cover photo')
+      }
+    } catch (error) {
+      console.error('Error toggling cover photo:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
   // Create expense
   const handleCreateExpense = async (expenseData) => {
     try {
@@ -1363,6 +1398,7 @@ const AdminDashboard = () => {
                 onPhotoDelete={(photoId) => handleDeletePhoto(selectedShoot.id, photoId)}
                 onToggleFeatured={(photoId, currentFeatured) => toggleFeatured(photoId, currentFeatured)}
                 onTogglePhotoVisibility={(photoId, isHidden) => handleTogglePhotoVisibility(photoId, isHidden)}
+                onToggleCoverPhoto={(photoId, currentCover) => handleToggleCoverPhoto(photoId, currentCover)}
                 onShootUpdate={() => fetchShoots()}
                 isUploading={isUploading}
                 uploadProgress={uploadProgress}
@@ -2400,7 +2436,7 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, isUploading, uploadProgress, onShootUpdate }) => {
+const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, onToggleCoverPhoto, isUploading, uploadProgress, onShootUpdate }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
@@ -2914,6 +2950,17 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 }}
               >
                 {(photo.is_hidden || photo.isHidden) ? '👁️' : '👁️‍🗨️'}
+              </button>
+              <button 
+                className={`featured-btn ${photo.cover_photo ? 'cover-active' : ''}`}
+                onClick={() => onToggleCoverPhoto(photo.id, photo.cover_photo || false)}
+                title={photo.cover_photo ? 'Remove as cover photo' : 'Set as cover photo'}
+                style={{ 
+                  left: 'calc(var(--spacing-sm) + 88px)',
+                  fontSize: '14px'
+                }}
+              >
+                📷
               </button>
               <button 
                 className="delete-photo-btn"

@@ -3032,6 +3032,46 @@ app.put('/api/photos/:id/featured', requireAuth, async (req, res) => {
   }
 });
 
+// Toggle cover photo status for a photo
+app.put('/api/photos/:id/cover', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cover_photo } = req.body;
+    
+    console.log(`🖼️ Cover photo update: photo ${id}, cover_photo: ${cover_photo}`);
+    
+    // Convert boolean to integer
+    const coverValue = cover_photo === true ? 1 : 0;
+    
+    // If setting this photo as cover, remove cover flag from all other photos in the same shoot
+    if (coverValue === 1) {
+      const photo = await db.get('SELECT shoot_id FROM photos WHERE id = ?', [id]);
+      if (photo) {
+        await db.run(
+          'UPDATE photos SET cover_photo = 0 WHERE shoot_id = ? AND id != ?',
+          [photo.shoot_id, id]
+        );
+        console.log(`🖼️ Removed cover flag from other photos in shoot ${photo.shoot_id}`);
+      }
+    }
+    
+    // Update this photo's cover status
+    const result = await db.run(
+      'UPDATE photos SET cover_photo = ? WHERE id = ?',
+      [coverValue, id]
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    res.json({ success: true, message: `Photo ${cover_photo ? 'set as' : 'removed from'} cover photo` });
+  } catch (error) {
+    console.error('Toggle cover photo error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Update about photo for admin
 app.put('/api/admin/about-photo', requireAuth, async (req, res) => {
   try {

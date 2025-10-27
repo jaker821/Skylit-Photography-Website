@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { API_URL } from '../config'
 
 const Portfolio = () => {
+  const navigate = useNavigate()
   const [activeCategory, setActiveCategory] = useState('all')
   const [shoots, setShoots] = useState([])
   const [categories, setCategories] = useState([])
@@ -94,57 +96,50 @@ const Portfolio = () => {
           </div>
         )}
 
-        {/* Portfolio Grid - Display all photos from shoots */}
-        <div className="portfolio-grid">
+        {/* Portfolio Grid - Display shoots as cards */}
+        <div className="portfolio-shoots-grid">
           {filteredShoots.length === 0 ? (
             <div className="no-results">
               <p>No portfolio items yet. Admin can add shoots from the dashboard!</p>
             </div>
           ) : (
-            (() => {
-              let imageCount = 0;
-              return filteredShoots.map((shoot) => 
-                shoot.photos.map((photo, photoIndex) => {
-                  imageCount++;
-                  const isPriority = imageCount <= 6; // First 6 images load immediately
-                  
-                  // Handle both new dual storage format and legacy format
-                  const photoSrc = photo.displayUrl || photo.url; // New format first, fallback to legacy
-                  
-                  // Check if URL is absolute or relative
-                  const finalPhotoSrc = photoSrc.startsWith('http') 
-                    ? photoSrc  // CDN URL - use as-is
-                    : `${API_URL.replace('/api', '')}${photoSrc}`; // Local URL - prepend server URL
-                  
-                  const isLoaded = loadedImages.has(photo.id);
-                  
-                  return (
-                    <div 
-                      key={`${shoot.id}-${photo.id}`} 
-                      className="portfolio-item"
-                    >
-                      <div className={`portfolio-image-container ${isLoaded ? 'image-loaded' : ''}`}>
-                        <img 
-                          src={finalPhotoSrc} 
-                          alt={`${shoot.title} - Photo ${photoIndex + 1}`}
-                          className={`portfolio-image ${isLoaded ? 'loaded' : ''}`}
-                          loading={isPriority ? "eager" : "lazy"}
-                          onLoad={() => handleImageLoad(photo.id)}
-                          decoding="async"
-                        />
-                        <div className="portfolio-overlay">
-                          <h3>{shoot.title}</h3>
-                          <p>{shoot.category}</p>
-                          {shoot.date && (
-                            <p className="shoot-date">{new Date(shoot.date).toLocaleDateString()}</p>
-                          )}
-                        </div>
-                      </div>
+            filteredShoots.map((shoot) => {
+              // Get cover photo (first photo with cover_photo flag, or first photo)
+              const coverPhoto = shoot.photos.find(p => p.cover_photo) || shoot.photos[0]
+              
+              if (!coverPhoto) return null
+              
+              const photoSrc = coverPhoto.displayUrl || coverPhoto.url
+              const finalPhotoSrc = photoSrc.startsWith('http') 
+                ? photoSrc
+                : `${API_URL.replace('/api', '')}${photoSrc}`
+              
+              return (
+                <div 
+                  key={shoot.id}
+                  className="portfolio-shoot-card"
+                  onClick={() => navigate(`/portfolio/${shoot.id}`)}
+                >
+                  <div className="shoot-card-image">
+                    <img 
+                      src={finalPhotoSrc}
+                      alt={shoot.title}
+                      loading="lazy"
+                    />
+                    <div className="shoot-card-overlay">
+                      <span className="photo-count">{shoot.photos.length} photos</span>
                     </div>
-                  );
-                })
-              );
-            })()
+                  </div>
+                  <div className="shoot-card-info">
+                    <h3>{shoot.title}</h3>
+                    <p className="shoot-card-category">{shoot.category}</p>
+                    {shoot.date && (
+                      <p className="shoot-card-date">{new Date(shoot.date).toLocaleDateString()}</p>
+                    )}
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
       </div>

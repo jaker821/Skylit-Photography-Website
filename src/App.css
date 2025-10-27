@@ -3090,6 +3090,208 @@ img {
 }
 
 /* ===================================
+   Portfolio Shoot Cards
+   =================================== */
+.portfolio-shoots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl) var(--spacing-md);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.portfolio-shoot-card {
+  background: var(--card-background);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+  opacity: 0;
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.portfolio-shoot-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg);
+}
+
+.shoot-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4/5;
+  overflow: hidden;
+}
+
+.shoot-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
+}
+
+.portfolio-shoot-card:hover .shoot-card-image img {
+  transform: scale(1.1);
+}
+
+.shoot-card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(78, 46, 58, 0.9), transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: var(--spacing-md);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.portfolio-shoot-card:hover .shoot-card-overlay {
+  opacity: 1;
+}
+
+.photo-count {
+  background: var(--accent-gold);
+  color: var(--primary-purple);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.shoot-card-info {
+  padding: var(--spacing-md);
+}
+
+.shoot-card-info h3 {
+  color: var(--text-light);
+  margin-bottom: var(--spacing-xs);
+  font-size: 1.2rem;
+}
+
+.shoot-card-category {
+  color: var(--accent-gold);
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.shoot-card-date {
+  color: var(--gray);
+  font-size: 0.9rem;
+}
+
+/* ===================================
+   Shoot View Page
+   =================================== */
+.shoot-view-page {
+  min-height: 100vh;
+  background: var(--background-dark);
+  padding: var(--spacing-xl) 0;
+}
+
+.back-button {
+  background: var(--primary-purple);
+  color: var(--white);
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 1rem;
+  margin-bottom: var(--spacing-xl);
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.back-button:hover {
+  background: var(--primary-purple-light);
+  transform: translateX(-4px);
+}
+
+.shoot-header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+  padding: 0 var(--spacing-md);
+}
+
+.shoot-header h1 {
+  color: var(--text-light);
+  font-size: 2.5rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+.shoot-category {
+  color: var(--accent-gold);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.shoot-date {
+  color: var(--gray);
+  font-size: 1rem;
+  margin-bottom: var(--spacing-md);
+}
+
+.shoot-description {
+  color: var(--text-light);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.shoot-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+  padding: 0 var(--spacing-md);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.shoot-photo-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  aspect-ratio: 3/4;
+  background: var(--card-background);
+}
+
+.shoot-photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-normal);
+}
+
+.shoot-photo-item:hover img {
+  transform: scale(1.05);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .portfolio-shoots-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+  
+  .shoot-photos-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .shoot-header h1 {
+    font-size: 2rem;
+  }
+}
+
+/* ===================================
    Pricing Page
    =================================== */
 .pricing-page {
