@@ -211,6 +211,7 @@ const AdminDashboard = () => {
       })
       if (response.ok) {
         const data = await response.json()
+        console.log('🔧 Fetched maintenance notice:', data.notice)
         setMaintenanceNotice(data.notice || { 
           enabled: false, 
           scheduledDate: '', 
@@ -218,6 +219,8 @@ const AdminDashboard = () => {
           duration: 10,
           message: ''
         })
+      } else {
+        console.log('🔧 No maintenance notice in database')
       }
     } catch (error) {
       console.error('Error fetching maintenance notice:', error)
@@ -1082,6 +1085,10 @@ const AdminDashboard = () => {
 
   const maintenanceInfo = getMaintenanceInfo()
 
+  // Debug: Log maintenance notice state
+  console.log('🔧 Current maintenance notice state:', maintenanceNotice)
+  console.log('🔧 Maintenance info result:', maintenanceInfo)
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
@@ -1225,9 +1232,9 @@ const AdminDashboard = () => {
                 )}
               </div>
 
-              <div className="calendar-card">
-                <h3>Session Calendar</h3>
-                <SessionCalendar 
+              <div className="week-view-card">
+                <h3>This Week's Schedule</h3>
+                <WeekView 
                   bookings={bookings}
                   onDateClick={(date, sessions) => {
                     setSelectedDate(date)
@@ -2311,6 +2318,106 @@ const MaintenanceNoticeForm = ({ notice, onSave }) => {
   )
 }
 
+// Week View Component - Horizontal week view for overview
+const WeekView = ({ bookings, onDateClick }) => {
+  const [currentWeek, setCurrentWeek] = useState(new Date())
+  
+  const getWeekDates = (date) => {
+    // Get the Monday of the current week
+    const monday = new Date(date)
+    const day = monday.getDay()
+    const diff = monday.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
+    monday.setDate(diff)
+    
+    const week = []
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(monday)
+      dayDate.setDate(monday.getDate() + i)
+      week.push(dayDate)
+    }
+    return week
+  }
+  
+  const getSessionsForDate = (date) => {
+    const dateStr = date.toISOString().split('T')[0]
+    return bookings.filter(booking => booking.date === dateStr)
+  }
+  
+  const weekDates = getWeekDates(currentWeek)
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const shortDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  
+  const handleDayClick = (date, sessions) => {
+    if (onDateClick) {
+      onDateClick(date, sessions)
+    }
+  }
+  
+  return (
+    <div className="week-view">
+      <div className="week-header">
+        <button 
+          className="week-nav-btn"
+          onClick={() => setCurrentWeek(new Date(currentWeek.getTime() - 7 * 24 * 60 * 60 * 1000))}
+        >
+          ‹ Previous Week
+        </button>
+        <span className="week-date-range">
+          {weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
+        <button 
+          className="week-nav-btn"
+          onClick={() => setCurrentWeek(new Date(currentWeek.getTime() + 7 * 24 * 60 * 60 * 1000))}
+        >
+          Next Week ›
+        </button>
+      </div>
+      
+      <div className="week-days">
+        {weekDates.map((date, index) => {
+          const sessionsOnDay = getSessionsForDate(date)
+          const isToday = date.toDateString() === new Date().toDateString()
+          
+          return (
+            <div 
+              key={index} 
+              className={`week-day ${isToday ? 'today' : ''}`}
+              onClick={() => handleDayClick(date, sessionsOnDay)}
+            >
+              <div className="week-day-header">
+                <div className="week-day-name">{shortDayNames[index]}</div>
+                <div className="week-day-number">{date.getDate()}</div>
+              </div>
+              
+              <div className="week-day-sessions">
+                {sessionsOnDay.length === 0 ? (
+                  <div className="no-sessions">No sessions</div>
+                ) : (
+                  sessionsOnDay.slice(0, 3).map(session => (
+                    <div 
+                      key={session.id} 
+                      className="week-session-item"
+                      title={`${session.client_name || session.clientName} - ${session.session_type || session.sessionType}`}
+                    >
+                      <div className="session-dot-week"></div>
+                      <div className="session-title-week">
+                        {session.client_name || session.clientName}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {sessionsOnDay.length > 3 && (
+                  <div className="more-sessions">+{sessionsOnDay.length - 3} more</div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // Session Calendar Component
 const SessionCalendar = ({ bookings, onDateClick }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -2458,12 +2565,12 @@ const FullCalendarView = ({ bookings, calendarEvents, onDateClick }) => {
         {(itemsOnDay.sessions.length > 0 || itemsOnDay.events.length > 0) && (
           <div className="day-sessions">
             {itemsOnDay.sessions.map(session => (
-              <div key={`session-${session.id}`} className="session-dot session-session" title={`Session: ${session.client_name || session.clientName} - ${session.session_type || session.sessionType}`}>
+              <div key={`session-${session.id}`} className="session-dot session-session" title={`Session: ${session.client_name || session.clientName} - ${session.session_type || session.sessionType}`} style={{ fontSize: '1.2rem' }}>
                 ●
               </div>
             ))}
             {itemsOnDay.events.map(event => (
-              <div key={`event-${event.id}`} className="session-dot session-event" title={`Event: ${event.name || event.title}`}>
+              <div key={`event-${event.id}`} className="session-dot session-event" title={`Event: ${event.name || event.title}`} style={{ fontSize: '1.2rem' }}>
                 ★
               </div>
             ))}
