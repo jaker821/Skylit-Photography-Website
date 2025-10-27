@@ -103,10 +103,10 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
             <div class="detail-row"><div class="detail-label">Email:</div><div>${session.client_email || 'N/A'}</div></div>
             <div class="detail-row"><div class="detail-label">Phone:</div><div>${session.phone || 'N/A'}</div></div>
             <div class="detail-row"><div class="detail-label">Session Type:</div><div>${session.session_type || 'N/A'}</div></div>
-            <div class="detail-row"><div class="detail-label">Date:</div><div>${new Date(session.date).toLocaleDateString()}</div></div>
+            <div class="detail-row"><div class="detail-label">Date:</div><div>${session.date ? new Date(session.date).toLocaleDateString() : 'N/A'}</div></div>
             <div class="detail-row"><div class="detail-label">Time:</div><div>${session.time || 'TBD'}</div></div>
             <div class="detail-row"><div class="detail-label">Location:</div><div>${session.location || 'TBD'}</div></div>
-            ${session.quote_amount ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${parseFloat(session.quote_amount).toFixed(2)}</div></div>` : ''}
+            ${(session.quote_amount !== undefined && session.quote_amount !== null) ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${parseFloat(session.quote_amount || 0).toFixed(2)}</div></div>` : ''}
             ${session.notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${session.notes}</div></div>` : ''}
             <div class="detail-row"><div class="detail-label">Status:</div><div><span class="status-badge" style="background: ${statusColors[session.status?.toLowerCase()] || '#666'}">${session.status}</span></div></div>
           </div>
