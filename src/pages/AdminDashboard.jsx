@@ -1070,18 +1070,14 @@ const AdminDashboard = () => {
     
     console.log('🔍 Maintenance in:', hours, 'hours', minutes, 'minutes')
     
-    // Show banner if within 24 hours
-    if (hours < 24) {
-      return {
-        scheduledDateTime,
-        hours: hours,
-        minutes: minutes,
-        duration: maintenanceNotice.duration,
-        message: maintenanceNotice.message
-      }
+    // Show banner for any future maintenance (not just within 24 hours)
+    return {
+      scheduledDateTime,
+      hours: hours,
+      minutes: minutes,
+      duration: maintenanceNotice.duration,
+      message: maintenanceNotice.message
     }
-    
-    return null
   }
 
   const maintenanceInfo = getMaintenanceInfo()
@@ -1094,7 +1090,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Maintenance Notice Banner */}
-      {maintenanceInfo && maintenanceInfo.hours < 24 && (
+      {maintenanceInfo && (
         <div className="maintenance-notice-banner">
           <div className="maintenance-notice-content">
             <span className="maintenance-icon">⚠️</span>
@@ -1103,7 +1099,12 @@ const AdminDashboard = () => {
               The site will be down for {maintenanceInfo.duration} minutes starting at {new Date(maintenanceInfo.scheduledDateTime).toLocaleString()}
               {maintenanceInfo.message && ` - ${maintenanceInfo.message}`}
               <span className="maintenance-countdown">
-                {' '}(Starting in {maintenanceInfo.hours}h {maintenanceInfo.minutes}m)
+                {maintenanceInfo.hours < 24 
+                  ? ` (Starting in ${maintenanceInfo.hours}h ${maintenanceInfo.minutes}m)`
+                  : maintenanceInfo.hours < 168 
+                    ? ` (Starting in ${maintenanceInfo.hours}h ${maintenanceInfo.minutes}m)`
+                    : ` (Starting in ${Math.floor(maintenanceInfo.hours / 24)} days)`
+                }
               </span>
             </div>
           </div>
