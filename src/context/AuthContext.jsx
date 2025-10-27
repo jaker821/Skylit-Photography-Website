@@ -31,9 +31,13 @@ export const AuthProvider = ({ children }) => {
         if (data.authenticated) {
           setUser(data.user)
         }
+      } else if (response.status === 401) {
+        // Session expired or not authenticated - this is expected for unauthenticated users
+        setUser(null)
       }
     } catch (error) {
-      console.error('Session check failed:', error)
+      // Silently handle session check errors - don't log to avoid console noise
+      setUser(null)
     } finally {
       setLoading(false)
     }

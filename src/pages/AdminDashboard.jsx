@@ -594,7 +594,7 @@ const AdminDashboard = () => {
   }
 
   // Toggle featured status for a photo
-  const toggleFeatured = async (photoId, currentFeatured) => {
+  const handleToggleFeatured = async (photoId, currentFeatured) => {
     try {
       console.log(`🌟 Toggling featured status for photo ${photoId} from ${currentFeatured} to ${!currentFeatured}`)
       

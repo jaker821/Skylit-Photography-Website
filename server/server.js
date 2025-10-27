@@ -2604,9 +2604,9 @@ app.get('/api/portfolio/shoots/:shootId/download-all', requireAuth, async (req, 
 app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
   try {
     // Get stats from database
-    const totalPhotos = await db.get('SELECT COUNT(*) as count FROM photos');
-    const totalShoots = await db.get('SELECT COUNT(*) as count FROM shoots');
-    const photosWithHighRes = await db.get('SELECT COUNT(*) as count FROM photos WHERE has_high_res = 1');
+    const totalPhotosResult = await db.get('SELECT COUNT(*) as count FROM photos');
+    const totalShootsResult = await db.get('SELECT COUNT(*) as count FROM shoots');
+    const photosWithHighResResult = await db.get('SELECT COUNT(*) as count FROM photos WHERE has_high_res = 1');
     
     // Get size stats
     const sizeStats = await db.get(`
@@ -2617,14 +2617,19 @@ app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
     `);
     
     // Get shoots with high-res photos
-    const shootsWithHighRes = await db.get(`
+    const shootsWithHighResResult = await db.get(`
       SELECT COUNT(DISTINCT shoot_id) as count 
       FROM photos 
       WHERE has_high_res = 1
     `);
     
-    const totalOriginalSize = sizeStats.totalOriginalSize || 0;
-    const totalCompressedSize = sizeStats.totalCompressedSize || 0;
+    const totalPhotos = totalPhotosResult?.count || 0;
+    const totalShoots = totalShootsResult?.count || 0;
+    const photosWithHighRes = photosWithHighResResult?.count || 0;
+    const shootsWithHighRes = shootsWithHighResResult?.count || 0;
+    
+    const totalOriginalSize = sizeStats?.totalOriginalSize || 0;
+    const totalCompressedSize = sizeStats?.totalCompressedSize || 0;
     const totalStorageBytes = totalOriginalSize + totalCompressedSize;
     
     // Calculate storage quota (250 GB standard DigitalOcean Spaces plan = 262144000 KB)
@@ -2633,10 +2638,10 @@ app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
     const storageUsedPercent = (totalStorageBytes / storageQuotaBytes) * 100;
     
     res.json({
-      totalPhotos: totalPhotos.count,
-      totalShoots: totalShoots.count,
-      shootsWithHighRes: shootsWithHighRes.count,
-      photosWithHighRes: photosWithHighRes.count,
+      totalPhotos: totalPhotos,
+      totalShoots: totalShoots,
+      shootsWithHighRes: shootsWithHighRes,
+      photosWithHighRes: photosWithHighRes,
       totalOriginalSizeMB: (totalOriginalSize / 1024 / 1024).toFixed(2),
       totalCompressedSizeMB: (totalCompressedSize / 1024 / 1024).toFixed(2),
       totalStorageMB: (totalStorageBytes / 1024 / 1024).toFixed(2),
@@ -2649,7 +2654,7 @@ app.get('/api/portfolio/storage-stats', requireAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Get storage stats error:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
