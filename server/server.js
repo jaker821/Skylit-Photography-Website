@@ -3277,17 +3277,6 @@ app.delete('/api/profile/delete-account', requireAuth, async (req, res) => {
 // ===================================
 // Serve React Frontend in Production
 // ===================================
-if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the React app build directory
-  app.use(express.static(path.join(__dirname, '../dist')));
-
-  // Handle React routing, return all requests to React app
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
-  });
-}
-
-// ===================================
 // Admin Recovery Routes
 // ===================================
 
@@ -3674,6 +3663,17 @@ async function startServer() {
         res.status(500).json({ error: 'Server error', details: error.message })
       }
     })
+    
+    // Serve React Frontend in Production (MUST be last, after all routes)
+    if (process.env.NODE_ENV === 'production') {
+      // Serve static files from the React app build directory
+      app.use(express.static(path.join(__dirname, '../dist')));
+
+      // Handle React routing, return all requests to React app
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../dist', 'index.html'));
+      });
+    }
     
     // Start the server
     app.listen(PORT, () => {
