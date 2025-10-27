@@ -7,10 +7,34 @@ const ShootView = () => {
   const navigate = useNavigate()
   const [shoot, setShoot] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [photoOrientations, setPhotoOrientations] = useState({})
 
   useEffect(() => {
     fetchShoot()
   }, [shootId])
+
+  // Detect photo orientations
+  useEffect(() => {
+    if (shoot && shoot.photos) {
+      shoot.photos.forEach((photo) => {
+        const img = new Image()
+        const photoSrc = photo.displayUrl || photo.url
+        const finalPhotoSrc = photoSrc.startsWith('http') 
+          ? photoSrc
+          : `${API_URL.replace('/api', '')}${photoSrc}`
+        
+        img.onload = () => {
+          const isLandscape = img.naturalWidth > img.naturalHeight
+          setPhotoOrientations(prev => ({
+            ...prev,
+            [photo.id]: isLandscape ? 'landscape' : 'portrait'
+          }))
+        }
+        
+        img.src = finalPhotoSrc
+      })
+    }
+  }, [shoot])
 
   const fetchShoot = async () => {
     try {
@@ -65,8 +89,13 @@ const ShootView = () => {
               ? photoSrc
               : `${API_URL.replace('/api', '')}${photoSrc}`
             
+            const orientation = photoOrientations[photo.id] || 'portrait'
+            
             return (
-              <div key={photo.id} className="shoot-photo-item">
+              <div 
+                key={photo.id} 
+                className={`shoot-photo-item ${orientation === 'landscape' ? 'shoot-photo-landscape' : 'shoot-photo-portrait'}`}
+              >
                 <img src={finalPhotoSrc} alt={`${shoot.title} - Photo`} loading="lazy" />
               </div>
             )
