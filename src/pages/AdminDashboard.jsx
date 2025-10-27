@@ -287,9 +287,9 @@ const AdminDashboard = () => {
       
       const method = selectedSession && selectedSession.id ? 'PUT' : 'POST'
       
-      // If creating a booking (not a quote), set status to "booked"
+      // If creating a booking (not a quote), set status to "Booked"
       const dataToSend = selectedSession && selectedSession.isBooking
-        ? { ...sessionData, status: 'booked' }
+        ? { ...sessionData, status: 'Booked' }
         : sessionData
       
       const response = await fetch(url, {
@@ -1095,7 +1095,12 @@ const AdminDashboard = () => {
                 ) : (
                   <div className="session-list">
                     {upcomingSessions.map(session => (
-                      <div key={session.id} className="session-item">
+                      <div 
+                        key={session.id} 
+                        className="session-item"
+                        onClick={() => navigate(`/admin/session/${session.id}`)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <div className="session-info">
                           <h4>{session.client_name || session.clientName}</h4>
                           <p>{session.session_type || session.sessionType} - {new Date(session.date).toLocaleDateString()}</p>
