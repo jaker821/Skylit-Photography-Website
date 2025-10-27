@@ -43,7 +43,9 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
     }
     
     if (sortConfig.key === 'id' || sortConfig.key === 'quote_amount') {
-      return sortConfig.direction === 'asc' ? (aValue - bValue) : (bValue - aValue)
+      const aNum = sortConfig.key === 'quote_amount' ? (aValue || 0) : (aValue || 0)
+      const bNum = sortConfig.key === 'quote_amount' ? (bValue || 0) : (bValue || 0)
+      return sortConfig.direction === 'asc' ? (aNum - bNum) : (bNum - aNum)
     }
     
     return sortConfig.direction === 'asc'
