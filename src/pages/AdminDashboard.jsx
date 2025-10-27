@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 import CategorySelector from '../components/CategorySelector'
+import SessionManagementTable from '../components/SessionManagementTable'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -231,7 +232,7 @@ const AdminDashboard = () => {
     return bookings
       .filter(booking => {
         const bookingDate = new Date(booking.date)
-        return booking.status === 'Booked' && bookingDate >= now && bookingDate <= thirtyDaysFromNow
+        return booking.status?.toLowerCase() === 'booked' && bookingDate >= now && bookingDate <= thirtyDaysFromNow
       })
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 5)

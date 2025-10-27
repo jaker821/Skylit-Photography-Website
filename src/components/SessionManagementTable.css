@@ -1,0 +1,233 @@
+.session-management-table {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.table-controls {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--background-light);
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+}
+
+.search-input,
+.filter-select,
+.filter-date {
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.search-input {
+  flex: 2;
+}
+
+.filter-select,
+.filter-date {
+  flex: 1;
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: 70vh;
+}
+
+.sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sessions-table thead {
+  background: var(--primary-purple);
+  color: var(--white);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sessions-table th {
+  padding: var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sessions-table th:hover {
+  background: var(--primary-purple-light);
+}
+
+.sessions-table th:last-child {
+  border-right: none;
+}
+
+.sessions-table tbody tr {
+  border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition-fast);
+}
+
+.sessions-table tbody tr:hover {
+  background: var(--background-light);
+}
+
+.sessions-table td {
+  padding: var(--spacing-md);
+  white-space: nowrap;
+  border-right: 1px solid var(--border-light);
+}
+
+.sessions-table td:last-child {
+  border-right: none;
+}
+
+.session-row {
+  cursor: default;
+}
+
+.session-row:nth-child(even) {
+  background: rgba(78, 46, 58, 0.02);
+}
+
+.actions-cell {
+  width: 200px;
+  position: sticky;
+  right: 0;
+  background: var(--white);
+  border-left: 2px solid var(--accent-gold);
+}
+
+.session-row:hover .actions-cell {
+  background: var(--background-light);
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-action {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-action:hover {
+  transform: scale(1.1);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--white);
+}
+
+.btn-info {
+  background: var(--info);
+  color: var(--white);
+}
+
+.btn-primary {
+  background: var(--primary-purple);
+  color: var(--white);
+}
+
+.btn-secondary {
+  background: var(--gray);
+  color: var(--white);
+}
+
+.btn-view {
+  background: var(--accent-gold);
+  color: var(--primary-purple);
+}
+
+.btn-print {
+  background: var(--primary-purple-light);
+  color: var(--white);
+}
+
+.print-buttons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-pending {
+  background: #ff9800;
+  color: white;
+}
+
+.status-quoted {
+  background: #2196f3;
+  color: white;
+}
+
+.status-booked {
+  background: #4caf50;
+  color: white;
+}
+
+.status-invoiced {
+  background: #9c27b0;
+  color: white;
+}
+
+.table-footer {
+  padding: var(--spacing-md);
+  background: var(--background-light);
+  border-top: 1px solid var(--border-light);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-data {
+  text-align: center;
+  padding: var(--spacing-2xl);
+  color: var(--gray);
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+  .table-controls {
+    flex-direction: column;
+  }
+  
+  .search-input,
+  .filter-select,
+  .filter-date {
+    width: 100%;
+  }
+  
+  .sessions-table {
+    font-size: 0.85rem;
+  }
+  
+  .sessions-table th,
+  .sessions-table td {
+    padding: var(--spacing-sm);
+  }
+}
+

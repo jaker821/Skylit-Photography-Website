@@ -27,10 +27,14 @@ const SessionDetail = () => {
       })
       if (response.ok) {
         const data = await response.json()
+        console.log('📋 Session data received:', data)
+        console.log('📋 Booking object:', data.booking)
         setSession(data.booking)
         setFormData(data.booking)
       } else {
         console.error('Failed to fetch session')
+        const errorData = await response.json()
+        console.error('Error details:', errorData)
       }
     } catch (error) {
       console.error('Error fetching session:', error)
