@@ -43,6 +43,11 @@ const AdminDashboard = () => {
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  
+  // Calendar day view modal state
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [dayViewSessions, setDayViewSessions] = useState([])
+  const [showDayView, setShowDayView] = useState(false)
 
   useEffect(() => {
     fetchAllData()
@@ -1116,8 +1121,55 @@ const AdminDashboard = () => {
 
               <div className="calendar-card">
                 <h3>Session Calendar</h3>
-                <SessionCalendar bookings={bookings} />
+                <SessionCalendar 
+                  bookings={bookings}
+                  onDateClick={(date, sessions) => {
+                    setSelectedDate(date)
+                    setDayViewSessions(sessions)
+                    setShowDayView(true)
+                  }}
+                />
               </div>
+              
+              {/* Day View Modal */}
+              {showDayView && (
+                <div className="modal-overlay" onClick={() => setShowDayView(false)}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h2>Sessions for {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</h2>
+                      <button className="modal-close" onClick={() => setShowDayView(false)}>×</button>
+                    </div>
+                    <div className="modal-body">
+                      {dayViewSessions.length === 0 ? (
+                        <p>No sessions scheduled for this date.</p>
+                      ) : (
+                        <div className="day-sessions-list">
+                          {dayViewSessions.map(session => (
+                            <div 
+                              key={session.id} 
+                              className="session-card-small"
+                              onClick={() => {
+                                setShowDayView(false)
+                                navigate(`/admin/session/${session.id}`)
+                              }}
+                            >
+                              <div className="session-info">
+                                <h4>{session.client_name || session.clientName}</h4>
+                                <p><strong>Type:</strong> {session.session_type || session.sessionType}</p>
+                                <p><strong>Time:</strong> {session.time || 'TBD'}</p>
+                                {session.location && <p><strong>Location:</strong> {session.location}</p>}
+                              </div>
+                              <span className={`status-badge status-${(session.status || '').toLowerCase()}`}>
+                                {session.status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2107,7 +2159,7 @@ const WeddingSettingsForm = ({ settings, onSave }) => {
 }
 
 // Session Calendar Component
-const SessionCalendar = ({ bookings }) => {
+const SessionCalendar = ({ bookings, onDateClick }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   
   const getDaysInMonth = (date) => {
@@ -2126,6 +2178,12 @@ const SessionCalendar = ({ bookings }) => {
     return bookings.filter(booking => booking.date === dateStr)
   }
   
+  const handleDayClick = (date, sessions) => {
+    if (onDateClick) {
+      onDateClick(date, sessions)
+    }
+  }
+  
   const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth)
   const days = []
   
@@ -2140,12 +2198,17 @@ const SessionCalendar = ({ bookings }) => {
     const sessionsOnDay = getSessionsForDate(date)
     
     days.push(
-      <div key={day} className="calendar-day">
+      <div 
+        key={day} 
+        className="calendar-day"
+        onClick={() => handleDayClick(date, sessionsOnDay)}
+        style={{ cursor: 'pointer' }}
+      >
         <div className="day-number">{day}</div>
         {sessionsOnDay.length > 0 && (
           <div className="day-sessions">
             {sessionsOnDay.map(session => (
-              <div key={session.id} className="session-dot" title={`${session.clientName} - ${session.sessionType}`}>
+              <div key={session.id} className="session-dot" title={`${session.client_name || session.clientName} - ${session.session_type || session.sessionType}`}>
                 •
               </div>
             ))}
