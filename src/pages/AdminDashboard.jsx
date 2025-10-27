@@ -209,18 +209,33 @@ const AdminDashboard = () => {
       const response = await fetch(`${API_URL}/settings/maintenance`, {
         credentials: 'include'
       })
+      console.log('🔧 fetchMaintenanceNotice - Response status:', response.status)
+      const text = await response.text()
+      console.log('🔧 fetchMaintenanceNotice - Response text:', text.substring(0, 200))
+      
       if (response.ok) {
-        const data = await response.json()
-        console.log('🔧 Fetched maintenance notice:', data.notice)
-        setMaintenanceNotice(data.notice || { 
-          enabled: false, 
-          scheduledDate: '', 
-          scheduledTime: '', 
-          duration: 10,
-          message: ''
-        })
+        try {
+          const data = JSON.parse(text)
+          console.log('🔧 Fetched maintenance notice:', data.notice)
+          setMaintenanceNotice(data.notice || { 
+            enabled: false, 
+            scheduledDate: '', 
+            scheduledTime: '', 
+            duration: 10,
+            message: ''
+          })
+        } catch (parseError) {
+          console.error('Error parsing maintenance notice response:', parseError)
+          setMaintenanceNotice({ 
+            enabled: false, 
+            scheduledDate: '', 
+            scheduledTime: '', 
+            duration: 10,
+            message: ''
+          })
+        }
       } else {
-        console.log('🔧 No maintenance notice in database')
+        console.log('🔧 Maintenance notice fetch failed with status:', response.status)
       }
     } catch (error) {
       console.error('Error fetching maintenance notice:', error)
