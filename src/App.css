@@ -1456,6 +1456,16 @@ img {
 }
 
 /* Week View Styles */
+.week-view-section {
+  margin-top: var(--spacing-2xl);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.week-view-section h3 {
+  margin-bottom: var(--spacing-lg);
+  color: var(--primary-purple);
+}
+
 .week-view {
   padding: var(--spacing-md);
 }

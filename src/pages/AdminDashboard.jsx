@@ -1045,8 +1045,20 @@ const AdminDashboard = () => {
 
   // Calculate time until maintenance
   const getMaintenanceInfo = () => {
-    if (!maintenanceNotice.enabled || !maintenanceNotice.scheduledDate || !maintenanceNotice.scheduledTime) {
-      console.log('🔍 Maintenance notice not enabled or missing date/time')
+    console.log('🔍 Checking maintenance info with state:', JSON.stringify(maintenanceNotice, null, 2))
+    
+    if (!maintenanceNotice.enabled) {
+      console.log('🔍 Maintenance notice not enabled')
+      return null
+    }
+    
+    if (!maintenanceNotice.scheduledDate || !maintenanceNotice.scheduledTime) {
+      console.log('🔍 Maintenance notice enabled but missing date/time:', {
+        hasDate: !!maintenanceNotice.scheduledDate,
+        hasTime: !!maintenanceNotice.scheduledTime,
+        date: maintenanceNotice.scheduledDate,
+        time: maintenanceNotice.scheduledTime
+      })
       return null
     }
     
@@ -1054,8 +1066,8 @@ const AdminDashboard = () => {
     const now = new Date()
     
     console.log('🔍 Maintenance check:', {
-      scheduled: scheduledDateTime,
-      now: now,
+      scheduled: scheduledDateTime.toString(),
+      now: now.toString(),
       enabled: maintenanceNotice.enabled,
       date: maintenanceNotice.scheduledDate,
       time: maintenanceNotice.scheduledTime
@@ -1084,10 +1096,6 @@ const AdminDashboard = () => {
   }
 
   const maintenanceInfo = getMaintenanceInfo()
-
-  // Debug: Log maintenance notice state
-  console.log('🔧 Current maintenance notice state:', maintenanceNotice)
-  console.log('🔧 Maintenance info result:', maintenanceInfo)
 
   return (
     <div className="admin-dashboard">
@@ -1204,6 +1212,18 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+            {/* Week View - Right below financial info */}
+            <div className="week-view-section">
+              <h3>This Week's Schedule</h3>
+              <WeekView 
+                bookings={bookings}
+                onDateClick={(date, sessions) => {
+                  setSelectedDate(date)
+                  setDayViewSessions(sessions)
+                  setShowDayView(true)
+                }}
+              />
+            </div>
 
             <div className="overview-grid">
               <div className="upcoming-sessions-card">
@@ -1231,18 +1251,7 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
-
-              <div className="week-view-card">
-                <h3>This Week's Schedule</h3>
-                <WeekView 
-                  bookings={bookings}
-                  onDateClick={(date, sessions) => {
-                    setSelectedDate(date)
-                    setDayViewSessions(sessions)
-                    setShowDayView(true)
-                  }}
-                />
-              </div>
+            </div>
               
               {/* Day View Modal */}
               {showDayView && (
@@ -1283,7 +1292,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               )}
-            </div>
           </div>
         )}
 

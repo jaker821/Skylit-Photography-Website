@@ -3621,9 +3621,10 @@ async function startServer() {
     app.get('/api/settings/maintenance', requireAdmin, async (req, res) => {
       try {
         const notice = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
-        res.json({ 
-          notice: notice ? JSON.parse(notice.value) : { enabled: false, scheduledDate: '', scheduledTime: '', duration: 10, message: '' }
-        })
+        console.log('🔧 GET /api/settings/maintenance - Database result:', notice)
+        const parsedNotice = notice ? JSON.parse(notice.value) : { enabled: false, scheduledDate: '', scheduledTime: '', duration: 10, message: '' }
+        console.log('🔧 GET /api/settings/maintenance - Parsed notice:', parsedNotice)
+        res.json({ notice: parsedNotice })
       } catch (error) {
         console.error('Get maintenance notice error:', error)
         res.status(500).json({ error: 'Server error' })
@@ -3634,6 +3635,7 @@ async function startServer() {
     app.put('/api/settings/maintenance', requireAdmin, async (req, res) => {
       try {
         const { notice } = req.body
+        console.log('🔧 PUT /api/settings/maintenance - Received notice:', JSON.stringify(notice, null, 2))
         
         if (!notice) {
           return res.status(400).json({ error: 'Notice data is required' })
@@ -3641,23 +3643,30 @@ async function startServer() {
         
         // Check if notice already exists
         const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
+        console.log('🔧 PUT /api/settings/maintenance - Existing notice in DB:', existing)
         
         const noticeValue = JSON.stringify(notice)
         const now = new Date().toISOString()
         
         if (existing) {
+          console.log('🔧 Updating existing maintenance notice')
           const result = await db.run(
             'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
             [noticeValue, now, 'maintenance']
           )
           console.log('Maintenance notice updated:', result)
         } else {
+          console.log('🔧 Creating new maintenance notice')
           const result = await db.run(
             'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
             ['maintenance', noticeValue, now, now]
           )
           console.log('Maintenance notice created:', result)
         }
+        
+        // Fetch and return the saved notice to confirm
+        const savedNotice = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
+        console.log('🔧 PUT /api/settings/maintenance - Saved notice in DB:', savedNotice)
         
         res.json({ success: true })
       } catch (error) {
