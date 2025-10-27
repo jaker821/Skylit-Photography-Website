@@ -1321,20 +1321,161 @@ img {
 }
 
 .settings-section {
-  background: var(--white);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--white), var(--cream-white));
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-md);
+  border: 2px solid var(--accent-gold-light);
+  margin-bottom: var(--spacing-2xl);
 }
 
 .settings-section h3 {
-  font-size: 1.1rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary-purple);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 3px solid var(--accent-gold);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.settings-section > p {
+  color: var(--dark-gray);
+  font-size: 0.95rem;
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+/* Settings Form Styling */
+.settings-form {
+  background: var(--white);
+  border: 2px solid var(--light-gray);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2xl);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.settings-form h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary-purple);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--accent-gold);
+}
+
+.settings-form > p {
+  color: var(--dark-gray);
+  font-size: 0.95rem;
+  margin-bottom: var(--spacing-lg);
+  line-height: 1.6;
+}
+
+.settings-form .form-group {
+  margin-bottom: var(--spacing-xl);
+}
+
+.settings-form .form-group label {
   font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-md);
-  padding-bottom: var(--spacing-sm);
-  border-bottom: 2px solid var(--border-light);
+  color: var(--dark-gray);
+  margin-bottom: var(--spacing-sm);
+  display: block;
+  font-size: 0.95rem;
+}
+
+.settings-form .form-group input[type="text"],
+.settings-form .form-group input[type="date"],
+.settings-form .form-group input[type="time"],
+.settings-form .form-group input[type="number"],
+.settings-form .form-group textarea {
+  width: 100%;
+  padding: var(--spacing-md);
+  border: 2px solid var(--light-gray);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  transition: all var(--transition-normal);
+  background: var(--white);
+}
+
+.settings-form .form-group input:focus,
+.settings-form .form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px rgba(223, 208, 143, 0.1);
+}
+
+.settings-form .form-group input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent-gold);
+}
+
+.settings-form .form-group small {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-xs);
+  font-style: italic;
+}
+
+.settings-form .form-actions {
+  margin-top: var(--spacing-2xl);
+  padding-top: var(--spacing-lg);
+  border-top: 2px solid var(--light-gray);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-form .form-actions button {
+  min-width: 150px;
+}
+
+.settings-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* Settings Tab Specific Styles */
+.settings-tab {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.settings-header {
+  margin-bottom: var(--spacing-2xl);
+  text-align: center;
+}
+
+.settings-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--primary-purple);
+  margin-bottom: var(--spacing-sm);
+}
+
+.settings-header .section-subtitle {
+  color: var(--dark-gray);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .settings-form .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .settings-section,
+  .settings-form {
+    padding: var(--spacing-lg);
+  }
+  
+  .settings-header h2 {
+    font-size: 1.6rem;
+  }
 }
 
 /* Maintenance Notice Banner */

@@ -2037,8 +2037,11 @@ const AdminDashboard = () => {
 
         {/* SETTINGS TAB */}
         {activeTab === 'settings' && (
-          <div className="tab-content">
-            <h2>Settings</h2>
+          <div className="tab-content settings-tab">
+            <div className="settings-header">
+              <h2>⚙️ Settings</h2>
+              <p className="section-subtitle">Manage your application settings and preferences</p>
+            </div>
             
             {/* Storage Usage Section */}
             {storageStats && (

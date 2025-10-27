@@ -3586,25 +3586,34 @@ async function startServer() {
       try {
         const { settings } = req.body
         
+        if (!settings) {
+          return res.status(400).json({ error: 'Settings data is required' })
+        }
+        
         // Check if settings already exist
         const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['wedding'])
         
+        const settingsValue = JSON.stringify(settings)
+        const now = new Date().toISOString()
+        
         if (existing) {
-          await db.run(
+          const result = await db.run(
             'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
-            [JSON.stringify(settings), new Date().toISOString(), 'wedding']
+            [settingsValue, now, 'wedding']
           )
+          console.log('Wedding settings updated:', result)
         } else {
-          await db.run(
+          const result = await db.run(
             'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
-            ['wedding', JSON.stringify(settings), new Date().toISOString(), new Date().toISOString()]
+            ['wedding', settingsValue, now, now]
           )
+          console.log('Wedding settings created:', result)
         }
         
         res.json({ success: true })
       } catch (error) {
         console.error('Update wedding settings error:', error)
-        res.status(500).json({ error: 'Server error' })
+        res.status(500).json({ error: 'Server error', details: error.message })
       }
     })
     
@@ -3626,25 +3635,34 @@ async function startServer() {
       try {
         const { notice } = req.body
         
+        if (!notice) {
+          return res.status(400).json({ error: 'Notice data is required' })
+        }
+        
         // Check if notice already exists
         const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
         
+        const noticeValue = JSON.stringify(notice)
+        const now = new Date().toISOString()
+        
         if (existing) {
-          await db.run(
+          const result = await db.run(
             'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
-            [JSON.stringify(notice), new Date().toISOString(), 'maintenance']
+            [noticeValue, now, 'maintenance']
           )
+          console.log('Maintenance notice updated:', result)
         } else {
-          await db.run(
+          const result = await db.run(
             'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
-            ['maintenance', JSON.stringify(notice), new Date().toISOString(), new Date().toISOString()]
+            ['maintenance', noticeValue, now, now]
           )
+          console.log('Maintenance notice created:', result)
         }
         
         res.json({ success: true })
       } catch (error) {
         console.error('Update maintenance notice error:', error)
-        res.status(500).json({ error: 'Server error' })
+        res.status(500).json({ error: 'Server error', details: error.message })
       }
     })
     
