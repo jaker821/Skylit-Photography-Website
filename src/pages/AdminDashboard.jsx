@@ -1221,10 +1221,23 @@ const AdminDashboard = () => {
             </div>
             
             {Array.isArray(bookings) && bookings.length > 0 ? (
-              <div className="no-data">
-                <p>Showing {bookings.length} session{bookings.length !== 1 ? 's' : ''}</p>
-                <p>SessionManagementTable temporarily disabled for debugging</p>
-              </div>
+              <Suspense fallback={<div className="no-data">Loading sessions...</div>}>
+                <SessionManagementTable
+                  sessions={bookings}
+                  onApprove={(session) => handleConfirmSession(session.id)}
+                  onGenerateShoot={(session) => handleGenerateShoot(session)}
+                  onInvoice={(session) => handleInvoiceSession(session)}
+                  onEdit={(session) => {
+                    setSelectedSession(session)
+                    setShowSessionForm(true)
+                  }}
+                  onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
+                  onSendEmail={(session) => {
+                    setEmailSession(session)
+                    setShowEmailModal(true)
+                  }}
+                />
+              </Suspense>
             ) : (
               <div className="no-data">Loading sessions...</div>
             )}
