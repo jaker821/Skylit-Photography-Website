@@ -62,6 +62,13 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
 
   const handlePrintDocument = (session, type) => {
     try {
+      // Validate session object
+      if (!session || typeof session !== 'object') {
+        console.error('Invalid session object:', session)
+        alert('Invalid session data')
+        return
+      }
+
       // Open new window for printing
       const printWindow = window.open('', '_blank')
       const printContent = generatePrintContent(session, type)
@@ -78,6 +85,11 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
   }
 
   const generatePrintContent = (session, type) => {
+    // Validate inputs
+    if (!session || typeof session !== 'object') {
+      console.error('generatePrintContent called with invalid session:', session)
+      return '<html><body><h1>Error: Invalid session data</h1></body></html>'
+    }
     const statusColors = {
       pending: '#ff9800',
       quoted: '#2196f3',
@@ -93,7 +105,7 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
     const date = session.date ? new Date(session.date).toLocaleDateString() : 'N/A'
     const time = session.time || 'TBD'
     const location = session.location || 'TBD'
-    const quoteAmount = (session.quote_amount !== undefined && session.quote_amount !== null) ? parseFloat(session.quote_amount || 0).toFixed(2) : null
+    const quoteAmount = ('quote_amount' in session && session.quote_amount !== undefined && session.quote_amount !== null) ? parseFloat(session.quote_amount || 0).toFixed(2) : null
     const notes = session.notes || ''
     const status = session.status || 'N/A'
     const statusColor = statusColors[session.status?.toLowerCase() || ''] || '#666'
