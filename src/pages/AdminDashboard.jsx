@@ -1043,14 +1043,24 @@ const AdminDashboard = () => {
   // Calculate time until maintenance
   const getMaintenanceInfo = () => {
     if (!maintenanceNotice.enabled || !maintenanceNotice.scheduledDate || !maintenanceNotice.scheduledTime) {
+      console.log('🔍 Maintenance notice not enabled or missing date/time')
       return null
     }
     
     const scheduledDateTime = new Date(`${maintenanceNotice.scheduledDate}T${maintenanceNotice.scheduledTime}`)
     const now = new Date()
     
+    console.log('🔍 Maintenance check:', {
+      scheduled: scheduledDateTime,
+      now: now,
+      enabled: maintenanceNotice.enabled,
+      date: maintenanceNotice.scheduledDate,
+      time: maintenanceNotice.scheduledTime
+    })
+    
     // Check if maintenance is in the future
     if (scheduledDateTime <= now) {
+      console.log('🔍 Maintenance time has passed')
       return null
     }
     
@@ -1058,13 +1068,20 @@ const AdminDashboard = () => {
     const hours = Math.floor(diff / (1000 * 60 * 60))
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     
-    return {
-      scheduledDateTime,
-      hours: hours,
-      minutes: minutes,
-      duration: maintenanceNotice.duration,
-      message: maintenanceNotice.message
+    console.log('🔍 Maintenance in:', hours, 'hours', minutes, 'minutes')
+    
+    // Show banner if within 24 hours
+    if (hours < 24) {
+      return {
+        scheduledDateTime,
+        hours: hours,
+        minutes: minutes,
+        duration: maintenanceNotice.duration,
+        message: maintenanceNotice.message
+      }
     }
+    
+    return null
   }
 
   const maintenanceInfo = getMaintenanceInfo()
