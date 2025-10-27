@@ -729,6 +729,25 @@ const AdminDashboard = () => {
     }
   }
 
+  // Handle shoot update - refetch shoots and update selected shoot
+  const handleShootUpdate = async () => {
+    try {
+      await fetchShoots()
+      // If a shoot is selected, refetch its data
+      if (selectedShoot) {
+        const response = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
+          credentials: 'include'
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setSelectedShoot(data.shoot)
+        }
+      }
+    } catch (error) {
+      console.error('Error updating shoot:', error)
+    }
+  }
+
   // Create expense
   const handleCreateExpense = async (expenseData) => {
     try {
@@ -1302,7 +1321,14 @@ const AdminDashboard = () => {
                   <div className="no-data">No shoots yet. Create your first shoot!</div>
                 ) : (
                   shoots.map(shoot => (
-                    <div key={shoot.id} className="shoot-card" onClick={() => setSelectedShoot(shoot)}>
+                    <div key={shoot.id} className="shoot-card" onClick={() => {
+                      // Ensure shoot has photos array before selecting
+                      const shootWithPhotos = {
+                        ...shoot,
+                        photos: shoot.photos || []
+                      }
+                      setSelectedShoot(shootWithPhotos)
+                    }}>
                       {shoot.photos && shoot.photos.length > 0 ? (
                         <div className="shoot-thumbnail">
                           <img src={shoot.photos[0].display_url || shoot.photos[0].url} alt={shoot.title} />
@@ -2624,7 +2650,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
     }
   }
   
-  const hasHighResPhotos = shoot.photos.some(p => p.hasHighRes)
+  const hasHighResPhotos = shoot.photos?.some(p => p.hasHighRes) || false
   
   return (
     <div className="shoot-detail">
@@ -2632,7 +2658,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
         <button className="btn btn-secondary" onClick={onBack}>← Back to Shoots</button>
         {!editMode ? (
           <>
-            <h2>{shoot.title}</h2>
+            <h2>{shoot.title || 'Untitled Shoot'}</h2>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
                 className="btn btn-secondary"
@@ -2641,36 +2667,40 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
               >
                 ✏️ Edit Shoot
               </button>
-              <button
-                className="btn btn-secondary"
-                onClick={async () => {
-                  if (confirm(`Hide all ${shoot.photos.length} photos in this shoot from the portfolio?`)) {
-                    for (const photo of shoot.photos) {
-                      if (photo.is_hidden !== 1 && photo.isHidden !== true) {
-                        await onTogglePhotoVisibility(photo.id, false)
+              {shoot.photos && shoot.photos.length > 0 && (
+                <>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={async () => {
+                      if (confirm(`Hide all ${shoot.photos.length} photos in this shoot from the portfolio?`)) {
+                        for (const photo of shoot.photos) {
+                          if (photo.is_hidden !== 1 && photo.isHidden !== true) {
+                            await onTogglePhotoVisibility(photo.id, false)
+                          }
+                        }
                       }
-                    }
-                  }
-                }}
-                title="Hide all photos in this shoot from portfolio"
-              >
-                👁️‍🗨️ Hide All Photos
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={async () => {
-                  if (confirm(`Show all ${shoot.photos.length} photos in this shoot in the portfolio?`)) {
-                    for (const photo of shoot.photos) {
-                      if (photo.is_hidden === 1 || photo.isHidden === true) {
-                        await onTogglePhotoVisibility(photo.id, true)
+                    }}
+                    title="Hide all photos in this shoot from portfolio"
+                  >
+                    👁️‍🗨️ Hide All Photos
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={async () => {
+                      if (confirm(`Show all ${shoot.photos.length} photos in this shoot in the portfolio?`)) {
+                        for (const photo of shoot.photos) {
+                          if (photo.is_hidden === 1 || photo.isHidden === true) {
+                            await onTogglePhotoVisibility(photo.id, true)
+                          }
+                        }
                       }
-                    }
-                  }
-                }}
-                title="Show all photos in this shoot in portfolio"
-              >
-                👁️ Show All Photos
-              </button>
+                    }}
+                    title="Show all photos in this shoot in portfolio"
+                  >
+                    👁️ Show All Photos
+                  </button>
+                </>
+              )}
               <div className="upload-button-wrapper">
                 <input
                   type="file"
@@ -2767,8 +2797,8 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
       
       <div className="shoot-meta">
         <p><strong>Category:</strong> {shoot.category}</p>
-        <p><strong>Date:</strong> {new Date(shoot.date).toLocaleDateString()}</p>
-        <p><strong>Photos:</strong> {shoot.photos.length}</p>
+        <p><strong>Date:</strong> {shoot.date ? new Date(shoot.date).toLocaleDateString() : 'N/A'}</p>
+        <p><strong>Photos:</strong> {shoot.photos?.length || 0}</p>
         {shoot.description && <p><strong>Description:</strong> {shoot.description}</p>}
       </div>
       
@@ -2893,7 +2923,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
       )}
       
       <div className="photos-grid">
-        {shoot.photos.map(photo => {
+        {(shoot.photos || []).map(photo => {
           // Handle both new dual storage format and legacy format
           const photoSrc = photo.displayUrl || photo.url; // New format first, fallback to legacy
           
@@ -2969,7 +2999,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
         })}
       </div>
       
-      {shoot.photos.length === 0 && (
+      {(!shoot.photos || shoot.photos.length === 0) && (
         <div className="no-photos">
           <p>No photos uploaded yet. Click "Upload Photos" to add some!</p>
         </div>
