@@ -3,8 +3,109 @@ import { Link } from 'react-router-dom'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
 import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
 
-// Starfield Animation Component
+// STARFIELD Animation (Original)
 const Starfield = () => {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    let animationFrameId
+    let mouseX = 0
+    let mouseY = 0
+
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+
+    const handleMouseMove = (e) => {
+      if (window.innerWidth >= 768) {
+        mouseX = e.clientX
+        mouseY = e.clientY
+      }
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+
+    const stars = []
+    const isMobile = window.innerWidth < 768
+    const numStars = isMobile ? 25 : 50
+
+    for (let i = 0; i < numStars; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 2 + 1,
+        speed: Math.random() * 0.5 + 0.2,
+        opacity: Math.random() * 0.5 + 0.3,
+        glow: Math.random() > 0.7
+      })
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      stars.forEach((star) => {
+        star.y += star.speed
+        if (star.y > canvas.height) {
+          star.y = 0
+          star.x = Math.random() * canvas.width
+        }
+
+        const dx = star.x - mouseX
+        const dy = star.y - mouseY
+        const distance = Math.sqrt(dx * dx + dy * dy)
+        
+        if (distance < 200) {
+          const force = (200 - distance) / 200
+          star.x -= (dx / distance) * force * 2
+          star.y -= (dy / distance) * force * 2
+        }
+
+        if (star.glow) {
+          const gradient = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.radius * 3)
+          gradient.addColorStop(0, `rgba(212, 175, 55, ${star.opacity})`)
+          gradient.addColorStop(0.5, `rgba(212, 175, 55, ${star.opacity * 0.5})`)
+          gradient.addColorStop(1, 'rgba(212, 175, 55, 0)')
+          
+          ctx.beginPath()
+          ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2)
+          ctx.fillStyle = gradient
+          ctx.fill()
+        }
+
+        ctx.beginPath()
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(212, 175, 55, ${star.opacity})`
+        ctx.fill()
+      })
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    animate()
+
+    return () => {
+      cancelAnimationFrame(animationFrameId)
+      window.removeEventListener('resize', resizeCanvas)
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}
+    />
+  )
+}
+
+// FLOATING PARTICLES Animation
+const FloatingParticles = () => {
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -24,7 +125,7 @@ const Starfield = () => {
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
 
-    // Track mouse position - only on desktop for better mobile performance
+    // Track mouse position
     const handleMouseMove = (e) => {
       if (window.innerWidth >= 768) {
         mouseX = e.clientX
@@ -33,19 +134,20 @@ const Starfield = () => {
     }
     window.addEventListener('mousemove', handleMouseMove)
 
-    // Create stars - fewer on mobile for better performance
-    const stars = []
+    // Create particles - fewer on mobile for better performance
+    const particles = []
     const isMobile = window.innerWidth < 768
-    const numStars = isMobile ? 25 : 50
+    const numParticles = isMobile ? 20 : 40
 
-    for (let i = 0; i < numStars; i++) {
-      stars.push({
+    for (let i = 0; i < numParticles; i++) {
+      particles.push({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        radius: Math.random() * 2 + 1,
-        speed: Math.random() * 0.5 + 0.2,
-        opacity: Math.random() * 0.5 + 0.3,
-        glow: Math.random() > 0.7
+        size: Math.random() * 3 + 1,
+        speedX: (Math.random() - 0.5) * 0.5,
+        speedY: (Math.random() - 0.5) * 0.5,
+        opacity: Math.random() * 0.4 + 0.1,
+        pulse: Math.random() * Math.PI * 2
       })
     }
 
@@ -53,59 +155,51 @@ const Starfield = () => {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      stars.forEach((star, index) => {
-        // Move stars slowly
-        star.y += star.speed
+      particles.forEach((particle) => {
+        // Update position
+        particle.x += particle.speedX
+        particle.y += particle.speedY
+        
+        // Pulse animation
+        particle.pulse += 0.02
+        const pulseSize = Math.sin(particle.pulse) * 0.3 + 0.7
 
-        // Reset star when it goes off screen
-        if (star.y > canvas.height) {
-          star.y = 0
-          star.x = Math.random() * canvas.width
-        }
+        // Wrap around edges
+        if (particle.x < 0) particle.x = canvas.width
+        if (particle.x > canvas.width) particle.x = 0
+        if (particle.y < 0) particle.y = canvas.height
+        if (particle.y > canvas.height) particle.y = 0
 
         // Interact with mouse
-        const dx = star.x - mouseX
-        const dy = star.y - mouseY
+        const dx = particle.x - mouseX
+        const dy = particle.y - mouseY
         const distance = Math.sqrt(dx * dx + dy * dy)
         
-        // Pull stars slightly towards mouse when close
-        if (distance < 200) {
-          const force = (200 - distance) / 200
-          star.x -= (dx / distance) * force * 2
-          star.y -= (dy / distance) * force * 2
+        if (distance < 150 && window.innerWidth >= 768) {
+          const force = (150 - distance) / 150
+          particle.x += (dx / distance) * force * 1.5
+          particle.y += (dy / distance) * force * 1.5
         }
 
-        // Draw star with glow
+        // Draw particle with glow
         const gradient = ctx.createRadialGradient(
-          star.x, star.y, 0,
-          star.x, star.y, star.radius * 3
+          particle.x, particle.y, 0,
+          particle.x, particle.y, particle.size * 4
         )
+        gradient.addColorStop(0, `rgba(212, 175, 55, ${particle.opacity * pulseSize})`)
+        gradient.addColorStop(0.5, `rgba(212, 175, 55, ${particle.opacity * 0.5 * pulseSize})`)
+        gradient.addColorStop(1, 'rgba(212, 175, 55, 0)')
         
-        if (star.glow) {
-          gradient.addColorStop(0, `rgba(212, 175, 55, ${star.opacity})`)
-          gradient.addColorStop(0.5, `rgba(212, 175, 55, ${star.opacity * 0.5})`)
-          gradient.addColorStop(1, 'rgba(212, 175, 55, 0)')
-          
-          ctx.beginPath()
-          ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2)
-          ctx.fillStyle = gradient
-          ctx.fill()
-        }
-
-        // Draw main star
         ctx.beginPath()
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(212, 175, 55, ${star.opacity})`
+        ctx.arc(particle.x, particle.y, particle.size * pulseSize * 4, 0, Math.PI * 2)
+        ctx.fillStyle = gradient
         ctx.fill()
-        
-        // Add sparkle effect
-        if (star.glow && Math.random() > 0.98) {
-          ctx.shadowBlur = 10
-          ctx.shadowColor = 'rgba(212, 175, 55, 1)'
-          setTimeout(() => {
-            ctx.shadowBlur = 0
-          }, 100)
-        }
+
+        // Draw main particle
+        ctx.beginPath()
+        ctx.arc(particle.x, particle.y, particle.size * pulseSize, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(212, 175, 55, ${particle.opacity * pulseSize})`
+        ctx.fill()
       })
 
       animationFrameId = requestAnimationFrame(animate)
@@ -138,6 +232,7 @@ const Starfield = () => {
 
 const Home = () => {
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
+  const [animationType, setAnimationType] = useState('particles') // 'stars', 'particles', 'waves', 'shimmer'
 
   useEffect(() => {
     // Animate elements on scroll
@@ -174,11 +269,26 @@ const Home = () => {
     return () => window.removeEventListener('featuredPhotoUpdated', handleFeaturedUpdate)
   }, [])
 
+  const renderAnimation = () => {
+    switch(animationType) {
+      case 'stars':
+        return <Starfield />
+      case 'particles':
+        return <FloatingParticles />
+      case 'waves':
+        return <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1, background: 'radial-gradient(circle at 20% 50%, rgba(212, 175, 55, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 50%)'}}></div>
+      case 'shimmer':
+        return <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1, background: 'linear-gradient(45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%), linear-gradient(-45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%)', animation: 'shimmer 3s ease-in-out infinite'}}></div>
+      default:
+        return <FloatingParticles />
+    }
+  }
+
   return (
     <div className="home-page">
       {/* Hero Section */}
       <section className="hero">
-        <Starfield />
+        {renderAnimation()}
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title animate-fade-in">
@@ -194,6 +304,85 @@ const Home = () => {
         </div>
         <div className="hero-scroll-indicator">
           <div className="scroll-arrow"></div>
+        </div>
+        
+        {/* Animation Toggle Buttons (Temporary) */}
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+          display: 'flex',
+          gap: '8px',
+          zIndex: 10,
+          backgroundColor: 'rgba(78, 46, 58, 0.9)',
+          padding: '8px',
+          borderRadius: '8px',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <button 
+            onClick={() => setAnimationType('stars')}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: animationType === 'stars' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.5)',
+              borderRadius: '4px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+            title="Stars (Original)"
+          >
+            ⭐
+          </button>
+          <button 
+            onClick={() => setAnimationType('particles')}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: animationType === 'particles' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.5)',
+              borderRadius: '4px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+            title="Floating Particles"
+          >
+            ✨
+          </button>
+          <button 
+            onClick={() => setAnimationType('waves')}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: animationType === 'waves' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.5)',
+              borderRadius: '4px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+            title="Gradient Waves"
+          >
+            🌊
+          </button>
+          <button 
+            onClick={() => setAnimationType('shimmer')}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: animationType === 'shimmer' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.5)',
+              borderRadius: '4px',
+              color: '#fff',
+              cursor: 'pointer',
+              fontSize: '12px',
+              transition: 'all 0.2s'
+            }}
+            title="Shimmer Effect"
+          >
+            💫
+          </button>
         </div>
       </section>
 
