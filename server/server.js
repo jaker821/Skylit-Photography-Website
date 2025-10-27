@@ -3564,6 +3564,90 @@ async function startServer() {
       }
     });
     
+    // ===================================
+    // Settings Endpoints
+    // ===================================
+    
+    // Get wedding settings (admin only)
+    app.get('/api/settings/wedding', requireAdmin, async (req, res) => {
+      try {
+        const settings = await db.get('SELECT * FROM settings WHERE key = ?', ['wedding'])
+        res.json({ 
+          settings: settings ? JSON.parse(settings.value) : { enabled: false, message: '', startingPrice: '' }
+        })
+      } catch (error) {
+        console.error('Get wedding settings error:', error)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+    
+    // Update wedding settings (admin only)
+    app.put('/api/settings/wedding', requireAdmin, async (req, res) => {
+      try {
+        const { settings } = req.body
+        
+        // Check if settings already exist
+        const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['wedding'])
+        
+        if (existing) {
+          await db.run(
+            'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
+            [JSON.stringify(settings), new Date().toISOString(), 'wedding']
+          )
+        } else {
+          await db.run(
+            'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
+            ['wedding', JSON.stringify(settings), new Date().toISOString(), new Date().toISOString()]
+          )
+        }
+        
+        res.json({ success: true })
+      } catch (error) {
+        console.error('Update wedding settings error:', error)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+    
+    // Get maintenance notice (admin only)
+    app.get('/api/settings/maintenance', requireAdmin, async (req, res) => {
+      try {
+        const notice = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
+        res.json({ 
+          notice: notice ? JSON.parse(notice.value) : { enabled: false, scheduledDate: '', scheduledTime: '', duration: 10, message: '' }
+        })
+      } catch (error) {
+        console.error('Get maintenance notice error:', error)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+    
+    // Update maintenance notice (admin only)
+    app.put('/api/settings/maintenance', requireAdmin, async (req, res) => {
+      try {
+        const { notice } = req.body
+        
+        // Check if notice already exists
+        const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['maintenance'])
+        
+        if (existing) {
+          await db.run(
+            'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
+            [JSON.stringify(notice), new Date().toISOString(), 'maintenance']
+          )
+        } else {
+          await db.run(
+            'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
+            ['maintenance', JSON.stringify(notice), new Date().toISOString(), new Date().toISOString()]
+          )
+        }
+        
+        res.json({ success: true })
+      } catch (error) {
+        console.error('Update maintenance notice error:', error)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+    
     // Start the server
     app.listen(PORT, () => {
       console.log(`✅ Server running on http://localhost:${PORT}`);

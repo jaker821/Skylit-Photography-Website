@@ -24,6 +24,13 @@ const AdminDashboard = () => {
   const [pendingUsers, setPendingUsers] = useState([])
   const [storageStats, setStorageStats] = useState(null)
   const [weddingSettings, setWeddingSettings] = useState({ enabled: false, message: '', startingPrice: '' })
+  const [maintenanceNotice, setMaintenanceNotice] = useState({ 
+    enabled: false, 
+    scheduledDate: '', 
+    scheduledTime: '', 
+    duration: 10,
+    message: ''
+  })
   
   // Filter states
   const [sessionFilter, setSessionFilter] = useState('pending')
@@ -54,6 +61,11 @@ const AdminDashboard = () => {
   // Email template modal state
   const [showEmailModal, setShowEmailModal] = useState(false)
   const [emailSession, setEmailSession] = useState(null)
+  
+  // Calendar event states
+  const [calendarEvents, setCalendarEvents] = useState([])
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState(null)
 
   useEffect(() => {
     fetchAllData()
@@ -69,9 +81,10 @@ const AdminDashboard = () => {
         fetchShoots(),
         fetchPricing(),
         fetchCategories(),
-        fetchUsers(),
-        fetchStorageStats(),
-        fetchWeddingSettings()
+      fetchUsers(),
+      fetchStorageStats(),
+      fetchWeddingSettings(),
+      fetchMaintenanceNotice()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -188,6 +201,54 @@ const AdminDashboard = () => {
       console.error('Error fetching wedding settings:', error)
       // Default settings if not configured
       setWeddingSettings({ enabled: false, message: '', startingPrice: '' })
+    }
+  }
+
+  const fetchMaintenanceNotice = async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings/maintenance`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setMaintenanceNotice(data.notice || { 
+          enabled: false, 
+          scheduledDate: '', 
+          scheduledTime: '', 
+          duration: 10,
+          message: ''
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching maintenance notice:', error)
+      setMaintenanceNotice({ 
+        enabled: false, 
+        scheduledDate: '', 
+        scheduledTime: '', 
+        duration: 10,
+        message: ''
+      })
+    }
+  }
+
+  const handleSaveMaintenanceNotice = async (notice) => {
+    try {
+      const response = await fetch(`${API_URL}/settings/maintenance`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notice })
+      })
+      
+      if (response.ok) {
+        await fetchMaintenanceNotice()
+        alert('Maintenance notice saved successfully!')
+      } else {
+        alert('Failed to save maintenance notice')
+      }
+    } catch (error) {
+      console.error('Error saving maintenance notice:', error)
+      alert('Failed to save maintenance notice')
     }
   }
 
@@ -979,12 +1040,58 @@ const AdminDashboard = () => {
   const financials = calculateFinancials()
   const upcomingSessions = getUpcomingSessions()
 
+  // Calculate time until maintenance
+  const getMaintenanceInfo = () => {
+    if (!maintenanceNotice.enabled || !maintenanceNotice.scheduledDate || !maintenanceNotice.scheduledTime) {
+      return null
+    }
+    
+    const scheduledDateTime = new Date(`${maintenanceNotice.scheduledDate}T${maintenanceNotice.scheduledTime}`)
+    const now = new Date()
+    
+    // Check if maintenance is in the future
+    if (scheduledDateTime <= now) {
+      return null
+    }
+    
+    const diff = scheduledDateTime - now
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    
+    return {
+      scheduledDateTime,
+      hours: hours,
+      minutes: minutes,
+      duration: maintenanceNotice.duration,
+      message: maintenanceNotice.message
+    }
+  }
+
+  const maintenanceInfo = getMaintenanceInfo()
+
   return (
     <div className="admin-dashboard">
       <div className="dashboard-header">
         <h1>Admin Dashboard</h1>
         <p>Welcome back, {user?.name}</p>
       </div>
+
+      {/* Maintenance Notice Banner */}
+      {maintenanceInfo && maintenanceInfo.hours < 24 && (
+        <div className="maintenance-notice-banner">
+          <div className="maintenance-notice-content">
+            <span className="maintenance-icon">⚠️</span>
+            <div className="maintenance-text">
+              <strong>Scheduled Maintenance:</strong> 
+              The site will be down for {maintenanceInfo.duration} minutes starting at {new Date(maintenanceInfo.scheduledDateTime).toLocaleString()}
+              {maintenanceInfo.message && ` - ${maintenanceInfo.message}`}
+              <span className="maintenance-countdown">
+                {' '}(Starting in {maintenanceInfo.hours}h {maintenanceInfo.minutes}m)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="admin-container">
         {/* Navigation Tabs */}
@@ -1006,6 +1113,12 @@ const AdminDashboard = () => {
             onClick={() => setActiveTab('portfolio')}
           >
             Portfolio
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'calendar' ? 'active' : ''}`}
+            onClick={() => setActiveTab('calendar')}
+          >
+            Calendar
           </button>
           <button 
             className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`}
@@ -1066,63 +1179,6 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Storage Usage Card */}
-            {storageStats && (
-              <div className="storage-stats-card">
-                <h2>Storage Usage</h2>
-                <div className="storage-visual">
-                  <div className="storage-circle-container">
-                    <svg className="storage-circle" viewBox="0 0 160 160">
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="70"
-                        fill="none"
-                        stroke="rgba(255, 255, 255, 0.1)"
-                        strokeWidth="20"
-                      />
-                      <circle
-                        cx="80"
-                        cy="80"
-                        r="70"
-                        fill="none"
-                        stroke={parseFloat(storageStats.storageUsedPercent) > 80 ? '#f44336' : parseFloat(storageStats.storageUsedPercent) > 60 ? '#ff9800' : '#4caf50'}
-                        strokeWidth="20"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 70}`}
-                        strokeDashoffset={`${2 * Math.PI * 70 * (1 - parseFloat(storageStats.storageUsedPercent) / 100)}`}
-                        transform="rotate(-90 80 80)"
-                      />
-                      <text x="80" y="70" textAnchor="middle" className="storage-percent">
-                        {storageStats.storageUsedPercent}%
-                      </text>
-                      <text x="80" y="90" textAnchor="middle" className="storage-label">
-                        Used
-                      </text>
-                    </svg>
-                  </div>
-                  <div className="storage-info">
-                    <div className="storage-detail">
-                      <span className="storage-label-detail">Used:</span>
-                      <span className="storage-value">{storageStats.totalStorageGB} GB</span>
-                    </div>
-                    <div className="storage-detail">
-                      <span className="storage-label-detail">Available:</span>
-                      <span className="storage-value">{storageStats.storageRemainingGB} GB</span>
-                    </div>
-                    <div className="storage-detail">
-                      <span className="storage-label-detail">Total Quota:</span>
-                      <span className="storage-value">{storageStats.storageQuotaGB} GB</span>
-                    </div>
-                    {parseFloat(storageStats.storageUsedPercent) > 80 && (
-                      <div className="storage-warning">
-                        ⚠️ Storage is getting full! Consider deleting high-resolution photos.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="overview-grid">
               <div className="upcoming-sessions-card">
@@ -1367,6 +1423,83 @@ const AdminDashboard = () => {
                     </div>
                   ))
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CALENDAR TAB */}
+        {activeTab === 'calendar' && (
+          <div className="tab-content">
+            <div className="section-header">
+              <div>
+                <h2>📅 Full Calendar</h2>
+                <p className="section-subtitle">Schedule events, sessions, and reminders</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => {
+                setSelectedEvent(null)
+                setShowEventForm(true)
+              }}>
+                + Add Event
+              </button>
+            </div>
+
+            <FullCalendarView 
+              bookings={bookings}
+              calendarEvents={calendarEvents}
+              onDateClick={(date, events, sessions) => {
+                setSelectedDate(date)
+                setDayViewSessions([...sessions, ...events])
+                setShowDayView(true)
+              }}
+            />
+
+            {showDayView && (
+              <div className="modal-overlay" onClick={() => setShowDayView(false)}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>Sessions & Events for {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : ''}</h2>
+                    <button className="modal-close" onClick={() => setShowDayView(false)}>×</button>
+                  </div>
+                  <div className="modal-body">
+                    {dayViewSessions.length === 0 ? (
+                      <p>No events scheduled for this date.</p>
+                    ) : (
+                      <div className="day-sessions-list">
+                        {dayViewSessions.map(item => (
+                          <div 
+                            key={item.id} 
+                            className="session-card-small"
+                            onClick={() => {
+                              if (item.type === 'session') {
+                                setShowDayView(false)
+                                navigate(`/admin/session/${item.id}`)
+                              } else if (item.type === 'event') {
+                                setShowDayView(false)
+                                setSelectedEvent(item)
+                                setShowEventForm(true)
+                              }
+                            }}
+                          >
+                            <div className="session-info">
+                              <h4>{item.title || item.client_name || item.clientName || item.name}</h4>
+                              {item.description && <p><strong>Description:</strong> {item.description}</p>}
+                              {(item.session_type || item.type) && <p><strong>Type:</strong> {item.session_type || item.type}</p>}
+                              {item.time && <p><strong>Time:</strong> {item.time}</p>}
+                              {item.location && <p><strong>Location:</strong> {item.location}</p>}
+                              {item.reminder_enabled && (
+                                <p className="reminder-badge">🔔 Reminder enabled</p>
+                              )}
+                            </div>
+                            <span className={`status-badge status-${(item.status || '').toLowerCase()}`}>
+                              {item.status || 'Event'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -1906,9 +2039,55 @@ const AdminDashboard = () => {
         {activeTab === 'settings' && (
           <div className="tab-content">
             <h2>Settings</h2>
+            
+            {/* Storage Usage Section */}
+            {storageStats && (
+              <div className="settings-section">
+                <h3>Storage Usage</h3>
+                <div className="storage-compact">
+                  <div className="storage-bar-container">
+                    <div className="storage-bar">
+                      <div 
+                        className="storage-bar-fill"
+                        style={{ 
+                          width: `${storageStats.storageUsedPercent}%`,
+                          backgroundColor: parseFloat(storageStats.storageUsedPercent) > 80 ? '#f44336' : parseFloat(storageStats.storageUsedPercent) > 60 ? '#ff9800' : '#4caf50'
+                        }}
+                      ></div>
+                    </div>
+                    <span className="storage-percent-compact">{storageStats.storageUsedPercent}%</span>
+                  </div>
+                  <div className="storage-details-compact">
+                    <div className="storage-stat-compact">
+                      <span className="label">Used:</span>
+                      <span className="value">{storageStats.totalStorageGB} GB</span>
+                    </div>
+                    <div className="storage-stat-compact">
+                      <span className="label">Available:</span>
+                      <span className="value">{storageStats.storageRemainingGB} GB</span>
+                    </div>
+                    <div className="storage-stat-compact">
+                      <span className="label">Total:</span>
+                      <span className="value">{storageStats.storageQuotaGB} GB</span>
+                    </div>
+                  </div>
+                  {parseFloat(storageStats.storageUsedPercent) > 80 && (
+                    <div className="storage-warning-compact">
+                      ⚠️ Storage is getting full! Consider deleting high-resolution photos.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <WeddingSettingsForm 
               settings={weddingSettings}
               onSave={handleSaveWeddingSettings}
+            />
+
+            <MaintenanceNoticeForm 
+              notice={maintenanceNotice}
+              onSave={handleSaveMaintenanceNotice}
             />
           </div>
         )}
@@ -2000,6 +2179,117 @@ const WeddingSettingsForm = ({ settings, onSave }) => {
   )
 }
 
+// Maintenance Notice Form Component
+const MaintenanceNoticeForm = ({ notice, onSave }) => {
+  const [formData, setFormData] = useState({
+    enabled: notice.enabled,
+    scheduledDate: notice.scheduledDate,
+    scheduledTime: notice.scheduledTime,
+    duration: notice.duration,
+    message: notice.message
+  })
+
+  useEffect(() => {
+    setFormData({
+      enabled: notice.enabled,
+      scheduledDate: notice.scheduledDate,
+      scheduledTime: notice.scheduledTime,
+      duration: notice.duration,
+      message: notice.message
+    })
+  }, [notice])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
+
+  return (
+    <div className="settings-form" style={{ marginTop: '2rem' }}>
+      <h3>Scheduled Maintenance Notice</h3>
+      <p>Display a maintenance notice banner to alert about upcoming maintenance windows.</p>
+      
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+            <input
+              type="checkbox"
+              name="enabled"
+              checked={formData.enabled}
+              onChange={handleChange}
+            />
+            <span style={{ fontWeight: 500 }}>Enable maintenance notice</span>
+          </label>
+        </div>
+
+        {formData.enabled && (
+          <>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Scheduled Date *</label>
+                <input
+                  type="date"
+                  name="scheduledDate"
+                  value={formData.scheduledDate}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Scheduled Time *</label>
+                <input
+                  type="time"
+                  name="scheduledTime"
+                  value={formData.scheduledTime}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Duration (minutes) *</label>
+              <input
+                type="number"
+                name="duration"
+                value={formData.duration}
+                onChange={handleChange}
+                min="1"
+                required
+              />
+              <small>How long will the maintenance last?</small>
+            </div>
+
+            <div className="form-group">
+              <label>Message</label>
+              <textarea
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
+                rows="2"
+                placeholder="Optional custom message (e.g., 'Server updates', 'Database maintenance')"
+              />
+              <small>Additional details about the maintenance</small>
+            </div>
+          </>
+        )}
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 // Session Calendar Component
 const SessionCalendar = ({ bookings, onDateClick }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -2074,6 +2364,121 @@ const SessionCalendar = ({ bookings, onDateClick }) => {
           ›
         </button>
       </div>
+      <div className="calendar-weekdays">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+      </div>
+      <div className="calendar-grid">
+        {days}
+      </div>
+    </div>
+  )
+}
+
+// Full Calendar View Component (for Calendar tab)
+const FullCalendarView = ({ bookings, calendarEvents, onDateClick }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date())
+  
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+    const startingDayOfWeek = firstDay.getDay()
+    
+    return { daysInMonth, startingDayOfWeek, year, month }
+  }
+  
+  const getItemsForDate = (date) => {
+    const dateStr = date.toISOString().split('T')[0]
+    const sessions = bookings.filter(booking => booking.date === dateStr)
+    const events = (calendarEvents || []).filter(event => event.date === dateStr)
+    
+    // Mark items with their type
+    const sessionsWithType = sessions.map(s => ({ ...s, type: 'session' }))
+    const eventsWithType = events.map(e => ({ ...e, type: 'event' }))
+    
+    return { sessions: sessionsWithType, events: eventsWithType }
+  }
+  
+  const handleDayClick = (date, items) => {
+    if (onDateClick) {
+      onDateClick(date, items.events, items.sessions)
+    }
+  }
+  
+  const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth)
+  const days = []
+  
+  // Empty cells for days before month starts
+  for (let i = 0; i < startingDayOfWeek; i++) {
+    days.push(<div key={`empty-${i}`} className="calendar-day empty"></div>)
+  }
+  
+  // Days of the month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month, day)
+    const itemsOnDay = getItemsForDate(date)
+    
+    days.push(
+      <div 
+        key={day} 
+        className="calendar-day"
+        onClick={() => handleDayClick(date, itemsOnDay)}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="day-number">{day}</div>
+        {(itemsOnDay.sessions.length > 0 || itemsOnDay.events.length > 0) && (
+          <div className="day-sessions">
+            {itemsOnDay.sessions.map(session => (
+              <div key={`session-${session.id}`} className="session-dot session-session" title={`Session: ${session.client_name || session.clientName} - ${session.session_type || session.sessionType}`}>
+                ●
+              </div>
+            ))}
+            {itemsOnDay.events.map(event => (
+              <div key={`event-${event.id}`} className="session-dot session-event" title={`Event: ${event.name || event.title}`}>
+                ★
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+  
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"]
+  
+  return (
+    <div className="calendar-view">
+      <div className="calendar-header">
+        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}>
+          ‹
+        </button>
+        <h4>{monthNames[month]} {year}</h4>
+        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}>
+          ›
+        </button>
+      </div>
+      
+      {/* Legend */}
+      <div className="calendar-legend">
+        <div className="legend-item">
+          <span className="session-dot session-session">●</span>
+          <span>Sessions</span>
+        </div>
+        <div className="legend-item">
+          <span className="session-dot session-event">★</span>
+          <span>Events</span>
+        </div>
+      </div>
+      
       <div className="calendar-weekdays">
         <div>Sun</div>
         <div>Mon</div>

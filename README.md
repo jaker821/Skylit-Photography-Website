@@ -1,4 +1,4 @@
-# Skylit Photography Portfolio Website v2.0.2
+# Skylit Photography Portfolio Website v2.0.3
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
@@ -26,10 +26,13 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - Create photo shoots with categories
 - Manage user permissions for photo downloads
 - User approval system
-- Session management
-- Financial tracking and invoicing
+- **Enhanced session management** - Filterable and sortable session table with package/addon tracking
+- **Email template system** - Pre-filled client communication templates for bookings
+- **Interactive calendar** - Clickable calendar with day view showing session details
+- Financial tracking and invoicing with accurate revenue calculations
 - Expense tracking
 - **Inline photo editing** - click photos to update directly on pages
+- **PDF export** - Print session details with line items and customer information
 
 ## Tech Stack
 
@@ -41,6 +44,24 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **File Uploads:** Multer + Sharp (image compression)
 - **Image Processing:** react-image-crop for client-side cropping
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.0.3
+
+### 🎨 **New Features:**
+- **📋 Enhanced Session Management** - Advanced filterable and sortable table with package/addon tracking
+- **📧 Email Template System** - Pre-filled templates for client communication (booking confirmations, session reminders)
+- **📅 Interactive Calendar** - Clickable calendar with day view showing detailed session information
+- **💼 Package & Addon Integration** - Track packages and addons in booking forms and session details
+- **📄 PDF Export Functionality** - Print session details with line items, totals, and customer information
+- **🎨 Hero Animations** - New floating particles and aurora effects for stunning visual appeal
+- **💰 Accurate Revenue Tracking** - Only invoiced sessions count toward revenue calculations
+
+### 🔧 **Improvements:**
+- **🔄 Session Detail Modals** - Clickable sessions open detailed modals for easy viewing and editing
+- **📊 Improved Table Columns** - Better organization with package, price, and total columns
+- **🎨 UI Enhancements** - Gold headers, improved color scheme, and better readability
+- **🛡️ Photo Protection** - Enhanced security for portfolio photos
+- **📱 Mobile Responsive** - All new features work perfectly on mobile devices
 
 ## What's New in v2.0.2
 
@@ -203,7 +224,22 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.0.2 (Current) - Enhanced User Experience
+### v2.0.3 (Current) - Session Management & Business Tools
+- **📋 NEW:** Enhanced session management table with filtering, sorting, and search
+- **📧 NEW:** Email template system with pre-filled client communication templates
+- **📅 NEW:** Interactive calendar with clickable days showing session details
+- **💼 NEW:** Package and addon selection in booking forms and session tracking
+- **📄 NEW:** PDF export functionality for session details
+- **🎨 NEW:** Floating particles and aurora hero animations
+- **💰 IMPROVED:** Accurate revenue calculations (only invoiced sessions count)
+- **🔄 IMPROVED:** Session detail modals for easy viewing and editing
+- **🎨 IMPROVED:** Enhanced table design with gold headers and better readability
+- **🛡️ IMPROVED:** Photo protection and security enhancements
+- **🐛 FIXED:** Black screen issue when clicking shoots in admin dashboard
+- **🐛 FIXED:** Storage stats endpoint error handling
+- **🐛 FIXED:** Session authentication improvements
+
+### v2.0.2 - Enhanced User Experience
 - **✨ NEW:** Auto-scrolling featured work gallery on home page
 - **📸 NEW:** Profile picture upload system with cropping and DigitalOcean Spaces storage
 - **👤 NEW:** Tabbed profile management interface for better organization
