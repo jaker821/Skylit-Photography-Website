@@ -61,15 +61,20 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
   }
 
   const handlePrintDocument = (session, type) => {
-    // Open new window for printing
-    const printWindow = window.open('', '_blank')
-    const printContent = generatePrintContent(session, type)
-    printWindow.document.write(printContent)
-    printWindow.document.close()
-    printWindow.focus()
-    setTimeout(() => {
-      printWindow.print()
-    }, 250)
+    try {
+      // Open new window for printing
+      const printWindow = window.open('', '_blank')
+      const printContent = generatePrintContent(session, type)
+      printWindow.document.write(printContent)
+      printWindow.document.close()
+      printWindow.focus()
+      setTimeout(() => {
+        printWindow.print()
+      }, 250)
+    } catch (error) {
+      console.error('Error generating print document:', error)
+      alert('Error generating print document. Please try again.')
+    }
   }
 
   const generatePrintContent = (session, type) => {
@@ -80,11 +85,26 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
       invoiced: '#9c27b0'
     }
 
+    // Safely extract values with defaults
+    const clientName = session.client_name || 'Client Name'
+    const clientEmail = session.client_email || 'N/A'
+    const phone = session.phone || 'N/A'
+    const sessionType = session.session_type || 'N/A'
+    const date = session.date ? new Date(session.date).toLocaleDateString() : 'N/A'
+    const time = session.time || 'TBD'
+    const location = session.location || 'TBD'
+    const quoteAmount = (session.quote_amount !== undefined && session.quote_amount !== null) ? parseFloat(session.quote_amount || 0).toFixed(2) : null
+    const notes = session.notes || ''
+    const status = session.status || 'N/A'
+    const statusColor = statusColors[session.status?.toLowerCase() || ''] || '#666'
+    const title = type === 'quote' ? 'QUOTE' : type === 'order' ? 'ORDER DETAILS' : 'INVOICE'
+    const documentType = type.charAt(0).toUpperCase() + type.slice(1)
+
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${type.charAt(0).toUpperCase() + type.slice(1)} - ${session.client_name}</title>
+          <title>${documentType} - ${clientName}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 40px; }
             .header { text-align: center; margin-bottom: 30px; }
@@ -97,20 +117,20 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
         </head>
         <body>
           <div class="header">
-            <h1>${type === 'quote' ? 'QUOTE' : type === 'order' ? 'ORDER DETAILS' : 'INVOICE'}</h1>
+            <h1>${title}</h1>
             <p>Skylit Photography</p>
           </div>
           <div class="details">
-            <h2>${session.client_name || 'Client Name'}</h2>
-            <div class="detail-row"><div class="detail-label">Email:</div><div>${session.client_email || 'N/A'}</div></div>
-            <div class="detail-row"><div class="detail-label">Phone:</div><div>${session.phone || 'N/A'}</div></div>
-            <div class="detail-row"><div class="detail-label">Session Type:</div><div>${session.session_type || 'N/A'}</div></div>
-            <div class="detail-row"><div class="detail-label">Date:</div><div>${session.date ? new Date(session.date).toLocaleDateString() : 'N/A'}</div></div>
-            <div class="detail-row"><div class="detail-label">Time:</div><div>${session.time || 'TBD'}</div></div>
-            <div class="detail-row"><div class="detail-label">Location:</div><div>${session.location || 'TBD'}</div></div>
-            ${(session.quote_amount !== undefined && session.quote_amount !== null) ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${parseFloat(session.quote_amount || 0).toFixed(2)}</div></div>` : ''}
-            ${session.notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${session.notes}</div></div>` : ''}
-            <div class="detail-row"><div class="detail-label">Status:</div><div><span class="status-badge" style="background: ${statusColors[session.status?.toLowerCase()] || '#666'}">${session.status}</span></div></div>
+            <h2>${clientName}</h2>
+            <div class="detail-row"><div class="detail-label">Email:</div><div>${clientEmail}</div></div>
+            <div class="detail-row"><div class="detail-label">Phone:</div><div>${phone}</div></div>
+            <div class="detail-row"><div class="detail-label">Session Type:</div><div>${sessionType}</div></div>
+            <div class="detail-row"><div class="detail-label">Date:</div><div>${date}</div></div>
+            <div class="detail-row"><div class="detail-label">Time:</div><div>${time}</div></div>
+            <div class="detail-row"><div class="detail-label">Location:</div><div>${location}</div></div>
+            ${quoteAmount ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${quoteAmount}</div></div>` : ''}
+            ${notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${notes}</div></div>` : ''}
+            <div class="detail-row"><div class="detail-label">Status:</div><div><span class="status-badge" style="background: ${statusColor}">${status}</span></div></div>
           </div>
           <div class="footer">
             <p>Generated on ${new Date().toLocaleString()}</p>
@@ -279,7 +299,11 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
                       <div className="print-buttons">
                         <button
                           className="btn-action btn-print"
-                          onClick={() => handlePrintDocument(session, 'quote')}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handlePrintDocument(session, 'quote')
+                          }}
                           title="Print Quote"
                         >
                           📄
