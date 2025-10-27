@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 import CategorySelector from '../components/CategorySelector'
-import SessionManagementTable from '../components/SessionManagementTable'
+const SessionManagementTable = lazy(() => import('../components/SessionManagementTable'))
 import EmailTemplateModal from '../components/EmailTemplateModal'
 
 const AdminDashboard = () => {
@@ -1221,21 +1221,23 @@ const AdminDashboard = () => {
             </div>
             
             {Array.isArray(bookings) && bookings.length > 0 ? (
-              <SessionManagementTable
-                sessions={bookings}
-                onApprove={(session) => handleConfirmSession(session.id)}
-                onGenerateShoot={(session) => handleGenerateShoot(session)}
-                onInvoice={(session) => handleInvoiceSession(session)}
-                onEdit={(session) => {
-                  setSelectedSession(session)
-                  setShowSessionForm(true)
-                }}
-                onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
-                onSendEmail={(session) => {
-                  setEmailSession(session)
-                  setShowEmailModal(true)
-                }}
-              />
+              <Suspense fallback={<div className="no-data">Loading sessions...</div>}>
+                <SessionManagementTable
+                  sessions={bookings}
+                  onApprove={(session) => handleConfirmSession(session.id)}
+                  onGenerateShoot={(session) => handleGenerateShoot(session)}
+                  onInvoice={(session) => handleInvoiceSession(session)}
+                  onEdit={(session) => {
+                    setSelectedSession(session)
+                    setShowSessionForm(true)
+                  }}
+                  onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
+                  onSendEmail={(session) => {
+                    setEmailSession(session)
+                    setShowEmailModal(true)
+                  }}
+                />
+              </Suspense>
             ) : (
               <div className="no-data">Loading sessions...</div>
             )}
