@@ -122,6 +122,10 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
     const title = type === 'quote' ? 'QUOTE' : type === 'order' ? 'ORDER DETAILS' : 'INVOICE'
     const documentType = type.charAt(0).toUpperCase() + type.slice(1)
 
+    // Build amount row separately to avoid nested template literal issues
+    const amountRow = quoteAmount ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${quoteAmount}</div></div>` : ''
+    const notesRow = notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${notes}</div></div>` : ''
+
     return `
       <!DOCTYPE html>
       <html>
@@ -150,8 +154,8 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
             <div class="detail-row"><div class="detail-label">Date:</div><div>${date}</div></div>
             <div class="detail-row"><div class="detail-label">Time:</div><div>${time}</div></div>
             <div class="detail-row"><div class="detail-label">Location:</div><div>${location}</div></div>
-            ${quoteAmount ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${quoteAmount}</div></div>` : ''}
-            ${notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${notes}</div></div>` : ''}
+            ${amountRow}
+            ${notesRow}
             <div class="detail-row"><div class="detail-label">Status:</div><div><span class="status-badge" style="background: ${statusColor}">${status}</span></div></div>
           </div>
           <div class="footer">
