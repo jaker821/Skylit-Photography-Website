@@ -237,14 +237,14 @@ const GentlePulse = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setPulse(prev => (prev + 0.01) % (Math.PI * 2))
-    }, 30)
+      setPulse(prev => (prev + 0.03) % (Math.PI * 2))
+    }, 20)
 
     return () => clearInterval(interval)
   }, [])
 
-  const opacity = (Math.sin(pulse) * 0.15 + 0.25).toFixed(2)
-  const scale = (Math.sin(pulse) * 0.2 + 1).toFixed(2)
+  const opacity = Math.sin(pulse) * 0.3 + 0.5
+  const scale = Math.sin(pulse) * 0.3 + 1.0
 
   return (
     <div
@@ -257,8 +257,7 @@ const GentlePulse = () => {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 1,
-        background: `radial-gradient(ellipse ${scale} at center, rgba(212, 175, 55, ${opacity}) 0%, transparent 70%)`,
-        transition: 'background 0.3s ease'
+        background: `radial-gradient(ellipse ${scale} at center, rgba(212, 175, 55, ${opacity}) 0%, transparent 70%)`
       }}
     />
   )
@@ -273,10 +272,10 @@ const Aurora = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setOffset1(prev => (prev + 0.5) % 200)
-      setOffset2(prev => (prev + 0.3) % 200)
-      setOffset3(prev => (prev + 0.7) % 200)
-    }, 50)
+      setOffset1(prev => (prev + 1.2) % 200)
+      setOffset2(prev => (prev + 0.8) % 200)
+      setOffset3(prev => (prev + 1.5) % 200)
+    }, 30)
 
     return () => clearInterval(interval)
   }, [])
@@ -293,9 +292,9 @@ const Aurora = () => {
         pointerEvents: 'none',
         zIndex: 1,
         background: `
-          radial-gradient(ellipse 800px at ${offset1}% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
-          radial-gradient(ellipse 600px at ${offset2}% 60%, rgba(212, 175, 55, 0.06) 0%, transparent 50%),
-          radial-gradient(ellipse 700px at ${offset3}% 80%, rgba(212, 175, 55, 0.07) 0%, transparent 50%)
+          radial-gradient(ellipse 1000px at ${offset1}% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
+          radial-gradient(ellipse 800px at ${offset2}% 60%, rgba(212, 175, 55, 0.12) 0%, transparent 50%),
+          radial-gradient(ellipse 900px at ${offset3}% 80%, rgba(212, 175, 55, 0.13) 0%, transparent 50%)
         `
       }}
     />
