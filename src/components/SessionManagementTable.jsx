@@ -12,6 +12,7 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
     dateTo: ''
   })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
+  const [selectedSession, setSelectedSession] = useState(null)
 
   // Ensure sessions is an array
   if (!Array.isArray(sessions)) {
@@ -68,6 +69,13 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
       key,
       direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
     })
+  }
+
+  // Calculate display ID starting from 10000
+  const getDisplayId = (index) => 10000 + index
+
+  const handleSessionClick = (session, index) => {
+    setSelectedSession({ ...session, displayId: getDisplayId(index) })
   }
 
   const handlePrintDocument = (session, type) => {
@@ -253,18 +261,17 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
               <th onClick={() => handleSort('client_email')}>
                 Email {sortConfig.key === 'client_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan="10" className="no-data">No sessions found</td>
+                <td colSpan="9" className="no-data">No sessions found</td>
               </tr>
             ) : (
-              sortedSessions.map(session => (
-                <tr key={session.id} className="session-row">
-                  <td>{session.id}</td>
+              sortedSessions.map((session, index) => (
+                <tr key={session.id} className="session-row" onClick={() => handleSessionClick(session, index)}>
+                  <td>{getDisplayId(index)}</td>
                   <td>{session.client_name || 'N/A'}</td>
                   <td>{session.session_type || 'N/A'}</td>
                   <td>
@@ -277,91 +284,6 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
                   <td>{session.location || 'TBD'}</td>
                   <td>{session.phone || 'N/A'}</td>
                   <td>{session.client_email || 'N/A'}</td>
-                  <td className="actions-cell">
-                    <div className="action-buttons">
-                      {session.status?.toLowerCase() === 'pending' && (
-                        <button
-                          className="btn-action btn-success"
-                          onClick={() => onApprove?.(session)}
-                          title="Approve Session"
-                        >
-                          ✓
-                        </button>
-                      )}
-                      {session.status?.toLowerCase() === 'booked' && (
-                        <>
-                          <button
-                            className="btn-action btn-info"
-                            onClick={() => onGenerateShoot?.(session)}
-                            title="Generate Shoot"
-                          >
-                            📸
-                          </button>
-                          <button
-                            className="btn-action btn-primary"
-                            onClick={() => onInvoice?.(session)}
-                            title="Create Invoice"
-                          >
-                            💰
-                          </button>
-                        </>
-                      )}
-                      {session.status?.toLowerCase() !== 'invoiced' && (
-                        <button
-                          className="btn-action btn-secondary"
-                          onClick={() => onEdit?.(session)}
-                          title="Edit Details"
-                        >
-                          ✏️
-                        </button>
-                      )}
-                      <button
-                        className="btn-action btn-view"
-                        onClick={() => onViewDetails?.(session)}
-                        title="View Details"
-                      >
-                        👁️
-                      </button>
-                      <div className="print-buttons">
-                        <button
-                          className="btn-action btn-print"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handlePrintDocument(session, 'quote')
-                          }}
-                          title="Print Quote"
-                        >
-                          📄
-                        </button>
-                        {session.status?.toLowerCase() === 'booked' && (
-                          <button
-                            className="btn-action btn-print"
-                            onClick={() => handlePrintDocument(session, 'order')}
-                            title="Print Order"
-                          >
-                            📋
-                          </button>
-                        )}
-                        {session.status?.toLowerCase() === 'invoiced' && (
-                          <button
-                            className="btn-action btn-print"
-                            onClick={() => handlePrintDocument(session, 'invoice')}
-                            title="Print Invoice"
-                          >
-                            🧾
-                          </button>
-                        )}
-                        <button
-                          className="btn-action btn-email"
-                          onClick={() => onSendEmail?.(session)}
-                          title="Send Email"
-                        >
-                          📧
-                        </button>
-                      </div>
-                    </div>
-                  </td>
                 </tr>
               ))
             )}
@@ -372,6 +294,147 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
       <div className="table-footer">
         <p>Showing {sortedSessions.length} of {sessions.length} sessions</p>
       </div>
+
+      {/* Session Detail Modal */}
+      {selectedSession && (
+        <div className="session-detail-modal-overlay" onClick={() => setSelectedSession(null)}>
+          <div className="session-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Session Details - ID: {selectedSession.displayId || selectedSession.id}</h2>
+              <button className="modal-close" onClick={() => setSelectedSession(null)}>×</button>
+            </div>
+            
+            <div className="modal-body">
+              <div className="session-details">
+                <div className="detail-row">
+                  <strong>Client Name:</strong> {selectedSession.client_name || 'N/A'}
+                </div>
+                <div className="detail-row">
+                  <strong>Session Type:</strong> {selectedSession.session_type || 'N/A'}
+                </div>
+                <div className="detail-row">
+                  <strong>Status:</strong> 
+                  <span className={`status-badge status-${(selectedSession.status || '').toLowerCase()}`}>
+                    {selectedSession.status || 'N/A'}
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <strong>Date:</strong> {selectedSession.date ? new Date(selectedSession.date).toLocaleDateString() : 'N/A'}
+                </div>
+                <div className="detail-row">
+                  <strong>Time:</strong> {selectedSession.time || 'TBD'}
+                </div>
+                <div className="detail-row">
+                  <strong>Location:</strong> {selectedSession.location || 'TBD'}
+                </div>
+                <div className="detail-row">
+                  <strong>Phone:</strong> {selectedSession.phone || 'N/A'}
+                </div>
+                <div className="detail-row">
+                  <strong>Email:</strong> {selectedSession.client_email || 'N/A'}
+                </div>
+                {selectedSession.quote_amount && (
+                  <div className="detail-row">
+                    <strong>Quote Amount:</strong> ${parseFloat(selectedSession.quote_amount || 0).toFixed(2)}
+                  </div>
+                )}
+                {selectedSession.notes && (
+                  <div className="detail-row">
+                    <strong>Notes:</strong> {selectedSession.notes}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-actions">
+                {selectedSession.status?.toLowerCase() === 'pending' && (
+                  <button
+                    className="btn-action btn-success"
+                    onClick={() => {
+                      onApprove?.(selectedSession)
+                      setSelectedSession(null)
+                    }}
+                  >
+                    ✓ Approve Session
+                  </button>
+                )}
+                {selectedSession.status?.toLowerCase() === 'booked' && (
+                  <>
+                    <button
+                      className="btn-action btn-info"
+                      onClick={() => {
+                        onGenerateShoot?.(selectedSession)
+                        setSelectedSession(null)
+                      }}
+                    >
+                      📸 Generate Shoot
+                    </button>
+                    <button
+                      className="btn-action btn-primary"
+                      onClick={() => {
+                        onInvoice?.(selectedSession)
+                        setSelectedSession(null)
+                      }}
+                    >
+                      💰 Create Invoice
+                    </button>
+                  </>
+                )}
+                {selectedSession.status?.toLowerCase() !== 'invoiced' && (
+                  <button
+                    className="btn-action btn-secondary"
+                    onClick={() => {
+                      onEdit?.(selectedSession)
+                      setSelectedSession(null)
+                    }}
+                  >
+                    ✏️ Edit Details
+                  </button>
+                )}
+                <button
+                  className="btn-action btn-view"
+                  onClick={() => {
+                    onViewDetails?.(selectedSession)
+                    setSelectedSession(null)
+                  }}
+                >
+                  👁️ View Details
+                </button>
+                <button
+                  className="btn-action btn-print"
+                  onClick={() => handlePrintDocument(selectedSession, 'quote')}
+                >
+                  📄 Print Quote
+                </button>
+                {selectedSession.status?.toLowerCase() === 'booked' && (
+                  <button
+                    className="btn-action btn-print"
+                    onClick={() => handlePrintDocument(selectedSession, 'order')}
+                  >
+                    📋 Print Order
+                  </button>
+                )}
+                {selectedSession.status?.toLowerCase() === 'invoiced' && (
+                  <button
+                    className="btn-action btn-print"
+                    onClick={() => handlePrintDocument(selectedSession, 'invoice')}
+                  >
+                    🧾 Print Invoice
+                  </button>
+                )}
+                <button
+                  className="btn-action btn-email"
+                  onClick={() => {
+                    onSendEmail?.(selectedSession)
+                    setSelectedSession(null)
+                  }}
+                >
+                  📧 Send Email
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
