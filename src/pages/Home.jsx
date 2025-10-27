@@ -230,6 +230,78 @@ const FloatingParticles = () => {
   )
 }
 
+// GENTLE PULSE Animation - Soft pulsing background
+const GentlePulse = () => {
+  const containerRef = useRef(null)
+  const [pulse, setPulse] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulse(prev => (prev + 0.01) % (Math.PI * 2))
+    }, 30)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const opacity = (Math.sin(pulse) * 0.15 + 0.25).toFixed(2)
+  const scale = (Math.sin(pulse) * 0.2 + 1).toFixed(2)
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 1,
+        background: `radial-gradient(ellipse ${scale} at center, rgba(212, 175, 55, ${opacity}) 0%, transparent 70%)`,
+        transition: 'background 0.3s ease'
+      }}
+    />
+  )
+}
+
+// AURORA Animation - Flowing aurora-like effect
+const Aurora = () => {
+  const containerRef = useRef(null)
+  const [offset1, setOffset1] = useState(0)
+  const [offset2, setOffset2] = useState(0)
+  const [offset3, setOffset3] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setOffset1(prev => (prev + 0.5) % 200)
+      setOffset2(prev => (prev + 0.3) % 200)
+      setOffset3(prev => (prev + 0.7) % 200)
+    }, 50)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 1,
+        background: `
+          radial-gradient(ellipse 800px at ${offset1}% 20%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse 600px at ${offset2}% 60%, rgba(212, 175, 55, 0.06) 0%, transparent 50%),
+          radial-gradient(ellipse 700px at ${offset3}% 80%, rgba(212, 175, 55, 0.07) 0%, transparent 50%)
+        `
+      }}
+    />
+  )
+}
+
 const Home = () => {
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
   const [animationType, setAnimationType] = useState('particles') // 'stars', 'particles', 'waves', 'shimmer'
@@ -275,10 +347,10 @@ const Home = () => {
         return <Starfield />
       case 'particles':
         return <FloatingParticles />
-      case 'waves':
-        return <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1, background: 'radial-gradient(circle at 20% 50%, rgba(212, 175, 55, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(212, 175, 55, 0.1) 0%, transparent 50%), radial-gradient(circle at 40% 20%, rgba(212, 175, 55, 0.05) 0%, transparent 50%)'}}></div>
-      case 'shimmer':
-        return <div style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1, background: 'linear-gradient(45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%), linear-gradient(-45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%)', animation: 'shimmer 3s ease-in-out infinite'}}></div>
+      case 'pulse':
+        return <GentlePulse />
+      case 'aurora':
+        return <Aurora />
       default:
         return <FloatingParticles />
     }
@@ -352,10 +424,10 @@ const Home = () => {
             ✨
           </button>
           <button 
-            onClick={() => setAnimationType('waves')}
+            onClick={() => setAnimationType('pulse')}
             style={{
               padding: '8px 12px',
-              backgroundColor: animationType === 'waves' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              backgroundColor: animationType === 'pulse' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
               border: '1px solid rgba(212, 175, 55, 0.5)',
               borderRadius: '4px',
               color: '#fff',
@@ -363,15 +435,15 @@ const Home = () => {
               fontSize: '12px',
               transition: 'all 0.2s'
             }}
-            title="Gradient Waves"
+            title="Gentle Pulse"
           >
-            🌊
+            🫧
           </button>
           <button 
-            onClick={() => setAnimationType('shimmer')}
+            onClick={() => setAnimationType('aurora')}
             style={{
               padding: '8px 12px',
-              backgroundColor: animationType === 'shimmer' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
+              backgroundColor: animationType === 'aurora' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
               border: '1px solid rgba(212, 175, 55, 0.5)',
               borderRadius: '4px',
               color: '#fff',
@@ -379,9 +451,9 @@ const Home = () => {
               fontSize: '12px',
               transition: 'all 0.2s'
             }}
-            title="Shimmer Effect"
+            title="Aurora Effect"
           >
-            💫
+            🌌
           </button>
         </div>
       </section>
