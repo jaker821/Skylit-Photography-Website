@@ -64,7 +64,7 @@ Skylit Photography`
 
 This is a friendly reminder about payment for your {{session_type}} session on {{date}}.
 
-Invoice Amount: ${{quote_amount}}
+Invoice Amount: {{quote_amount}}
 
 You can make your payment through Venmo or contact me to arrange another payment method.
 
