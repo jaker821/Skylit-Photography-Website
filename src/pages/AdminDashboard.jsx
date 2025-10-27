@@ -214,15 +214,22 @@ const AdminDashboard = () => {
 
   // Calculate financial stats
   const calculateFinancials = () => {
-    const totalRevenue = invoices
-      .filter(inv => inv.status === 'Paid')
-      .reduce((sum, inv) => sum + inv.amount, 0)
+    // Only count revenue from invoiced sessions (not deleted invoices)
+    const invoicedSessions = bookings.filter(b => b.status?.toLowerCase() === 'invoiced')
+    const totalRevenue = invoicedSessions.reduce((sum, session) => {
+      const amount = parseFloat(session.quote_amount || 0)
+      return sum + amount
+    }, 0)
     
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
     
-    const pendingRevenue = invoices
-      .filter(inv => inv.status === 'Pending')
-      .reduce((sum, inv) => sum + inv.amount, 0)
+    // Pending revenue from quoted/booked sessions
+    const pendingRevenue = bookings
+      .filter(b => b.status?.toLowerCase() === 'quoted' || b.status?.toLowerCase() === 'booked')
+      .reduce((sum, session) => {
+        const amount = parseFloat(session.quote_amount || 0)
+        return sum + amount
+      }, 0)
     
     const netProfit = totalRevenue - totalExpenses
     
@@ -1257,6 +1264,75 @@ const AdminDashboard = () => {
               />
             )}
           </div>
+          )}
+
+        {/* PORTFOLIO TAB */}
+        {activeTab === 'portfolio' && (
+          <div className="tab-content">
+            <div className="section-header">
+              <h2>Portfolio Management</h2>
+              <button className="btn btn-primary" onClick={() => setShowShootForm(true)}>
+                + Create New Shoot
+              </button>
+            </div>
+
+            {showShootForm && (
+              <ShootForm 
+                onSubmit={handleCreateShoot}
+                onCancel={() => setShowShootForm(false)}
+              />
+            )}
+
+            {selectedShoot ? (
+              <ShootDetail 
+                shoot={selectedShoot}
+                onBack={() => setSelectedShoot(null)}
+                onPhotoUpload={handlePhotoUpload}
+                onPhotoDelete={handleDeletePhoto}
+                onToggleFeatured={handleToggleFeatured}
+                onTogglePhotoVisibility={handleTogglePhotoVisibility}
+                onToggleCoverPhoto={handleToggleCoverPhoto}
+                isUploading={isUploading}
+                uploadProgress={uploadProgress}
+                onShootUpdate={handleShootUpdate}
+              />
+            ) : (
+              <div className="shoots-grid">
+                {shoots.length === 0 ? (
+                  <div className="no-data">No shoots yet. Create your first shoot!</div>
+                ) : (
+                  shoots.map(shoot => (
+                    <div key={shoot.id} className="shoot-card" onClick={() => setSelectedShoot(shoot)}>
+                      <div className="shoot-card-header">
+                        <h3>{shoot.title}</h3>
+                        <span className="shoot-status">{shoot.category}</span>
+                      </div>
+                      {shoot.photos && shoot.photos.length > 0 && (
+                        <div className="shoot-card-preview">
+                          <img src={shoot.photos[0].display_url || shoot.photos[0].url} alt={shoot.title} />
+                        </div>
+                      )}
+                      <div className="shoot-card-info">
+                        <p>{shoot.photos?.length || 0} photos</p>
+                        <p>{new Date(shoot.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className="shoot-card-actions">
+                        <button 
+                          className="btn-small btn-danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteShoot(shoot.id)
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* EXPENSES TAB */}
@@ -1286,9 +1362,9 @@ const AdminDashboard = () => {
                 <div className="card-content">
                   <h3>Total Revenue</h3>
                   <p className="amount positive">
-                    ${invoices.filter(i => i.status === 'Paid').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
+                    ${calculateFinancials().totalRevenue.toFixed(2)}
                   </p>
-                  <span className="card-subtitle">Paid invoices</span>
+                  <span className="card-subtitle">Invoiced sessions</span>
                 </div>
               </div>
 
@@ -2095,27 +2171,43 @@ const SessionForm = ({ session, packages = [], addOns = [], onSubmit, onCancel }
         </div>
         
         {/* Add-ons Selection */}
-        <div className="form-group">
-          <label>Add-Ons (Optional)</label>
-          <select
-            multiple
-            value={formData.addonIds || []}
-            onChange={(e) => {
-              const selectedAddons = Array.from(e.target.selectedOptions, option => option.value)
-              setFormData({ ...formData, addonIds: selectedAddons })
-            }}
-            style={{ minHeight: '100px' }}
-          >
-            {addOns.map(addon => (
-              <option key={addon.id} value={addon.id}>
-                {addon.name} - ${addon.price}
-              </option>
-            ))}
-          </select>
-          <p style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem' }}>
-            Hold Ctrl (or Cmd on Mac) to select multiple add-ons
-          </p>
-        </div>
+        {addOns && addOns.length > 0 && (
+          <div className="form-group">
+            <label>Add-Ons (Optional)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginTop: '10px' }}>
+              {addOns.map(addon => (
+                <label key={addon.id} style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: '10px', 
+                  border: '1px solid var(--border-light)', 
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}>
+                  <input
+                    type="checkbox"
+                    value={addon.id}
+                    checked={(formData.addonIds || []).includes(addon.id.toString())}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked
+                      const currentIds = formData.addonIds || []
+                      const updatedIds = isChecked
+                        ? [...currentIds, e.target.value]
+                        : currentIds.filter(id => id !== e.target.value)
+                      setFormData({ ...formData, addonIds: updatedIds })
+                    }}
+                    style={{ marginRight: '10px', cursor: 'pointer' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
         
         <div className="form-row">
           <div className="form-group">

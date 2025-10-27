@@ -206,29 +206,43 @@ const UserDashboard = () => {
               </div>
 
               {/* Add-ons Selection */}
-              <div className="form-group">
-                <label htmlFor="addonIds">Add-Ons (Optional)</label>
-                <select
-                  id="addonIds"
-                  name="addonIds"
-                  multiple
-                  value={bookingData.addonIds || []}
-                  onChange={(e) => {
-                    const selectedAddons = Array.from(e.target.selectedOptions, option => option.value)
-                    setBookingData({ ...bookingData, addonIds: selectedAddons })
-                  }}
-                  style={{ minHeight: '100px' }}
-                >
-                  {addOns.map(addon => (
-                    <option key={addon.id} value={addon.id}>
-                      {addon.name} - ${addon.price}
-                    </option>
-                  ))}
-                </select>
-                <p style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem' }}>
-                  Hold Ctrl (or Cmd on Mac) to select multiple add-ons
-                </p>
-              </div>
+              {addOns.length > 0 && (
+                <div className="form-group">
+                  <label>Add-Ons (Optional)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginTop: '10px' }}>
+                    {addOns.map(addon => (
+                      <label key={addon.id} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        padding: '10px', 
+                        border: '1px solid var(--border-light)', 
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                        <input
+                          type="checkbox"
+                          value={addon.id}
+                          checked={(bookingData.addonIds || []).includes(addon.id.toString())}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked
+                            const currentIds = bookingData.addonIds || []
+                            const updatedIds = isChecked
+                              ? [...currentIds, e.target.value]
+                              : currentIds.filter(id => id !== e.target.value)
+                            setBookingData({ ...bookingData, addonIds: updatedIds })
+                          }}
+                          style={{ marginRight: '10px', cursor: 'pointer' }}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
+                          <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Display selected package details */}
               {bookingData.packageId && (

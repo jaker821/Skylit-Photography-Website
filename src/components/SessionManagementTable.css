@@ -45,15 +45,15 @@
   table-layout: fixed;
 }
 
-.sessions-table th:nth-child(1) { width: 5%; } /* ID */
-.sessions-table th:nth-child(2) { width: 12%; } /* Client Name */
+.sessions-table th:nth-child(1) { width: 7%; } /* ID */
+.sessions-table th:nth-child(2) { width: 10%; } /* Client Name */
 .sessions-table th:nth-child(3) { width: 8%; } /* Type */
-.sessions-table th:nth-child(4) { width: 10%; } /* Package */
+.sessions-table th:nth-child(4) { width: 12%; } /* Package */
 .sessions-table th:nth-child(5) { width: 8%; } /* Status */
-.sessions-table th:nth-child(6) { width: 8%; } /* Price */
-.sessions-table th:nth-child(7) { width: 8%; } /* Date */
+.sessions-table th:nth-child(6) { width: 10%; } /* Price */
+.sessions-table th:nth-child(7) { width: 9%; } /* Date */
 .sessions-table th:nth-child(8) { width: 8%; } /* Time */
-.sessions-table th:nth-child(9) { width: 12%; } /* Location */
+.sessions-table th:nth-child(9) { width: 14%; } /* Location */
 .sessions-table th:nth-child(10) { width: 11%; } /* Phone */
 
 .sessions-table thead {
@@ -65,7 +65,7 @@
 }
 
 .sessions-table th {
-  padding: var(--spacing-md);
+  padding: 8px 10px;
   text-align: left;
   font-weight: 600;
   cursor: pointer;
@@ -95,7 +95,7 @@
 }
 
 .sessions-table td {
-  padding: var(--spacing-md);
+  padding: 8px 10px;
   white-space: nowrap;
   border-right: 1px solid var(--border-light);
   color: var(--white);
