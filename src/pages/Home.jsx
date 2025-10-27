@@ -3,107 +3,6 @@ import { Link } from 'react-router-dom'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
 import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
 
-// STARFIELD Animation (Original)
-const Starfield = () => {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    let animationFrameId
-    let mouseX = 0
-    let mouseY = 0
-
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    resizeCanvas()
-    window.addEventListener('resize', resizeCanvas)
-
-    const handleMouseMove = (e) => {
-      if (window.innerWidth >= 768) {
-        mouseX = e.clientX
-        mouseY = e.clientY
-      }
-    }
-    window.addEventListener('mousemove', handleMouseMove)
-
-    const stars = []
-    const isMobile = window.innerWidth < 768
-    const numStars = isMobile ? 25 : 50
-
-    for (let i = 0; i < numStars; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        radius: Math.random() * 2 + 1,
-        speed: Math.random() * 0.5 + 0.2,
-        opacity: Math.random() * 0.5 + 0.3,
-        glow: Math.random() > 0.7
-      })
-    }
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      stars.forEach((star) => {
-        star.y += star.speed
-        if (star.y > canvas.height) {
-          star.y = 0
-          star.x = Math.random() * canvas.width
-        }
-
-        const dx = star.x - mouseX
-        const dy = star.y - mouseY
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        
-        if (distance < 200) {
-          const force = (200 - distance) / 200
-          star.x -= (dx / distance) * force * 2
-          star.y -= (dy / distance) * force * 2
-        }
-
-        if (star.glow) {
-          const gradient = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.radius * 3)
-          gradient.addColorStop(0, `rgba(212, 175, 55, ${star.opacity})`)
-          gradient.addColorStop(0.5, `rgba(212, 175, 55, ${star.opacity * 0.5})`)
-          gradient.addColorStop(1, 'rgba(212, 175, 55, 0)')
-          
-          ctx.beginPath()
-          ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2)
-          ctx.fillStyle = gradient
-          ctx.fill()
-        }
-
-        ctx.beginPath()
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(212, 175, 55, ${star.opacity})`
-        ctx.fill()
-      })
-
-      animationFrameId = requestAnimationFrame(animate)
-    }
-
-    animate()
-
-    return () => {
-      cancelAnimationFrame(animationFrameId)
-      window.removeEventListener('resize', resizeCanvas)
-      window.removeEventListener('mousemove', handleMouseMove)
-    }
-  }, [])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 1 }}
-    />
-  )
-}
-
 // FLOATING PARTICLES Animation
 const FloatingParticles = () => {
   const canvasRef = useRef(null)
@@ -230,80 +129,8 @@ const FloatingParticles = () => {
   )
 }
 
-// GENTLE PULSE Animation - Soft pulsing background
-const GentlePulse = () => {
-  const containerRef = useRef(null)
-  const [pulse, setPulse] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPulse(prev => (prev + 0.03) % (Math.PI * 2))
-    }, 20)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  const opacity = Math.sin(pulse) * 0.3 + 0.5
-  const scale = Math.sin(pulse) * 0.3 + 1.0
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 1,
-        background: `radial-gradient(ellipse ${scale} at center, rgba(212, 175, 55, ${opacity}) 0%, transparent 70%)`
-      }}
-    />
-  )
-}
-
-// AURORA Animation - Flowing aurora-like effect
-const Aurora = () => {
-  const containerRef = useRef(null)
-  const [offset1, setOffset1] = useState(0)
-  const [offset2, setOffset2] = useState(0)
-  const [offset3, setOffset3] = useState(0)
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setOffset1(prev => (prev + 1.2) % 200)
-      setOffset2(prev => (prev + 0.8) % 200)
-      setOffset3(prev => (prev + 1.5) % 200)
-    }, 30)
-
-    return () => clearInterval(interval)
-  }, [])
-
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 1,
-        background: `
-          radial-gradient(ellipse 1000px at ${offset1}% 20%, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
-          radial-gradient(ellipse 800px at ${offset2}% 60%, rgba(212, 175, 55, 0.12) 0%, transparent 50%),
-          radial-gradient(ellipse 900px at ${offset3}% 80%, rgba(212, 175, 55, 0.13) 0%, transparent 50%)
-        `
-      }}
-    />
-  )
-}
-
 const Home = () => {
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
-  const [animationType, setAnimationType] = useState('particles') // 'stars', 'particles', 'waves', 'shimmer'
 
   useEffect(() => {
     // Animate elements on scroll
@@ -340,26 +167,11 @@ const Home = () => {
     return () => window.removeEventListener('featuredPhotoUpdated', handleFeaturedUpdate)
   }, [])
 
-  const renderAnimation = () => {
-    switch(animationType) {
-      case 'stars':
-        return <Starfield />
-      case 'particles':
-        return <FloatingParticles />
-      case 'pulse':
-        return <GentlePulse />
-      case 'aurora':
-        return <Aurora />
-      default:
-        return <FloatingParticles />
-    }
-  }
-
   return (
     <div className="home-page">
       {/* Hero Section */}
       <section className="hero">
-        {renderAnimation()}
+        <FloatingParticles />
         <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1 className="hero-title animate-fade-in">
@@ -375,85 +187,6 @@ const Home = () => {
         </div>
         <div className="hero-scroll-indicator">
           <div className="scroll-arrow"></div>
-        </div>
-        
-        {/* Animation Toggle Buttons (Temporary) */}
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          right: '20px',
-          display: 'flex',
-          gap: '8px',
-          zIndex: 10,
-          backgroundColor: 'rgba(78, 46, 58, 0.9)',
-          padding: '8px',
-          borderRadius: '8px',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <button 
-            onClick={() => setAnimationType('stars')}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: animationType === 'stars' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
-              border: '1px solid rgba(212, 175, 55, 0.5)',
-              borderRadius: '4px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-            title="Stars (Original)"
-          >
-            ⭐
-          </button>
-          <button 
-            onClick={() => setAnimationType('particles')}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: animationType === 'particles' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
-              border: '1px solid rgba(212, 175, 55, 0.5)',
-              borderRadius: '4px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-            title="Floating Particles"
-          >
-            ✨
-          </button>
-          <button 
-            onClick={() => setAnimationType('pulse')}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: animationType === 'pulse' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
-              border: '1px solid rgba(212, 175, 55, 0.5)',
-              borderRadius: '4px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-            title="Gentle Pulse"
-          >
-            🫧
-          </button>
-          <button 
-            onClick={() => setAnimationType('aurora')}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: animationType === 'aurora' ? 'rgba(212, 175, 55, 0.3)' : 'transparent',
-              border: '1px solid rgba(212, 175, 55, 0.5)',
-              borderRadius: '4px',
-              color: '#fff',
-              cursor: 'pointer',
-              fontSize: '12px',
-              transition: 'all 0.2s'
-            }}
-            title="Aurora Effect"
-          >
-            🌌
-          </button>
         </div>
       </section>
 
