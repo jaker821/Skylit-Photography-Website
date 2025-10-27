@@ -281,24 +281,34 @@ const AdminDashboard = () => {
   // Create or update session
   const handleCreateSession = async (sessionData) => {
     try {
-      const url = selectedSession 
+      const url = selectedSession && selectedSession.id
         ? `${API_URL}/bookings/${selectedSession.id}`
         : `${API_URL}/bookings`
       
-      const method = selectedSession ? 'PUT' : 'POST'
+      const method = selectedSession && selectedSession.id ? 'PUT' : 'POST'
+      
+      // If creating a booking (not a quote), set status to "booked"
+      const dataToSend = selectedSession && selectedSession.isBooking
+        ? { ...sessionData, status: 'booked' }
+        : sessionData
       
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(sessionData)
+        body: JSON.stringify(dataToSend)
       })
       
       if (response.ok) {
         await fetchBookings()
         setShowSessionForm(false)
         setSelectedSession(null)
-        alert(selectedSession ? 'Session updated successfully!' : 'Session created successfully!')
+        const message = selectedSession && selectedSession.id
+          ? 'Session updated successfully!'
+          : selectedSession && selectedSession.isBooking
+          ? 'Booking created successfully!'
+          : 'Quote created successfully!'
+        alert(message)
       }
     } catch (error) {
       console.error('Error saving session:', error)
@@ -1112,12 +1122,26 @@ const AdminDashboard = () => {
           <div className="tab-content">
             <div className="section-header">
               <h2>Sessions Management</h2>
-              <button 
-                className="btn btn-primary"
-                onClick={() => setShowSessionForm(true)}
-              >
-                + Create Quote
-              </button>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setSelectedSession(null)
+                    setShowSessionForm(true)
+                  }}
+                >
+                  + Create Quote
+                </button>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setSelectedSession({ isBooking: true })
+                    setShowSessionForm(true)
+                  }}
+                >
+                  + Create Booking
+                </button>
+              </div>
             </div>
 
             {showSessionForm && (
@@ -2192,11 +2216,25 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
     onSubmit(formData)
   }
   
+  const isBooking = session && session.isBooking && !session.id
+  
   return (
     <div className="form-card">
-      <h3>{session ? 'Edit Session' : 'Create Quote for Potential Client'}</h3>
+      <h3>
+        {session && session.id 
+          ? 'Edit Session' 
+          : isBooking 
+          ? 'Create New Booking' 
+          : 'Create Quote for Potential Client'
+        }
+      </h3>
       <p className="form-description">
-        {session ? 'Modify the session details and click Save Changes' : 'Create a quote for clients who contact you outside the booking system'}
+        {session && session.id 
+          ? 'Modify the session details and click Save Changes' 
+          : isBooking 
+          ? 'Create a booking for sessions booked outside the system (e.g., via social media)'
+          : 'Create a quote for clients who contact you outside the booking system'
+        }
       </p>
       <form onSubmit={handleSubmit}>
         <div className="form-row">

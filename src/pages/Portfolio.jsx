@@ -105,40 +105,45 @@ const Portfolio = () => {
           ) : (
             filteredShoots.map((shoot) => {
               // Get cover photo (first photo with cover_photo flag, or first photo)
-              const coverPhoto = shoot.photos.find(p => p.cover_photo) || shoot.photos[0]
-              
-              if (!coverPhoto) return null
-              
-              const photoSrc = coverPhoto.displayUrl || coverPhoto.url
-              const finalPhotoSrc = photoSrc.startsWith('http') 
-                ? photoSrc
-                : `${API_URL.replace('/api', '')}${photoSrc}`
-              
-              return (
-                <div 
-                  key={shoot.id}
-                  className="portfolio-shoot-card"
-                  onClick={() => navigate(`/portfolio/${shoot.id}`)}
-                >
-                  <div className="shoot-card-image">
-                    <img 
-                      src={finalPhotoSrc}
-                      alt={shoot.title}
-                      loading="lazy"
-                    />
-                    <div className="shoot-card-overlay">
-                      <span className="photo-count">{shoot.photos.length} photos</span>
+              try {
+                const coverPhoto = shoot.photos.find(p => p.cover_photo === 1 || p.cover_photo === true) || shoot.photos[0]
+                
+                if (!coverPhoto) return null
+                
+                const photoSrc = coverPhoto.displayUrl || coverPhoto.url
+                const finalPhotoSrc = photoSrc.startsWith('http') 
+                  ? photoSrc
+                  : `${API_URL.replace('/api', '')}${photoSrc}`
+                
+                return (
+                  <div 
+                    key={shoot.id}
+                    className="portfolio-shoot-card"
+                    onClick={() => navigate(`/portfolio/${shoot.id}`)}
+                  >
+                    <div className="shoot-card-image">
+                      <img 
+                        src={finalPhotoSrc}
+                        alt={shoot.title}
+                        loading="lazy"
+                      />
+                      <div className="shoot-card-overlay">
+                        <span className="photo-count">{shoot.photos.length} photos</span>
+                      </div>
+                    </div>
+                    <div className="shoot-card-info">
+                      <h3>{shoot.title}</h3>
+                      <p className="shoot-card-category">{shoot.category}</p>
+                      {shoot.date && (
+                        <p className="shoot-card-date">{new Date(shoot.date).toLocaleDateString()}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="shoot-card-info">
-                    <h3>{shoot.title}</h3>
-                    <p className="shoot-card-category">{shoot.category}</p>
-                    {shoot.date && (
-                      <p className="shoot-card-date">{new Date(shoot.date).toLocaleDateString()}</p>
-                    )}
-                  </div>
-                </div>
-              )
+                )
+              } catch (error) {
+                console.error('Error rendering shoot card:', error)
+                return null
+              }
             })
           )}
         </div>
