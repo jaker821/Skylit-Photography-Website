@@ -3201,6 +3201,8 @@ img {
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 1rem;
+  font-family: var(--font-body);
+  font-style: italic;
   margin-bottom: var(--spacing-xl);
   transition: all var(--transition-normal);
   display: flex;
@@ -3262,6 +3264,8 @@ img {
   box-shadow: var(--shadow-md);
   background: var(--card-background);
   margin-bottom: var(--spacing-md);
+  cursor: default;
+  user-select: none;
 }
 
 .shoot-photo-portrait {
@@ -3277,7 +3281,28 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--transition-normal);
+  transition: all var(--transition-normal);
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.shoot-photo-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(184, 141, 93, 0.15) 0%, rgba(184, 141, 93, 0.05) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.shoot-photo-item:hover::before {
+  opacity: 1;
 }
 
 .shoot-photo-item:hover img {
@@ -5452,12 +5477,13 @@ img {
 
 .shoot-card {
   position: relative;
-  background: var(--white);
+  background: var(--primary-purple);
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
   cursor: pointer;
   transition: all var(--transition-normal);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .shoot-card:hover {
@@ -5469,7 +5495,7 @@ img {
   width: 100%;
   aspect-ratio: 4/3;
   overflow: hidden;
-  background: var(--cream-white);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .shoot-thumbnail img {
@@ -5490,20 +5516,20 @@ img {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--gray);
+  color: var(--white);
   font-weight: 500;
   gap: var(--spacing-sm);
-  background: var(--cream-white);
+  background: rgba(0, 0, 0, 0.3);
 }
 
 .no-photo svg {
-  color: var(--gray);
-  opacity: 0.6;
+  color: var(--accent-gold);
+  opacity: 0.8;
 }
 
 .no-photo span {
   font-size: 0.9rem;
-  color: var(--text-secondary);
+  color: var(--white);
 }
 
 .shoot-info {
@@ -5511,20 +5537,20 @@ img {
 }
 
 .shoot-info h3 {
-  color: var(--primary-purple);
+  color: var(--white);
   margin-bottom: var(--spacing-xs);
   font-size: 1.2rem;
 }
 
 .shoot-category {
-  color: var(--accent-gold-dark);
+  color: var(--accent-gold);
   font-weight: 600;
   font-size: 0.9rem;
   margin-bottom: var(--spacing-xs);
 }
 
 .shoot-count {
-  color: var(--gray);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.85rem;
 }
 

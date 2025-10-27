@@ -1303,30 +1303,41 @@ const AdminDashboard = () => {
                 ) : (
                   shoots.map(shoot => (
                     <div key={shoot.id} className="shoot-card" onClick={() => setSelectedShoot(shoot)}>
-                      <div className="shoot-card-header">
-                        <h3>{shoot.title}</h3>
-                        <span className="shoot-status">{shoot.category}</span>
-                      </div>
-                      {shoot.photos && shoot.photos.length > 0 && (
-                        <div className="shoot-card-preview">
+                      {shoot.photos && shoot.photos.length > 0 ? (
+                        <div className="shoot-thumbnail">
                           <img src={shoot.photos[0].display_url || shoot.photos[0].url} alt={shoot.title} />
                         </div>
+                      ) : (
+                        <div className="shoot-thumbnail">
+                          <div className="no-photo">
+                            <svg width="48" height="48" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                            <span>No photos yet</span>
+                          </div>
+                        </div>
                       )}
-                      <div className="shoot-card-info">
-                        <p>{shoot.photos?.length || 0} photos</p>
-                        <p>{new Date(shoot.date).toLocaleDateString()}</p>
+                      <div className="shoot-info">
+                        <h3>{shoot.title || 'Untitled Shoot'}</h3>
+                        {shoot.category && (
+                          <div className="shoot-category">{shoot.category}</div>
+                        )}
+                        <div className="shoot-count">{shoot.photos?.length || 0} photos</div>
                       </div>
-                      <div className="shoot-card-actions">
-                        <button 
-                          className="btn-small btn-danger"
-                          onClick={(e) => {
-                            e.stopPropagation()
+                      <button 
+                        className="shoot-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (window.confirm('Are you sure you want to delete this shoot?')) {
                             handleDeleteShoot(shoot.id)
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                          }
+                        }}
+                        title="Delete shoot"
+                      >
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   ))
                 )}
@@ -2071,6 +2082,16 @@ const SessionForm = ({ session, packages = [], addOns = [], onSubmit, onCancel }
   // Populate form data when editing an existing session
   useEffect(() => {
     if (session) {
+      // Handle addonIds - can be array, string, or comma-separated string
+      let addonIdsArray = []
+      if (session.addonIds) {
+        addonIdsArray = Array.isArray(session.addonIds) ? session.addonIds : 
+                        [session.addonIds].join(',').split(',').filter(Boolean)
+      } else if (session.addon_ids) {
+        addonIdsArray = Array.isArray(session.addon_ids) ? session.addon_ids : 
+                        [session.addon_ids].join(',').split(',').filter(Boolean)
+      }
+      
       setFormData({
         clientName: session.clientName || session.client_name || '',
         clientEmail: session.clientEmail || session.client_email || '',
@@ -2079,6 +2100,7 @@ const SessionForm = ({ session, packages = [], addOns = [], onSubmit, onCancel }
         time: session.time || '',
         location: session.location || '',
         packageId: session.packageId || session.package_id || '',
+        addonIds: addonIdsArray,
         notes: session.notes || '',
         status: session.status || 'Quoted'
       })
@@ -2175,36 +2197,49 @@ const SessionForm = ({ session, packages = [], addOns = [], onSubmit, onCancel }
           <div className="form-group">
             <label>Add-Ons (Optional)</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginTop: '10px' }}>
-              {addOns.map(addon => (
-                <label key={addon.id} style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  padding: '10px', 
-                  border: '1px solid var(--border-light)', 
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}>
-                  <input
-                    type="checkbox"
-                    value={addon.id}
-                    checked={(formData.addonIds || []).includes(addon.id.toString())}
-                    onChange={(e) => {
-                      const isChecked = e.target.checked
+              {addOns.map(addon => {
+                const isSelected = (formData.addonIds || []).includes(addon.id.toString())
+                return (
+                  <button
+                    key={addon.id}
+                    type="button"
+                    onClick={() => {
                       const currentIds = formData.addonIds || []
-                      const updatedIds = isChecked
-                        ? [...currentIds, e.target.value]
-                        : currentIds.filter(id => id !== e.target.value)
+                      const updatedIds = isSelected
+                        ? currentIds.filter(id => id !== addon.id.toString())
+                        : [...currentIds, addon.id.toString()]
                       setFormData({ ...formData, addonIds: updatedIds })
                     }}
-                    style={{ marginRight: '10px', cursor: 'pointer' }}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
-                  </div>
-                </label>
-              ))}
+                    style={{
+                      padding: '12px',
+                      border: `2px solid ${isSelected ? 'var(--accent-gold)' : 'var(--border-light)'}`,
+                      borderRadius: '8px',
+                      backgroundColor: isSelected ? 'rgba(184, 141, 93, 0.1)' : 'transparent',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textAlign: 'left',
+                      color: 'var(--white)'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--accent-gold)'
+                        e.currentTarget.style.backgroundColor = 'rgba(184, 141, 93, 0.05)'
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.borderColor = 'var(--border-light)'
+                        e.currentTarget.style.backgroundColor = 'transparent'
+                      }
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}

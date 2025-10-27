@@ -48,9 +48,9 @@
 .sessions-table th:nth-child(1) { width: 7%; } /* ID */
 .sessions-table th:nth-child(2) { width: 10%; } /* Client Name */
 .sessions-table th:nth-child(3) { width: 8%; } /* Type */
-.sessions-table th:nth-child(4) { width: 12%; } /* Package */
+.sessions-table th:nth-child(4) { width: 15%; } /* Package */
 .sessions-table th:nth-child(5) { width: 8%; } /* Status */
-.sessions-table th:nth-child(6) { width: 10%; } /* Price */
+.sessions-table th:nth-child(6) { width: 7%; } /* Price */
 .sessions-table th:nth-child(7) { width: 9%; } /* Date */
 .sessions-table th:nth-child(8) { width: 8%; } /* Time */
 .sessions-table th:nth-child(9) { width: 14%; } /* Location */

@@ -11,6 +11,29 @@ const ShootView = () => {
 
   useEffect(() => {
     fetchShoot()
+    
+    // Prevent right-click context menu on entire page
+    const handleContextMenu = (e) => {
+      e.preventDefault()
+      return false
+    }
+    
+    // Prevent common keyboard shortcuts for saving/downloading
+    const handleKeyDown = (e) => {
+      // Disable Ctrl+S (Save), Ctrl+P (Print), Ctrl+Shift+I (DevTools)
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'p' || e.key === 'i')) {
+        e.preventDefault()
+        return false
+      }
+    }
+    
+    document.addEventListener('contextmenu', handleContextMenu)
+    document.addEventListener('keydown', handleKeyDown)
+    
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [shootId])
 
   // Detect photo orientations
@@ -91,14 +114,21 @@ const ShootView = () => {
             
             const orientation = photoOrientations[photo.id] || 'portrait'
             
-            return (
-              <div 
-                key={photo.id} 
-                className={`shoot-photo-item ${orientation === 'landscape' ? 'shoot-photo-landscape' : 'shoot-photo-portrait'}`}
-              >
-                <img src={finalPhotoSrc} alt={`${shoot.title} - Photo`} loading="lazy" />
-              </div>
-            )
+              return (
+                <div 
+                  key={photo.id} 
+                  className={`shoot-photo-item ${orientation === 'landscape' ? 'shoot-photo-landscape' : 'shoot-photo-portrait'}`}
+                >
+                  <img 
+                    src={finalPhotoSrc} 
+                    alt={`${shoot.title} - Photo`} 
+                    loading="lazy"
+                    draggable="false"
+                    onContextMenu={(e) => e.preventDefault()}
+                    onDragStart={(e) => e.preventDefault()}
+                  />
+                </div>
+              )
           })}
         </div>
       </div>

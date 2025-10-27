@@ -210,36 +210,49 @@ const UserDashboard = () => {
                 <div className="form-group">
                   <label>Add-Ons (Optional)</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px', marginTop: '10px' }}>
-                    {addOns.map(addon => (
-                      <label key={addon.id} style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        padding: '10px', 
-                        border: '1px solid var(--border-light)', 
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}>
-                        <input
-                          type="checkbox"
-                          value={addon.id}
-                          checked={(bookingData.addonIds || []).includes(addon.id.toString())}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked
+                    {addOns.map(addon => {
+                      const isSelected = (bookingData.addonIds || []).includes(addon.id.toString())
+                      return (
+                        <button
+                          key={addon.id}
+                          type="button"
+                          onClick={() => {
                             const currentIds = bookingData.addonIds || []
-                            const updatedIds = isChecked
-                              ? [...currentIds, e.target.value]
-                              : currentIds.filter(id => id !== e.target.value)
+                            const updatedIds = isSelected
+                              ? currentIds.filter(id => id !== addon.id.toString())
+                              : [...currentIds, addon.id.toString()]
                             setBookingData({ ...bookingData, addonIds: updatedIds })
                           }}
-                          style={{ marginRight: '10px', cursor: 'pointer' }}
-                        />
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
-                          <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
-                        </div>
-                      </label>
-                    ))}
+                          style={{
+                            padding: '12px',
+                            border: `2px solid ${isSelected ? 'var(--accent-gold)' : 'var(--border-light)'}`,
+                            borderRadius: '8px',
+                            backgroundColor: isSelected ? 'rgba(184, 141, 93, 0.1)' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'left',
+                            color: 'var(--white)'
+                          }}
+                          onMouseOver={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--accent-gold)'
+                              e.currentTarget.style.backgroundColor = 'rgba(184, 141, 93, 0.05)'
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--border-light)'
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                            }
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 'bold' }}>{addon.name}</div>
+                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>${addon.price}</div>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )}
