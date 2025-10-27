@@ -248,8 +248,8 @@ const SessionDetail = () => {
                 <label>Client Name</label>
                 <input
                   type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.client_name || formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, client_name: e.target.value, name: e.target.value })}
                 />
               </div>
 
@@ -257,8 +257,8 @@ const SessionDetail = () => {
                 <label>Email</label>
                 <input
                   type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  value={formData.client_email || formData.email || ''}
+                  onChange={(e) => setFormData({ ...formData, client_email: e.target.value, email: e.target.value })}
                 />
               </div>
 
@@ -273,19 +273,45 @@ const SessionDetail = () => {
 
               <div className="form-group">
                 <label>Session Type</label>
+                <select
+                  value={formData.session_type || formData.sessionType || ''}
+                  onChange={(e) => setFormData({ ...formData, session_type: e.target.value, sessionType: e.target.value })}
+                >
+                  <option value="">Select type</option>
+                  <option value="Events">Events</option>
+                  <option value="Portraits">Portraits</option>
+                  <option value="Motorcycle">Motorcycle</option>
+                  <option value="Car">Car</option>
+                  <option value="Engagement">Engagement</option>
+                  <option value="Pets">Pets</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Date</label>
                 <input
-                  type="text"
-                  value={formData.sessionType || ''}
-                  onChange={(e) => setFormData({ ...formData, sessionType: e.target.value })}
+                  type="date"
+                  value={formData.date || ''}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 />
               </div>
 
               <div className="form-group">
-                <label>Preferred Date</label>
+                <label>Time</label>
                 <input
-                  type="date"
-                  value={formData.preferredDate || ''}
-                  onChange={(e) => setFormData({ ...formData, preferredDate: e.target.value })}
+                  type="time"
+                  value={formData.time || ''}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Location</label>
+                <input
+                  type="text"
+                  value={formData.location || ''}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 />
               </div>
 
@@ -293,8 +319,9 @@ const SessionDetail = () => {
                 <label>Quote Amount ($)</label>
                 <input
                   type="number"
-                  value={formData.quote || ''}
-                  onChange={(e) => setFormData({ ...formData, quote: parseFloat(e.target.value) || 0 })}
+                  step="0.01"
+                  value={formData.quote_amount || formData.quote || ''}
+                  onChange={(e) => setFormData({ ...formData, quote_amount: parseFloat(e.target.value) || 0, quote: parseFloat(e.target.value) || 0 })}
                 />
               </div>
 
@@ -329,11 +356,11 @@ const SessionDetail = () => {
                 <h3>Client Information</h3>
                 <div className="info-item">
                   <strong>Name:</strong>
-                  <span>{session.client_name || session.name}</span>
+                  <span>{session.client_name || session.clientName || session.name || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <strong>Email:</strong>
-                  <span>{session.client_email || session.email}</span>
+                  <span>{session.client_email || session.clientEmail || session.email || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <strong>Phone:</strong>
@@ -346,11 +373,11 @@ const SessionDetail = () => {
                 <h3>Session Details</h3>
                 <div className="info-item">
                   <strong>Session Type:</strong>
-                  <span>{session.session_type}</span>
+                  <span>{session.session_type || session.sessionType || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <strong>Date:</strong>
-                  <span>{new Date(session.date).toLocaleDateString()}</span>
+                  <span>{session.date ? new Date(session.date).toLocaleDateString() : 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <strong>Time:</strong>
@@ -360,10 +387,16 @@ const SessionDetail = () => {
                   <strong>Location:</strong>
                   <span>{session.location || 'TBD'}</span>
                 </div>
+                {session.quote_amount && (
+                  <div className="info-item">
+                    <strong>Quote Amount:</strong>
+                    <span>${parseFloat(session.quote_amount || session.quote_amount).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="info-item">
                   <strong>Booked On:</strong>
-                  <span>{new Date(session.created_at || session.createdAt).toLocaleDateString()}</span>
-                                </div>
+                  <span>{session.created_at || session.createdAt ? new Date(session.created_at || session.createdAt).toLocaleDateString() : 'N/A'}</span>
+                </div>
               </div>
             </div>
 
