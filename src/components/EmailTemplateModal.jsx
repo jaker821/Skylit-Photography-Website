@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import './EmailTemplateModal.css'
+import { API_URL } from '../config'
 
 const EMAIL_TEMPLATES = {
   followUp: {

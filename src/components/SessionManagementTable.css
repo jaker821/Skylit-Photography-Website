@@ -161,6 +161,11 @@
   color: var(--white);
 }
 
+.btn-email {
+  background: var(--accent-gold-dark);
+  color: var(--primary-purple);
+}
+
 .print-buttons {
   display: inline-flex;
   gap: 2px;

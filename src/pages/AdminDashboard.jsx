@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 import CategorySelector from '../components/CategorySelector'
 import SessionManagementTable from '../components/SessionManagementTable'
+import EmailTemplateModal from '../components/EmailTemplateModal'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -49,6 +50,10 @@ const AdminDashboard = () => {
   const [selectedDate, setSelectedDate] = useState(null)
   const [dayViewSessions, setDayViewSessions] = useState([])
   const [showDayView, setShowDayView] = useState(false)
+  
+  // Email template modal state
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailSession, setEmailSession] = useState(null)
 
   useEffect(() => {
     fetchAllData()
@@ -1178,6 +1183,74 @@ const AdminDashboard = () => {
         {/* SESSIONS TAB */}
         {activeTab === 'sessions' && (
           <div className="tab-content">
+            <div style={{ marginBottom: '2rem' }}>
+              <div className="section-header">
+                <h2>Sessions Management</h2>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  <button 
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setSelectedSession(null)
+                      setShowSessionForm(true)
+                    }}
+                  >
+                    + Create Quote
+                  </button>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setSelectedSession({ isBooking: true })
+                      setShowSessionForm(true)
+                    }}
+                  >
+                    + Create Booking
+                  </button>
+                </div>
+              </div>
+
+              {showSessionForm && (
+                <SessionForm 
+                  session={selectedSession}
+                  onSubmit={handleCreateSession}
+                  onCancel={() => {
+                    setShowSessionForm(false)
+                    setSelectedSession(null)
+                  }}
+                />
+              )}
+            </div>
+            
+            <SessionManagementTable
+              sessions={bookings}
+              onApprove={(session) => handleConfirmSession(session.id)}
+              onGenerateShoot={(session) => handleGenerateShoot(session)}
+              onInvoice={(session) => handleInvoiceSession(session)}
+              onEdit={(session) => {
+                setSelectedSession(session)
+                setShowSessionForm(true)
+              }}
+              onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
+              onSendEmail={(session) => {
+                setEmailSession(session)
+                setShowEmailModal(true)
+              }}
+            />
+
+            {showEmailModal && (
+              <EmailTemplateModal
+                session={emailSession}
+                isOpen={showEmailModal}
+                onClose={() => {
+                  setShowEmailModal(false)
+                  setEmailSession(null)
+                }}
+              />
+            )}
+          </div>
+        )}
+
+        {/* OLD SESSIONS TAB - KEPT FOR REFERENCE BUT DISABLED */}
+        {false && (
             <div className="section-header">
               <h2>Sessions Management</h2>
               <div style={{ display: 'flex', gap: '1rem' }}>

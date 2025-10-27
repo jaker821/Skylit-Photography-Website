@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './SessionManagementTable.css'
 
-const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoice, onEdit, onViewDetails }) => {
+const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoice, onEdit, onViewDetails, onSendEmail }) => {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
@@ -300,6 +300,13 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
                             🧾
                           </button>
                         )}
+                        <button
+                          className="btn-action btn-email"
+                          onClick={() => onSendEmail?.(session)}
+                          title="Send Email"
+                        >
+                          📧
+                        </button>
                       </div>
                     </div>
                   </td>
