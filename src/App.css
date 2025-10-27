@@ -5410,8 +5410,8 @@ img {
   gap: 4px;
   margin-bottom: var(--spacing-xs);
   font-weight: 600;
-  color: var(--gray);
-  font-size: 0.85rem;
+  color: var(--primary-purple);
+  font-size: 0.9rem;
   text-align: center;
 }
 
@@ -5423,17 +5423,19 @@ img {
 
 .calendar-day {
   aspect-ratio: 1;
-  border: 1px solid var(--light-gray);
+  border: 2px solid var(--light-gray);
   border-radius: var(--radius-sm);
   padding: var(--spacing-xs);
   position: relative;
   cursor: pointer;
   transition: all var(--transition-fast);
+  background: var(--white);
 }
 
 .calendar-day:not(.empty):hover {
   background: var(--cream-white);
   border-color: var(--accent-gold);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .calendar-day.empty {
@@ -5475,9 +5477,22 @@ img {
 }
 
 .day-number {
-  font-size: 0.85rem;
-  color: var(--dark-gray);
-  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--primary-purple);
+  font-weight: 700;
+}
+
+.day-sessions {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.session-dot {
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 .day-sessions {
