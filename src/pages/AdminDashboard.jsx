@@ -1248,21 +1248,6 @@ const AdminDashboard = () => {
             )}
           </div>
         )}
-
-        {/* OLD SESSIONS TAB - KEPT FOR REFERENCE BUT DISABLED */}
-        {false && (
-            <div className="section-header">
-              <h2>Sessions Management</h2>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setSelectedSession(null)
-                    setShowSessionForm(true)
-                  }}
-                >
-                  + Create Quote
-                </button>
                 <button 
                   className="btn btn-primary"
                   onClick={() => {
