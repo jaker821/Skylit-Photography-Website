@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import './SessionManagementTable.css'
 
-const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoice, onEdit, onViewDetails, onSendEmail }) => {
+const SessionManagementTable = ({ sessions, packages, addOns = [], onApprove, onGenerateShoot, onInvoice, onEdit, onViewDetails, onSendEmail }) => {
   const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
@@ -13,6 +13,45 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
   })
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const [selectedSession, setSelectedSession] = useState(null)
+  
+  // Helper function to get package name and price
+  const getPackageInfo = (packageId) => {
+    if (!packageId || !packages || !Array.isArray(packages)) return { name: 'N/A', price: null }
+    const pkg = packages.find(p => p.id === packageId || p.id === parseInt(packageId))
+    return { 
+      name: pkg ? pkg.name : 'N/A', 
+      price: pkg ? pkg.price : null 
+    }
+  }
+
+  // Helper function to calculate total including addons
+  const calculateTotal = (session) => {
+    let total = 0
+    
+    // Add package price
+    if (session.package_id && packages && Array.isArray(packages)) {
+      const pkg = packages.find(p => p.id === session.package_id || p.id === parseInt(session.package_id))
+      if (pkg && pkg.price) {
+        total += parseFloat(pkg.price)
+      }
+    }
+    
+    // Add addon prices if addonIds exists and is an array
+    if (session.addon_ids || session.addonIds) {
+      const addonIds = Array.isArray(session.addon_ids) ? session.addon_ids : 
+                      Array.isArray(session.addonIds) ? session.addonIds : 
+                      (session.addon_ids || session.addonIds || '').split(',').filter(Boolean)
+      
+      addonIds.forEach(addonId => {
+        const addon = addOns.find(a => a.id === parseInt(addonId) || a.id === addonId)
+        if (addon && addon.price) {
+          total += parseFloat(addon.price)
+        }
+      })
+    }
+    
+    return total > 0 ? total : null
+  }
 
   // Ensure sessions is an array
   if (!Array.isArray(sessions)) {
@@ -108,14 +147,7 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
       console.error('generatePrintContent called with invalid session:', session)
       return '<html><body><h1>Error: Invalid session data</h1></body></html>'
     }
-    const statusColors = {
-      pending: '#ff9800',
-      quoted: '#2196f3',
-      booked: '#4caf50',
-      invoiced: '#9c27b0'
-    }
-
-    // Safely extract values with defaults
+    
     const clientName = session.client_name || 'Client Name'
     const clientEmail = session.client_email || 'N/A'
     const phone = session.phone || 'N/A'
@@ -123,16 +155,47 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
     const date = session.date ? new Date(session.date).toLocaleDateString() : 'N/A'
     const time = session.time || 'TBD'
     const location = session.location || 'TBD'
-    const quoteAmount = ('quote_amount' in session && session.quote_amount !== undefined && session.quote_amount !== null) ? parseFloat(session.quote_amount || 0).toFixed(2) : null
     const notes = session.notes || ''
-    const status = session.status || 'N/A'
-    const statusColor = statusColors[session.status?.toLowerCase() || ''] || '#666'
-    const title = type === 'quote' ? 'QUOTE' : type === 'order' ? 'ORDER DETAILS' : 'INVOICE'
+    const title = type === 'quote' ? 'QUOTE' : type === 'order' ? 'ORDER' : 'INVOICE'
     const documentType = type.charAt(0).toUpperCase() + type.slice(1)
-
-    // Build amount row separately to avoid nested template literal issues
-    const amountRow = quoteAmount ? `<div class="detail-row"><div class="detail-label">Amount:</div><div>$${quoteAmount}</div></div>` : ''
-    const notesRow = notes ? `<div class="detail-row"><div class="detail-label">Notes:</div><div>${notes}</div></div>` : ''
+    
+    // Get package and addons
+    const packageInfo = getPackageInfo(session.package_id)
+    const addonIds = Array.isArray(session.addon_ids) ? session.addon_ids : 
+                     Array.isArray(session.addonIds) ? session.addonIds : 
+                     (session.addon_ids || session.addonIds || '').split(',').filter(Boolean)
+    
+    // Get addon details
+    const selectedAddons = addonIds.map(addonId => {
+      const addon = addOns.find(a => a.id === parseInt(addonId) || a.id === addonId)
+      return addon || null
+    }).filter(Boolean)
+    
+    // Calculate total
+    let subtotal = 0
+    const lineItems = []
+    
+    if (packageInfo.price) {
+      const pkgPrice = parseFloat(packageInfo.price)
+      lineItems.push({ description: packageInfo.name, quantity: 1, price: pkgPrice })
+      subtotal += pkgPrice
+    }
+    
+    selectedAddons.forEach(addon => {
+      const addonPrice = parseFloat(addon.price)
+      lineItems.push({ description: addon.name, quantity: 1, price: addonPrice })
+      subtotal += addonPrice
+    })
+    
+    const total = subtotal.toFixed(2)
+    const lineItemsHtml = lineItems.map(item => `
+      <tr class="line-item">
+        <td>${item.description}</td>
+        <td class="qty">${item.quantity}</td>
+        <td class="price">$${item.price.toFixed(2)}</td>
+        <td class="total">$${item.price.toFixed(2)}</td>
+      </tr>
+    `).join('')
 
     return `
       <!DOCTYPE html>
@@ -140,34 +203,203 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
         <head>
           <title>${documentType} - ${clientName}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 40px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .details { margin: 20px 0; }
-            .detail-row { margin: 10px 0; display: flex; }
-            .detail-label { font-weight: bold; width: 150px; }
-            .footer { margin-top: 40px; text-align: center; color: #666; }
-            .status-badge { display: inline-block; padding: 5px 15px; border-radius: 4px; color: white; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 40px; 
+              background: #fff;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 40px;
+              border-bottom: 3px solid #DFD08F;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #4E2E3A;
+              font-size: 2.5em;
+              margin-bottom: 10px;
+            }
+            .header p {
+              color: #666;
+              font-size: 1.1em;
+            }
+            .customer-info {
+              background: #f9f9f9;
+              padding: 20px;
+              border-radius: 8px;
+              margin-bottom: 30px;
+            }
+            .customer-info h2 {
+              color: #4E2E3A;
+              margin-bottom: 15px;
+              font-size: 1.3em;
+            }
+            .customer-info-row {
+              display: flex;
+              margin-bottom: 8px;
+            }
+            .customer-info-row strong {
+              width: 120px;
+              color: #4E2E3A;
+            }
+            .session-details {
+              background: #f0f0f0;
+              padding: 15px;
+              border-radius: 8px;
+              margin-bottom: 30px;
+            }
+            .session-details h3 {
+              color: #4E2E3A;
+              margin-bottom: 12px;
+              font-size: 1.1em;
+            }
+            .line-items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            .line-items-table th {
+              background: #4E2E3A;
+              color: #DFD08F;
+              padding: 12px;
+              text-align: left;
+              font-weight: bold;
+            }
+            .line-items-table td {
+              padding: 12px;
+              border-bottom: 1px solid #ddd;
+            }
+            .line-item {
+              background: #fff;
+            }
+            .line-item:nth-child(even) {
+              background: #f9f9f9;
+            }
+            .qty, .price, .total {
+              text-align: center;
+              font-weight: bold;
+            }
+            .summary {
+              background: #f0f0f0;
+              padding: 20px;
+              border-radius: 8px;
+              margin-left: auto;
+              margin-right: 0;
+              width: 300px;
+            }
+            .summary-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 10px;
+              font-size: 1.1em;
+            }
+            .summary-row.total {
+              font-size: 1.5em;
+              font-weight: bold;
+              color: #4E2E3A;
+              border-top: 2px solid #4E2E3A;
+              padding-top: 10px;
+              margin-top: 10px;
+            }
+            .notes {
+              margin-top: 30px;
+              padding: 15px;
+              background: #fff9e6;
+              border-left: 4px solid #DFD08F;
+              border-radius: 4px;
+            }
+            .notes h4 {
+              color: #4E2E3A;
+              margin-bottom: 10px;
+            }
+            .footer {
+              margin-top: 50px;
+              text-align: center;
+              color: #888;
+              font-size: 0.9em;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+            }
+            @media print {
+              body { padding: 20px; }
+              .header { page-break-after: avoid; }
+            }
           </style>
         </head>
         <body>
           <div class="header">
             <h1>${title}</h1>
             <p>Skylit Photography</p>
+            <p>Document #${session.id || 'N/A'}</p>
           </div>
-          <div class="details">
-            <h2>${clientName}</h2>
-            <div class="detail-row"><div class="detail-label">Email:</div><div>${clientEmail}</div></div>
-            <div class="detail-row"><div class="detail-label">Phone:</div><div>${phone}</div></div>
-            <div class="detail-row"><div class="detail-label">Session Type:</div><div>${sessionType}</div></div>
-            <div class="detail-row"><div class="detail-label">Date:</div><div>${date}</div></div>
-            <div class="detail-row"><div class="detail-label">Time:</div><div>${time}</div></div>
-            <div class="detail-row"><div class="detail-label">Location:</div><div>${location}</div></div>
-            ${amountRow}
-            ${notesRow}
-            <div class="detail-row"><div class="detail-label">Status:</div><div><span class="status-badge" style="background: ${statusColor}">${status}</span></div></div>
+          
+          <div class="customer-info">
+            <h2>Bill To:</h2>
+            <div class="customer-info-row">
+              <strong>Name:</strong> <span>${clientName}</span>
+            </div>
+            <div class="customer-info-row">
+              <strong>Email:</strong> <span>${clientEmail}</span>
+            </div>
+            <div class="customer-info-row">
+              <strong>Phone:</strong> <span>${phone}</span>
+            </div>
           </div>
+          
+          <div class="session-details">
+            <h3>Session Details:</h3>
+            <div class="customer-info-row">
+              <strong>Session Type:</strong> <span>${sessionType}</span>
+            </div>
+            <div class="customer-info-row">
+              <strong>Date:</strong> <span>${date}</span>
+            </div>
+            <div class="customer-info-row">
+              <strong>Time:</strong> <span>${time}</span>
+            </div>
+            <div class="customer-info-row">
+              <strong>Location:</strong> <span>${location}</span>
+            </div>
+          </div>
+          
+          <table class="line-items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="qty">Qty</th>
+                <th class="price">Unit Price</th>
+                <th class="total">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lineItemsHtml}
+            </tbody>
+          </table>
+          
+          <div style="display: flex; justify-content: flex-end;">
+            <div class="summary">
+              <div class="summary-row">
+                <span>Subtotal:</span>
+                <span>$${total}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Total:</span>
+                <span>$${total}</span>
+              </div>
+            </div>
+          </div>
+          
+          ${notes ? `
+            <div class="notes">
+              <h4>Notes:</h4>
+              <p>${notes}</p>
+            </div>
+          ` : ''}
+          
           <div class="footer">
             <p>Generated on ${new Date().toLocaleString()}</p>
+            <p>Thank you for choosing Skylit Photography!</p>
           </div>
         </body>
       </html>
@@ -243,8 +475,12 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
               <th onClick={() => handleSort('session_type')}>
                 Type {sortConfig.key === 'session_type' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
+              <th>Package</th>
               <th onClick={() => handleSort('status')}>
                 Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+              </th>
+              <th onClick={() => handleSort('quote_amount')}>
+                Price {sortConfig.key === 'quote_amount' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
               <th onClick={() => handleSort('date')}>
                 Date {sortConfig.key === 'date' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
@@ -258,34 +494,36 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
               <th onClick={() => handleSort('phone')}>
                 Phone {sortConfig.key === 'phone' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
               </th>
-              <th onClick={() => handleSort('client_email')}>
-                Email {sortConfig.key === 'client_email' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-              </th>
             </tr>
           </thead>
           <tbody>
             {sortedSessions.length === 0 ? (
               <tr>
-                <td colSpan="9" className="no-data">No sessions found</td>
+                <td colSpan="10" className="no-data">No sessions found</td>
               </tr>
             ) : (
-              sortedSessions.map((session, index) => (
-                <tr key={session.id} className="session-row" onClick={() => handleSessionClick(session, index)}>
-                  <td>{getDisplayId(index)}</td>
-                  <td>{session.client_name || 'N/A'}</td>
-                  <td>{session.session_type || 'N/A'}</td>
-                  <td>
-                    <span className={`status-badge status-${(session.status || '').toLowerCase()}`}>
-                      {session.status || 'N/A'}
-                    </span>
-                  </td>
-                  <td>{session.date ? new Date(session.date).toLocaleDateString() : 'N/A'}</td>
-                  <td>{session.time || 'TBD'}</td>
-                  <td>{session.location || 'TBD'}</td>
-                  <td>{session.phone || 'N/A'}</td>
-                  <td>{session.client_email || 'N/A'}</td>
-                </tr>
-              ))
+              sortedSessions.map((session, index) => {
+                const packageInfo = getPackageInfo(session.package_id)
+                const total = calculateTotal(session)
+                return (
+                  <tr key={session.id} className="session-row" onClick={() => handleSessionClick(session, index)}>
+                    <td>{getDisplayId(index)}</td>
+                    <td>{session.client_name || 'N/A'}</td>
+                    <td>{session.session_type || 'N/A'}</td>
+                    <td>{packageInfo.name}</td>
+                    <td>
+                      <span className={`status-badge status-${(session.status || '').toLowerCase()}`}>
+                        {session.status || 'N/A'}
+                      </span>
+                    </td>
+                    <td>{total ? `$${total.toFixed(2)}` : 'N/A'}</td>
+                    <td>{session.date ? new Date(session.date).toLocaleDateString() : 'N/A'}</td>
+                    <td>{session.time || 'TBD'}</td>
+                    <td>{session.location || 'TBD'}</td>
+                    <td>{session.phone || 'N/A'}</td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
@@ -312,6 +550,14 @@ const SessionManagementTable = ({ sessions, onApprove, onGenerateShoot, onInvoic
                 <div className="detail-row">
                   <strong>Session Type:</strong> {selectedSession.session_type || 'N/A'}
                 </div>
+                {selectedSession.package_id && (() => {
+                  const pkgInfo = getPackageInfo(selectedSession.package_id)
+                  return (
+                    <div className="detail-row">
+                      <strong>Package:</strong> {pkgInfo.name} {pkgInfo.price && `($${pkgInfo.price.toFixed(2)})`}
+                    </div>
+                  )
+                })()}
                 <div className="detail-row">
                   <strong>Status:</strong> 
                   <span className={`status-badge status-${(selectedSession.status || '').toLowerCase()}`}>

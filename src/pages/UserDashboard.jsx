@@ -11,6 +11,7 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [bookings, setBookings] = useState([])
   const [packages, setPackages] = useState([])
+  const [addOns, setAddOns] = useState([])
   const [authorizedShoots, setAuthorizedShoots] = useState([])
   const [bookingData, setBookingData] = useState({
     sessionType: '',
@@ -18,7 +19,8 @@ const UserDashboard = () => {
     time: '',
     location: '',
     notes: '',
-    packageId: ''
+    packageId: '',
+    addonIds: []
   })
 
   useEffect(() => {
@@ -52,6 +54,7 @@ const UserDashboard = () => {
         return priceA - priceB
       })
       setPackages(sortedPackages)
+      setAddOns(data.addOns || [])
     } catch (error) {
       console.error('Error fetching pricing:', error)
     }
@@ -97,7 +100,8 @@ const UserDashboard = () => {
           time: '',
           location: '',
           notes: '',
-          packageId: ''
+          packageId: '',
+          addonIds: []
         })
       }
     } catch (error) {
@@ -199,6 +203,31 @@ const UserDashboard = () => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Add-ons Selection */}
+              <div className="form-group">
+                <label htmlFor="addonIds">Add-Ons (Optional)</label>
+                <select
+                  id="addonIds"
+                  name="addonIds"
+                  multiple
+                  value={bookingData.addonIds || []}
+                  onChange={(e) => {
+                    const selectedAddons = Array.from(e.target.selectedOptions, option => option.value)
+                    setBookingData({ ...bookingData, addonIds: selectedAddons })
+                  }}
+                  style={{ minHeight: '100px' }}
+                >
+                  {addOns.map(addon => (
+                    <option key={addon.id} value={addon.id}>
+                      {addon.name} - ${addon.price}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem' }}>
+                  Hold Ctrl (or Cmd on Mac) to select multiple add-ons
+                </p>
               </div>
 
               {/* Display selected package details */}

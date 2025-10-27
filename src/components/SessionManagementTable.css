@@ -42,7 +42,19 @@
 .sessions-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
+
+.sessions-table th:nth-child(1) { width: 5%; } /* ID */
+.sessions-table th:nth-child(2) { width: 12%; } /* Client Name */
+.sessions-table th:nth-child(3) { width: 8%; } /* Type */
+.sessions-table th:nth-child(4) { width: 10%; } /* Package */
+.sessions-table th:nth-child(5) { width: 8%; } /* Status */
+.sessions-table th:nth-child(6) { width: 8%; } /* Price */
+.sessions-table th:nth-child(7) { width: 8%; } /* Date */
+.sessions-table th:nth-child(8) { width: 8%; } /* Time */
+.sessions-table th:nth-child(9) { width: 12%; } /* Location */
+.sessions-table th:nth-child(10) { width: 11%; } /* Phone */
 
 .sessions-table thead {
   background: var(--primary-purple);
@@ -61,6 +73,7 @@
   white-space: nowrap;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--accent-gold);
+  font-size: 0.85rem;
 }
 
 .sessions-table th:hover {
@@ -86,6 +99,9 @@
   white-space: nowrap;
   border-right: 1px solid var(--border-light);
   color: var(--white);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sessions-table td:last-child {

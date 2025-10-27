@@ -3513,6 +3513,51 @@ async function startServer() {
         console.log('✅ Default pricing categories created');
       }
     // }
+
+    // ADHOC Email Endpoint (admin only)
+    app.post('/api/notifications/send', requireAdmin, async (req, res) => {
+      try {
+        const { to, subject, body, sessionId } = req.body;
+        
+        if (!to || !subject || !body) {
+          return res.status(400).json({ error: 'Email, subject, and body are required' });
+        }
+        
+        // Check if email is configured
+        if (!transporter) {
+          console.log('⚠️  Email not configured - notification not sent');
+          return res.status(503).json({ error: 'Email service not configured' });
+        }
+        
+        // Send email
+        try {
+          await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: to,
+            subject: subject,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                  <div style="white-space: pre-wrap; line-height: 1.6;">${body}</div>
+                </div>
+                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.9em;">
+                  <p>This email was sent from Skylit Photography.</p>
+                </div>
+              </div>
+            `
+          });
+          
+          console.log(`📧 ADHOC email sent to ${to}`);
+          res.json({ success: true, message: 'Email sent successfully' });
+        } catch (emailError) {
+          console.error('Email send error:', emailError);
+          res.status(500).json({ error: 'Failed to send email' });
+        }
+      } catch (error) {
+        console.error('Notification error:', error);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
     
     // Start the server
     app.listen(PORT, () => {

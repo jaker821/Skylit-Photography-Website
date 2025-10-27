@@ -1211,6 +1211,8 @@ const AdminDashboard = () => {
               {showSessionForm && (
                 <SessionForm 
                   session={selectedSession}
+                  packages={packages}
+                  addOns={addOns}
                   onSubmit={handleCreateSession}
                   onCancel={() => {
                     setShowSessionForm(false)
@@ -1224,6 +1226,8 @@ const AdminDashboard = () => {
               <Suspense fallback={<div className="no-data">Loading sessions...</div>}>
                 <SessionManagementTable
                   sessions={bookings}
+                  packages={packages}
+                  addOns={addOns}
                   onApprove={(session) => handleConfirmSession(session.id)}
                   onGenerateShoot={(session) => handleGenerateShoot(session)}
                   onInvoice={(session) => handleInvoiceSession(session)}
@@ -1974,7 +1978,7 @@ const SessionCalendar = ({ bookings, onDateClick }) => {
 }
 
 // Session Form Component (for creating quotes)
-const SessionForm = ({ session, onSubmit, onCancel }) => {
+const SessionForm = ({ session, packages = [], addOns = [], onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
@@ -1982,7 +1986,8 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
     date: '',
     time: '',
     location: '',
-    quoteAmount: '',
+    packageId: '',
+    addonIds: [],
     notes: '',
     status: 'Quoted' // Always create as Quoted when admin creates manually
   })
@@ -1997,7 +2002,7 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
         date: session.date || '',
         time: session.time || '',
         location: session.location || '',
-        quoteAmount: session.quoteAmount || session.quote_amount || '',
+        packageId: session.packageId || session.package_id || '',
         notes: session.notes || '',
         status: session.status || 'Quoted'
       })
@@ -2073,16 +2078,45 @@ const SessionForm = ({ session, onSubmit, onCancel }) => {
             </select>
           </div>
           <div className="form-group">
-            <label>Quote Amount ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.quoteAmount}
-              onChange={(e) => setFormData({...formData, quoteAmount: e.target.value})}
-              placeholder="Estimated price"
-            />
+            <label>Pricing Package *</label>
+            <select
+              value={formData.packageId}
+              onChange={(e) => setFormData({...formData, packageId: e.target.value})}
+              required
+            >
+              <option value="">Select package</option>
+              {packages.map(pkg => (
+                <option key={pkg.id} value={pkg.id}>
+                  {pkg.name} - ${pkg.price} {pkg.duration && `(${pkg.duration})`}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+        
+        {/* Add-ons Selection */}
+        <div className="form-group">
+          <label>Add-Ons (Optional)</label>
+          <select
+            multiple
+            value={formData.addonIds || []}
+            onChange={(e) => {
+              const selectedAddons = Array.from(e.target.selectedOptions, option => option.value)
+              setFormData({ ...formData, addonIds: selectedAddons })
+            }}
+            style={{ minHeight: '100px' }}
+          >
+            {addOns.map(addon => (
+              <option key={addon.id} value={addon.id}>
+                {addon.name} - ${addon.price}
+              </option>
+            ))}
+          </select>
+          <p style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem' }}>
+            Hold Ctrl (or Cmd on Mac) to select multiple add-ons
+          </p>
+        </div>
+        
         <div className="form-row">
           <div className="form-group">
             <label>Proposed Date</label>
