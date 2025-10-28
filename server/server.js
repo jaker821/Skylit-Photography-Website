@@ -2093,40 +2093,64 @@ app.delete('/api/portfolio/shoots/:shootId/photos/:photoId', requireAdmin, async
     }
     
     // Delete BOTH versions from storage
-    try {
-      if (SPACES_ENABLED && s3Client) {
-        // Delete compressed version
-        if (photo.display_key) {
+    const deletedFiles = [];
+    
+    if (SPACES_ENABLED && s3Client) {
+      // Delete compressed version
+      if (photo.display_key) {
+        try {
           await s3Client.deleteObject({
             Bucket: process.env.SPACES_BUCKET,
             Key: photo.display_key
           }).promise();
-          console.log(`Deleted compressed: ${photo.display_key}`);
+          deletedFiles.push(photo.display_key);
+          console.log(`✅ Deleted compressed: ${photo.display_key}`);
+        } catch (err) {
+          console.error(`❌ Error deleting compressed ${photo.display_key}:`, err.message);
+          // Continue - file might not exist
         }
-        
-        // Delete original version (if exists)
-        if (photo.download_key && photo.has_high_res) {
+      }
+      
+      // Delete original version (if exists)
+      // Check has_high_res as it might be 0 or 1 (integer) from database
+      const hasHighRes = photo.has_high_res === 1 || photo.has_high_res === true || photo.hasHighRes === true;
+      if (photo.download_key && hasHighRes) {
+        try {
           await s3Client.deleteObject({
             Bucket: process.env.SPACES_BUCKET,
             Key: photo.download_key
           }).promise();
-          console.log(`Deleted original: ${photo.download_key}`);
+          deletedFiles.push(photo.download_key);
+          console.log(`✅ Deleted original: ${photo.download_key}`);
+        } catch (err) {
+          console.error(`❌ Error deleting original ${photo.download_key}:`, err.message);
+          // Continue - file might not exist
         }
-      } else {
-        // Delete from local filesystem
-        const photoPath = path.join(__dirname, 'uploads', photo.filename);
-        await fs.unlink(photoPath);
-        console.log(`Deleted from local storage`);
       }
-    } catch (err) {
-      console.error('Error deleting file:', err);
-      // Continue anyway to remove from database
+    } else {
+      // Delete from local filesystem
+      if (photo.filename) {
+        try {
+          const photoPath = path.join(__dirname, 'uploads', photo.filename);
+          await fs.unlink(photoPath);
+          console.log(`✅ Deleted from local storage: ${photo.filename}`);
+          deletedFiles.push(photo.filename);
+        } catch (err) {
+          console.error(`❌ Error deleting local file ${photo.filename}:`, err.message);
+          // Continue - file might not exist
+        }
+      }
     }
     
-    // Remove from database
+    // Remove from database (always do this, even if file deletion failed)
     await db.run('DELETE FROM photos WHERE id = ?', [photoId]);
+    console.log(`✅ Removed photo ${photoId} from database`);
     
-    res.json({ success: true });
+    res.json({ 
+      success: true, 
+      deletedFiles,
+      message: deletedFiles.length > 0 ? `Deleted ${deletedFiles.length} file(s)` : 'Removed from database (files may not have existed)'
+    });
   } catch (error) {
     console.error('Delete photo error:', error);
     res.status(500).json({ error: 'Server error' });

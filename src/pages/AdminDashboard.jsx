@@ -1576,10 +1576,14 @@ const AdminDashboard = () => {
                             headers: { 'Content-Type': 'application/json' },
                             credentials: 'include',
                             body: JSON.stringify({
-                              ...eventData,
-                              isBooking: false,
-                              status: 'pending',
-                              session_type: 'event'
+                              sessionType: eventData.title, // Map title to sessionType for events
+                              date: eventData.date,
+                              time: eventData.time,
+                              location: eventData.location,
+                              notes: eventData.description,
+                              clientName: 'Calendar Event',
+                              clientEmail: 'calendar@event.com',
+                              status: 'pending'
                             })
                           })
                           
