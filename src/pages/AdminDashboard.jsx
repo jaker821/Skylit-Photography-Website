@@ -1550,6 +1550,58 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+
+            {/* Event Form Modal */}
+            {showEventForm && (
+              <div className="modal-overlay" onClick={() => setShowEventForm(false)}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                  <div className="modal-header">
+                    <h2>{selectedEvent ? 'Edit Event' : 'Create New Event'}</h2>
+                    <button className="modal-close" onClick={() => {
+                      setShowEventForm(false)
+                      setSelectedEvent(null)
+                    }}>×</button>
+                  </div>
+                  <div className="modal-body">
+                    <EventForm
+                      event={selectedEvent}
+                      onCancel={() => {
+                        setShowEventForm(false)
+                        setSelectedEvent(null)
+                      }}
+                      onSubmit={async (eventData) => {
+                        try {
+                          const response = await fetch(`${API_URL}/bookings`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              ...eventData,
+                              isBooking: false,
+                              status: 'pending',
+                              session_type: 'event'
+                            })
+                          })
+                          
+                          if (response.ok) {
+                            await fetchAllData()
+                            setShowEventForm(false)
+                            setSelectedEvent(null)
+                            alert('Event created successfully!')
+                          } else {
+                            const error = await response.json()
+                            alert(`Failed to create event: ${error.error || 'Unknown error'}`)
+                          }
+                        } catch (error) {
+                          console.error('Error creating event:', error)
+                          alert('Failed to create event')
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3202,7 +3254,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
   
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
-      onPhotoUpload(e.target.files)
+      onPhotoUpload(shoot.id, e.target.files)
     }
   }
   
@@ -3860,6 +3912,111 @@ const CategoryForm = ({ category, onSubmit, onCancel }) => {
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
           <button type="submit" className="btn btn-primary">
             {category ? 'Update Category' : 'Create Category'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Event Form Component
+const EventForm = ({ event, onSubmit, onCancel }) => {
+  const [formData, setFormData] = React.useState({
+    title: '',
+    date: '',
+    time: '',
+    location: '',
+    description: '',
+    reminder_enabled: false
+  })
+
+  React.useEffect(() => {
+    if (event) {
+      setFormData({
+        title: event.title || event.name || '',
+        date: event.date || '',
+        time: event.time || '',
+        location: event.location || '',
+        description: event.description || '',
+        reminder_enabled: event.reminder_enabled || false
+      })
+    }
+  }, [event])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit(formData)
+  }
+
+  return (
+    <div className="event-form">
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Event Title *</label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({...formData, title: e.target.value})}
+            placeholder="e.g., Client Meeting, Studio Setup"
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Date *</label>
+          <input
+            type="date"
+            value={formData.date}
+            onChange={(e) => setFormData({...formData, date: e.target.value})}
+            required
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Time</label>
+          <input
+            type="time"
+            value={formData.time}
+            onChange={(e) => setFormData({...formData, time: e.target.value})}
+            placeholder="00:00"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Location</label>
+          <input
+            type="text"
+            value={formData.location}
+            onChange={(e) => setFormData({...formData, location: e.target.value})}
+            placeholder="e.g., Studio, Park, Client's Home"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Description</label>
+          <textarea
+            value={formData.description}
+            onChange={(e) => setFormData({...formData, description: e.target.value})}
+            placeholder="Additional notes about this event..."
+            rows="3"
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={formData.reminder_enabled}
+              onChange={(e) => setFormData({...formData, reminder_enabled: e.target.checked})}
+            />
+            <span>Enable reminder notification</span>
+          </label>
+        </div>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="submit" className="btn btn-primary">
+            {event ? 'Update Event' : 'Create Event'}
           </button>
         </div>
       </form>
