@@ -3600,7 +3600,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 className="delete-photo-btn"
                 onClick={() => {
                   if (window.confirm('Delete this photo? (Both compressed and original will be deleted)')) {
-                    onPhotoDelete(photo.id)
+                    onPhotoDelete(shoot.id, photo.id)
                   }
                 }}
               >
