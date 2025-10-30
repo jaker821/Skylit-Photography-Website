@@ -641,9 +641,23 @@ const AdminDashboard = () => {
       
       if (response.ok) {
         await fetchShoots()
+        // Update selectedShoot if it exists by refetching the shoot
+        if (selectedShoot && selectedShoot.id === shootId) {
+          const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${shootId}`, {
+            credentials: 'include'
+          })
+          if (shootResponse.ok) {
+            const shootData = await shootResponse.json()
+            setSelectedShoot(shootData.shoot)
+          }
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || 'Failed to delete photo')
       }
     } catch (error) {
       console.error('Error deleting photo:', error)
+      alert('Server error. Please try again.')
     }
   }
 
@@ -750,18 +764,16 @@ const AdminDashboard = () => {
 
       if (response.ok) {
         await fetchShoots()
-        // Update selectedShoot if it exists
+        // Update selectedShoot if it exists by refetching the shoot
         if (selectedShoot) {
-          setSelectedShoot(prevShoot => ({
-            ...prevShoot,
-            photos: prevShoot.photos.map(photo =>
-              photo.id === photoId
-                ? { ...photo, is_hidden: !currentHiddenState, isHidden: !currentHiddenState }
-                : photo
-            )
-          }))
+          const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
+            credentials: 'include'
+          })
+          if (shootResponse.ok) {
+            const shootData = await shootResponse.json()
+            setSelectedShoot(shootData.shoot)
+          }
         }
-        alert(currentHiddenState ? 'Photo is now visible' : 'Photo is now hidden')
       } else {
         const data = await response.json()
         console.error('🎯 Error response:', data)
@@ -786,18 +798,16 @@ const AdminDashboard = () => {
 
       if (response.ok) {
         await fetchShoots()
-        // Update selectedShoot if it exists
+        // Update selectedShoot if it exists by refetching the shoot
         if (selectedShoot) {
-          setSelectedShoot(prevShoot => ({
-            ...prevShoot,
-            photos: prevShoot.photos.map(photo =>
-              photo.id === photoId
-                ? { ...photo, cover_photo: !currentCoverState }
-                : { ...photo, cover_photo: photo.id === photoId ? !currentCoverState : false }
-            )
-          }))
+          const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
+            credentials: 'include'
+          })
+          if (shootResponse.ok) {
+            const shootData = await shootResponse.json()
+            setSelectedShoot(shootData.shoot)
+          }
         }
-        alert(currentCoverState ? 'Photo removed as cover photo' : 'Photo set as cover photo')
       } else {
         const data = await response.json()
         alert(data.error || 'Failed to update cover photo')
@@ -3544,9 +3554,78 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
             ? photoSrc  // CDN URL - use as-is
             : `${API_URL.replace('/api', '')}${photoSrc}`; // Local URL - prepend server URL
           
+          const isHidden = photo.is_hidden === 1 || photo.is_hidden === true || photo.isHidden === true;
+          const isFeatured = photo.featured === 1 || photo.featured === true;
+          const isCoverPhoto = photo.cover_photo === 1 || photo.cover_photo === true;
+          
           return (
             <div key={photo.id} className="photo-item">
-              <img src={finalPhotoSrc} alt={photo.originalName} />
+              <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                <img src={finalPhotoSrc} alt={photo.originalName} style={{ 
+                  opacity: isHidden ? 0.5 : 1,
+                  width: '100%',
+                  height: 'auto',
+                  display: 'block'
+                }} />
+                {/* Photo status overlays */}
+                {isHidden && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    left: '10px',
+                    background: 'rgba(255, 0, 0, 0.8)',
+                    color: 'white',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    fontSize: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 'bold'
+                  }}>
+                    <span>🚫</span>
+                    <span style={{ fontSize: '14px' }}>Hidden</span>
+                  </div>
+                )}
+                {isFeatured && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    background: 'rgba(255, 215, 0, 0.9)',
+                    color: '#333',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    fontSize: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 'bold'
+                  }}>
+                    <span>⭐</span>
+                    <span style={{ fontSize: '14px' }}>Featured</span>
+                  </div>
+                )}
+                {isCoverPhoto && (
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '10px',
+                    left: '10px',
+                    background: 'rgba(0, 123, 255, 0.9)',
+                    color: 'white',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    fontSize: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: 'bold'
+                  }}>
+                    <span>📷</span>
+                    <span style={{ fontSize: '14px' }}>Cover</span>
+                  </div>
+                )}
+              </div>
               <div className="photo-info">
                 {photo.compressedSize && (
                   <span className="file-size">
@@ -3558,12 +3637,12 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 )}
               </div>
               <button 
-                className={`featured-btn ${photo.featured ? 'featured' : ''}`}
+                className={`featured-btn ${isFeatured ? 'featured active' : ''}`}
                 onClick={() => {
-                  console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', photo.featured)
-                  onToggleFeatured(photo.id, photo.featured)
+                  console.log('🌟 Star button clicked for photo:', photo.id, 'current featured:', isFeatured)
+                  onToggleFeatured(photo.id, isFeatured)
                 }}
-                title={photo.featured ? 'Remove from featured work' : 'Add to featured work'}
+                title={isFeatured ? 'Remove from featured work' : 'Add to featured work'}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
@@ -3571,27 +3650,29 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                         strokeWidth="2" 
                         strokeLinecap="round" 
                         strokeLinejoin="round"
-                        fill={photo.featured ? "currentColor" : "none"}/>
+                        fill={isFeatured ? "currentColor" : "none"}/>
                 </svg>
               </button>
               <button 
-                className="featured-btn"
-                onClick={() => onTogglePhotoVisibility(photo.id, photo.is_hidden || photo.isHidden || false)}
-                title={(photo.is_hidden || photo.isHidden) ? 'Show photo in portfolio' : 'Hide photo from portfolio'}
+                className={`featured-btn ${isHidden ? 'active' : ''}`}
+                onClick={() => onTogglePhotoVisibility(photo.id, isHidden)}
+                title={isHidden ? 'Show photo in portfolio' : 'Hide photo from portfolio'}
                 style={{ 
                   left: 'calc(var(--spacing-sm) + 36px)',
-                  fontSize: '12px'
+                  fontSize: '16px',
+                  backgroundColor: isHidden ? 'rgba(255, 0, 0, 0.2)' : 'transparent'
                 }}
               >
-                {(photo.is_hidden || photo.isHidden) ? '👁️' : '👁️‍🗨️'}
+                {isHidden ? '🚫' : '👁️'}
               </button>
               <button 
-                className={`featured-btn ${photo.cover_photo ? 'cover-active' : ''}`}
-                onClick={() => onToggleCoverPhoto(photo.id, photo.cover_photo || false)}
-                title={photo.cover_photo ? 'Remove as cover photo' : 'Set as cover photo'}
+                className={`featured-btn ${isCoverPhoto ? 'active cover-active' : ''}`}
+                onClick={() => onToggleCoverPhoto(photo.id, isCoverPhoto)}
+                title={isCoverPhoto ? 'Remove as cover photo' : 'Set as cover photo'}
                 style={{ 
                   left: 'calc(var(--spacing-sm) + 88px)',
-                  fontSize: '14px'
+                  fontSize: '16px',
+                  backgroundColor: isCoverPhoto ? 'rgba(0, 123, 255, 0.2)' : 'transparent'
                 }}
               >
                 📷
