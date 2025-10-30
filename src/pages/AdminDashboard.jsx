@@ -603,6 +603,16 @@ const AdminDashboard = () => {
         
         if (xhr.status >= 200 && xhr.status < 300) {
           await fetchShoots()
+          // If currently viewing this shoot, refetch its details so new photos appear immediately
+          if (selectedShoot && selectedShoot.id === shootId) {
+            try {
+              const resp = await fetch(`${API_URL}/portfolio/shoots/${shootId}`, { credentials: 'include' })
+              if (resp.ok) {
+                const data = await resp.json()
+                setSelectedShoot(data.shoot)
+              }
+            } catch (_) {}
+          }
           alert('Photos uploaded successfully!')
           resolve()
         } else {
@@ -3252,8 +3262,23 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
       
       if (response.ok) {
         alert('High-resolution photos deleted successfully! Users will now only see web-quality previews.')
-        // Refresh the page or refetch shoot data to update the display
-        window.location.reload()
+        // Refresh shoot data instead of full page reload
+        if (onShootUpdate) {
+          await onShootUpdate()
+        }
+        if (shoot?.id) {
+          try {
+            const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${shoot.id}`, {
+              credentials: 'include'
+            })
+            if (shootResponse.ok) {
+              const data = await shootResponse.json()
+              setSelectedShoot(data.shoot)
+            }
+          } catch (e) {
+            // ignore, non-critical
+          }
+        }
       } else {
         const error = await response.json()
         alert(`Failed to delete high-res photos: ${error.error || 'Unknown error'}`)
@@ -3558,6 +3583,11 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
           const isFeatured = photo.featured === 1 || photo.featured === true;
           const isCoverPhoto = photo.cover_photo === 1 || photo.cover_photo === true;
           
+          // Pick the larger of compressed or original sizes (bytes)
+          const compressedBytes = Number(photo.compressedSize || 0);
+          const originalBytes = Number(photo.originalSize || 0);
+          const displaySizeBytes = Math.max(compressedBytes, originalBytes);
+          
           return (
             <div key={photo.id} className="photo-item">
               <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
@@ -3627,9 +3657,9 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 )}
               </div>
               <div className="photo-info">
-                {photo.compressedSize && (
+                {displaySizeBytes > 0 && (
                   <span className="file-size">
-                    {(photo.compressedSize / 1024 / 1024).toFixed(2)} MB
+                    {(displaySizeBytes / 1024 / 1024).toFixed(2)} MB
                   </span>
                 )}
                 {photo.hasHighRes && (
