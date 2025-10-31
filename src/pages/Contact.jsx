@@ -243,7 +243,7 @@ const Contact = () => {
               </div>
               <div className="faq-item">
                 <h4>How long until I receive my photos?</h4>
-                <p>Standard delivery is 6-12 days.</p>
+                <p>Standard delivery is 5-10 days.</p>
               </div>
             </div>
           </div>
