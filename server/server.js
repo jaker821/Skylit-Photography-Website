@@ -3315,23 +3315,62 @@ app.put('/api/featured-photos/reorder', requireAdmin, async (req, res) => {
     
     console.log(`🌟 Reordering photo ${photoId} ${direction}`);
     
-    // Get current photo
-    const currentPhoto = await db.get('SELECT featured_order FROM photos WHERE id = ?', [photoId]);
-    if (!currentPhoto) {
+    // Get all featured photos first
+    const photosData = await db.all(`
+      SELECT p.*
+      FROM photos p
+      JOIN shoots s ON p.shoot_id = s.id
+    `);
+    
+    const allFeatured = photosData.filter(photo => {
+      const isFeatured = photo.featured === true || photo.featured === 1 || photo.featured === '1';
+      return isFeatured;
+    });
+    
+    // Sort by featured_order if available, otherwise by uploaded_at
+    allFeatured.sort((a, b) => {
+      const orderA = a.featured_order || 999999;
+      const orderB = b.featured_order || 999999;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date(b.uploaded_at) - new Date(a.uploaded_at);
+    });
+    
+    // Find current photo index
+    const currentIndex = allFeatured.findIndex(p => p.id === photoId);
+    if (currentIndex === -1) {
       return res.status(404).json({ error: 'Photo not found' });
     }
     
-    const currentOrder = currentPhoto.featured_order || 0;
-    const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
+    // Calculate new index
+    let newIndex;
+    if (direction === 'up' && currentIndex > 0) {
+      newIndex = currentIndex - 1;
+    } else if (direction === 'down' && currentIndex < allFeatured.length - 1) {
+      newIndex = currentIndex + 1;
+    } else {
+      return res.status(400).json({ error: 'Cannot move photo in that direction' });
+    }
     
-    // Find photo at target position
-    const allFeatured = await db.all('SELECT id, featured_order FROM photos WHERE featured = 1');
-    const photoAtTarget = allFeatured.find(p => (p.featured_order || 0) === targetOrder);
+    // Swap the photos in the array
+    [allFeatured[currentIndex], allFeatured[newIndex]] = [allFeatured[newIndex], allFeatured[currentIndex]];
     
-    // Swap orders
-    await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [targetOrder, photoId]);
-    if (photoAtTarget) {
-      await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [currentOrder, photoAtTarget.id]);
+    // Update orders in database
+    try {
+      for (const [idx, photo] of allFeatured.entries()) {
+        try {
+          console.log(`🌟 Updating photo ${photo.id} to featured_order ${idx}`);
+          const result = await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [idx, photo.id]);
+          console.log(`🌟 Updated photo ${photo.id}: changes = ${result.changes}`);
+        } catch (err) {
+          console.error(`Error updating featured_order for photo ${photo.id}:`, err);
+          // Continue with other updates even if one fails
+        }
+      }
+    } catch (updateError) {
+      console.error('Batch update error:', updateError);
+      // Continue anyway
     }
     
     console.log(`🌟 Reordered photo ${photoId} successfully`);

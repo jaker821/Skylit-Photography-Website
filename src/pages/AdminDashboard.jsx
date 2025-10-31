@@ -67,6 +67,10 @@ const AdminDashboard = () => {
   const [calendarEvents, setCalendarEvents] = useState([])
   const [showEventForm, setShowEventForm] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState(null)
+  
+  // Payment info card edit state
+  const [editingPaymentCard, setEditingPaymentCard] = useState(null)
+  const [showPaymentCardForm, setShowPaymentCardForm] = useState(false)
 
   useEffect(() => {
     fetchAllData()
@@ -2105,20 +2109,8 @@ const AdminDashboard = () => {
                         <button 
                           className="btn-small btn-secondary"
                           onClick={() => {
-                            // Simple inline edit with prompt
-                            const newTitle = prompt('Edit card title:', card.title)
-                            if (newTitle && newTitle.trim()) {
-                              const newContent = prompt('Edit card content:', card.content)
-                              if (newContent && newContent.trim()) {
-                                const updatedCards = [...paymentInfoCards]
-                                updatedCards[index] = {
-                                  ...updatedCards[index],
-                                  title: newTitle.trim(),
-                                  content: newContent.trim()
-                                }
-                                handleSavePaymentInfoCards(updatedCards)
-                              }
-                            }
+                            setEditingPaymentCard({ ...card, index })
+                            setShowPaymentCardForm(true)
                           }}
                         >
                           Edit
@@ -2128,6 +2120,23 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
+
+              {showPaymentCardForm && editingPaymentCard && (
+                <PaymentInfoCardForm 
+                  card={editingPaymentCard}
+                  onSubmit={(updatedCard) => {
+                    const updatedCards = [...paymentInfoCards]
+                    updatedCards[editingPaymentCard.index] = updatedCard
+                    handleSavePaymentInfoCards(updatedCards)
+                    setShowPaymentCardForm(false)
+                    setEditingPaymentCard(null)
+                  }}
+                  onCancel={() => {
+                    setShowPaymentCardForm(false)
+                    setEditingPaymentCard(null)
+                  }}
+                />
+              )}
             </div>
           </div>
         )}
@@ -2555,6 +2564,69 @@ const MaintenanceNoticeForm = ({ notice, onSave }) => {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Payment Info Card Form Component
+const PaymentInfoCardForm = ({ card, onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    title: card?.title || '',
+    content: card?.content || ''
+  })
+
+  useEffect(() => {
+    setFormData({
+      title: card?.title || '',
+      content: card?.content || ''
+    })
+  }, [card])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSubmit({ ...card, ...formData })
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  return (
+    <div className="form-card">
+      <h3>Edit Payment Info Card</h3>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Card Title *</label>
+          <input
+            type="text"
+            name="title"
+            value={formData.title}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Card Content *</label>
+          <textarea
+            name="content"
+            value={formData.content}
+            onChange={handleChange}
+            rows="5"
+            required
+            style={{ minHeight: '120px' }}
+          />
+        </div>
+        
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">Save Changes</button>
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
         </div>
       </form>
     </div>
