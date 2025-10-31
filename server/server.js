@@ -1349,6 +1349,7 @@ app.get('/api/portfolio', async (req, res) => {
           original_size: photo.original_size,
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
+          cover_photo: photo.cover_photo,
           uploaded_at: photo.uploaded_at,
           featured: photo.featured,
           // Add camelCase versions for frontend compatibility
@@ -1359,6 +1360,7 @@ app.get('/api/portfolio', async (req, res) => {
           originalSize: photo.original_size,
           compressedSize: photo.compressed_size,
           hasHighRes: photo.has_high_res,
+          coverPhoto: photo.cover_photo,
           uploadedAt: photo.uploaded_at
         }))
       };
@@ -1564,6 +1566,7 @@ app.get('/api/admin/portfolio', requireAdmin, async (req, res) => {
           original_size: photo.original_size,
           compressed_size: photo.compressed_size,
           has_high_res: photo.has_high_res,
+          cover_photo: photo.cover_photo,
           uploaded_at: photo.uploaded_at,
           featured: photo.featured,
           is_hidden: photo.is_hidden,
@@ -1576,6 +1579,7 @@ app.get('/api/admin/portfolio', requireAdmin, async (req, res) => {
           originalSize: photo.original_size,
           compressedSize: photo.compressed_size,
           hasHighRes: photo.has_high_res,
+          coverPhoto: photo.cover_photo,
           uploadedAt: photo.uploaded_at
         }))
       };
@@ -3073,22 +3077,24 @@ app.put('/api/photos/:id/cover', requireAuth, async (req, res) => {
     
     console.log(`🖼️ Cover photo update: photo ${id}, cover_photo: ${cover_photo}`);
     
+    // First, get the photo to find its shoot_id
+    const photo = await db.get('SELECT shoot_id FROM photos WHERE id = ?', [id]);
+    if (!photo) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
     // Convert boolean to integer
     const coverValue = cover_photo === true ? 1 : 0;
     
-    // If setting this photo as cover, remove cover flag from all other photos in the same shoot
-    if (coverValue === 1) {
-      const photo = await db.get('SELECT shoot_id FROM photos WHERE id = ?', [id]);
-      if (photo) {
-        await db.run(
-          'UPDATE photos SET cover_photo = 0 WHERE shoot_id = ? AND id != ?',
-          [photo.shoot_id, id]
-        );
-        console.log(`🖼️ Removed cover flag from other photos in shoot ${photo.shoot_id}`);
-      }
-    }
+    // ALWAYS remove cover flag from all other photos in the same shoot first
+    // This ensures only one cover photo per shoot
+    await db.run(
+      'UPDATE photos SET cover_photo = 0 WHERE shoot_id = ? AND id != ?',
+      [photo.shoot_id, id]
+    );
+    console.log(`🖼️ Removed cover flag from all other photos in shoot ${photo.shoot_id}`);
     
-    // Update this photo's cover status
+    // Now update this photo's cover status
     const result = await db.run(
       'UPDATE photos SET cover_photo = ? WHERE id = ?',
       [coverValue, id]
@@ -3098,7 +3104,18 @@ app.put('/api/photos/:id/cover', requireAuth, async (req, res) => {
       return res.status(404).json({ error: 'Photo not found' });
     }
     
-    res.json({ success: true, message: `Photo ${cover_photo ? 'set as' : 'removed from'} cover photo` });
+    // Verify only one cover photo exists
+    const coverPhotos = await db.all(
+      'SELECT id FROM photos WHERE shoot_id = ? AND cover_photo = 1',
+      [photo.shoot_id]
+    );
+    console.log(`🖼️ Cover photos in shoot ${photo.shoot_id}: ${coverPhotos.length}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Photo ${cover_photo ? 'set as' : 'removed from'} cover photo`,
+      coverPhotoCount: coverPhotos.length
+    });
   } catch (error) {
     console.error('Toggle cover photo error:', error);
     res.status(500).json({ error: 'Server error' });

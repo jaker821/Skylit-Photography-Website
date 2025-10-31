@@ -795,21 +795,25 @@ const AdminDashboard = () => {
     }
   }
 
-  // Toggle cover photo
+  // Set cover photo (always sets to true, server removes from others)
   const handleToggleCoverPhoto = async (photoId, currentCoverState) => {
     try {
-      console.log('🖼️ Toggling cover photo:', { photoId, currentCoverState, shootId: selectedShoot?.id })
+      console.log('🖼️ Setting cover photo:', { photoId, currentCoverState, shootId: selectedShoot?.id })
       
       if (!selectedShoot || !selectedShoot.id) {
         alert('Error: No shoot selected')
         return
       }
       
+      // Always set to true (server will remove from others automatically)
+      // Only toggle off if it's already the cover photo
+      const newCoverState = currentCoverState ? false : true
+      
       const response = await fetch(`${API_URL}/photos/${photoId}/cover`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ cover_photo: !currentCoverState })
+        body: JSON.stringify({ cover_photo: newCoverState })
       })
 
       let responseData
@@ -823,13 +827,32 @@ const AdminDashboard = () => {
       console.log('🖼️ Cover photo response:', response.status, responseData)
 
       if (response.ok) {
-        // Refetch the shoot to get updated photo data
+        // Immediately update local state to clear other cover photos
+        if (selectedShoot && selectedShoot.id) {
+          setSelectedShoot(prevShoot => ({
+            ...prevShoot,
+            photos: prevShoot.photos.map(p => ({
+              ...p,
+              cover_photo: p.id === photoId ? newCoverState : 0,
+              coverPhoto: p.id === photoId ? newCoverState : 0
+            }))
+          }))
+        }
+        
+        // Refetch the shoot to get updated photo data with only one cover photo
         const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
           credentials: 'include'
         })
         if (shootResponse.ok) {
           const shootData = await shootResponse.json()
           console.log('🖼️ Updated shoot data:', shootData.shoot)
+          
+          // Verify only one photo has cover_photo set
+          const coverPhotos = shootData.shoot.photos?.filter(p => 
+            p.cover_photo === 1 || p.cover_photo === true || p.coverPhoto === 1 || p.coverPhoto === true
+          ) || []
+          console.log('🖼️ Cover photos count:', coverPhotos.length, coverPhotos.map(p => p.id))
+          
           setSelectedShoot(shootData.shoot)
         }
         await fetchShoots()
@@ -837,7 +860,7 @@ const AdminDashboard = () => {
         alert(responseData.error || 'Failed to update cover photo')
       }
     } catch (error) {
-      console.error('Error toggling cover photo:', error)
+      console.error('Error setting cover photo:', error)
       alert(`Server error: ${error.message}`)
     }
   }
@@ -1469,7 +1492,13 @@ const AdminDashboard = () => {
                     }}>
                       {shoot.photos && shoot.photos.length > 0 ? (
                         <div className="shoot-thumbnail">
-                          <img src={shoot.photos[0].display_url || shoot.photos[0].url} alt={shoot.title} />
+                          {(() => {
+                            // Find cover photo, or use first photo as fallback
+                            const coverPhoto = shoot.photos.find(p => 
+                              p.cover_photo === 1 || p.cover_photo === true || p.coverPhoto === 1 || p.coverPhoto === true
+                            ) || shoot.photos[0]
+                            return <img src={coverPhoto.display_url || coverPhoto.displayUrl || coverPhoto.url} alt={shoot.title} />
+                          })()}
                         </div>
                       ) : (
                         <div className="shoot-thumbnail">
