@@ -827,14 +827,14 @@ const AdminDashboard = () => {
       console.log('🖼️ Cover photo response:', response.status, responseData)
 
       if (response.ok) {
-        // Immediately update local state to clear other cover photos
+        // Immediately update local state to clear ALL other cover photos and set only the selected one
         if (selectedShoot && selectedShoot.id) {
           setSelectedShoot(prevShoot => ({
             ...prevShoot,
             photos: prevShoot.photos.map(p => ({
               ...p,
-              cover_photo: p.id === photoId ? newCoverState : 0,
-              coverPhoto: p.id === photoId ? newCoverState : 0
+              cover_photo: p.id === photoId ? (newCoverState ? 1 : 0) : 0,
+              coverPhoto: p.id === photoId ? (newCoverState ? 1 : 0) : 0
             }))
           }))
         }
@@ -847,13 +847,23 @@ const AdminDashboard = () => {
           const shootData = await shootResponse.json()
           console.log('🖼️ Updated shoot data:', shootData.shoot)
           
+          // Normalize cover_photo values to ensure only one is set
+          const normalizedShoot = {
+            ...shootData.shoot,
+            photos: shootData.shoot.photos.map(p => ({
+              ...p,
+              cover_photo: p.id === photoId ? (newCoverState ? 1 : 0) : 0,
+              coverPhoto: p.id === photoId ? (newCoverState ? 1 : 0) : 0
+            }))
+          }
+          
           // Verify only one photo has cover_photo set
-          const coverPhotos = shootData.shoot.photos?.filter(p => 
+          const coverPhotos = normalizedShoot.photos?.filter(p => 
             p.cover_photo === 1 || p.cover_photo === true || p.coverPhoto === 1 || p.coverPhoto === true
           ) || []
           console.log('🖼️ Cover photos count:', coverPhotos.length, coverPhotos.map(p => p.id))
           
-          setSelectedShoot(shootData.shoot)
+          setSelectedShoot(normalizedShoot)
         }
         await fetchShoots()
       } else {
