@@ -3256,8 +3256,8 @@ app.get('/api/featured-photos', async (req, res) => {
     
     // Sort by featured_order if available, otherwise by uploaded_at
     photos.sort((a, b) => {
-      const orderA = a.featured_order || 999999; // Photos without order go to end
-      const orderB = b.featured_order || 999999;
+      const orderA = a.featured_order ?? 999999; // Photos without order go to end
+      const orderB = b.featured_order ?? 999999;
       if (orderA !== orderB) {
         return orderA - orderB;
       }
@@ -3279,7 +3279,7 @@ app.get('/api/featured-photos', async (req, res) => {
       has_high_res: photo.has_high_res,
       uploaded_at: photo.uploaded_at,
       featured: photo.featured,
-      featured_order: photo.featured_order || 0,
+      featured_order: photo.featured_order ?? 0,
       shoot_title: photo.shoot_title,
       shoot_category: photo.shoot_category,
       // Add camelCase versions for frontend compatibility
@@ -3293,7 +3293,7 @@ app.get('/api/featured-photos', async (req, res) => {
       uploadedAt: photo.uploaded_at,
       shootTitle: photo.shoot_title,
       shootCategory: photo.shoot_category,
-      featuredOrder: photo.featured_order || 0
+      featuredOrder: photo.featured_order ?? 0
     }));
     
     console.log('🌟 Returning', formattedPhotos.length, 'formatted photos');
@@ -3329,13 +3329,29 @@ app.put('/api/featured-photos/reorder', requireAdmin, async (req, res) => {
     
     // Sort by featured_order if available, otherwise by uploaded_at
     allFeatured.sort((a, b) => {
-      const orderA = a.featured_order || 999999;
-      const orderB = b.featured_order || 999999;
+      const orderA = a.featured_order ?? 999999;
+      const orderB = b.featured_order ?? 999999;
       if (orderA !== orderB) {
         return orderA - orderB;
       }
       return new Date(b.uploaded_at) - new Date(a.uploaded_at);
     });
+    
+    // Check if orders need initialization (all are null/undefined or all 999999)
+    const hasOrders = allFeatured.some(p => p.featured_order != null && p.featured_order !== 999999);
+    
+    if (!hasOrders) {
+      // Initialize all photos with sequential order values based on current sort
+      console.log('🌟 Initializing featured_order for all featured photos');
+      for (const [idx, photo] of allFeatured.entries()) {
+        try {
+          await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [idx, photo.id]);
+          photo.featured_order = idx; // Update in-memory object
+        } catch (err) {
+          console.warn(`⚠️ Could not initialize featured_order for photo ${photo.id} (column may not exist):`, err.message);
+        }
+      }
+    }
     
     // Find current photo index
     const currentIndex = allFeatured.findIndex(p => p.id === photoId);
@@ -3356,7 +3372,7 @@ app.put('/api/featured-photos/reorder', requireAdmin, async (req, res) => {
     // Swap the photos in the array
     [allFeatured[currentIndex], allFeatured[newIndex]] = [allFeatured[newIndex], allFeatured[currentIndex]];
     
-    // Update orders in database
+    // Update orders in database for all photos
     try {
       for (const [idx, photo] of allFeatured.entries()) {
         try {
@@ -3364,14 +3380,23 @@ app.put('/api/featured-photos/reorder', requireAdmin, async (req, res) => {
           const result = await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [idx, photo.id]);
           console.log(`🌟 Updated photo ${photo.id}: changes = ${result.changes}`);
         } catch (err) {
-          console.error(`Error updating featured_order for photo ${photo.id}:`, err);
-          // Continue with other updates even if one fails
+          // Check if it's a column doesn't exist error
+          if (err.message && (err.message.includes('column') || err.message.includes('featured_order'))) {
+            console.warn(`⚠️ featured_order column may not exist. Please run the migration: ALTER TABLE photos ADD COLUMN featured_order INTEGER DEFAULT 0;`);
+          } else {
+            console.error(`Error updating featured_order for photo ${photo.id}:`, err);
+          }
         }
       }
     } catch (updateError) {
       console.error('Batch update error:', updateError);
-      // Continue anyway
     }
+    
+    // Log final order for debugging
+    console.log('🌟 Final order after reorder:');
+    allFeatured.forEach((photo, idx) => {
+      console.log(`  ${idx}: Photo ${photo.id} (order: ${photo.featured_order ?? 'null'})`);
+    });
     
     console.log(`🌟 Reordered photo ${photoId} successfully`);
     res.json({ success: true });
