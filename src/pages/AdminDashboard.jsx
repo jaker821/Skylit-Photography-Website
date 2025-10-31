@@ -798,7 +798,13 @@ const AdminDashboard = () => {
   // Toggle cover photo
   const handleToggleCoverPhoto = async (photoId, currentCoverState) => {
     try {
-      console.log('🖼️ Toggling cover photo:', { photoId, currentCoverState })
+      console.log('🖼️ Toggling cover photo:', { photoId, currentCoverState, shootId: selectedShoot?.id })
+      
+      if (!selectedShoot || !selectedShoot.id) {
+        alert('Error: No shoot selected')
+        return
+      }
+      
       const response = await fetch(`${API_URL}/photos/${photoId}/cover`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -806,28 +812,33 @@ const AdminDashboard = () => {
         body: JSON.stringify({ cover_photo: !currentCoverState })
       })
 
-      const responseData = await response.json()
+      let responseData
+      try {
+        responseData = await response.json()
+      } catch (e) {
+        console.error('Failed to parse response:', e)
+        responseData = { error: 'Invalid response from server' }
+      }
+      
       console.log('🖼️ Cover photo response:', response.status, responseData)
 
       if (response.ok) {
-        await fetchShoots()
-        // Update selectedShoot if it exists by refetching the shoot
-        if (selectedShoot) {
-          const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
-            credentials: 'include'
-          })
-          if (shootResponse.ok) {
-            const shootData = await shootResponse.json()
-            console.log('🖼️ Updated shoot data:', shootData.shoot)
-            setSelectedShoot(shootData.shoot)
-          }
+        // Refetch the shoot to get updated photo data
+        const shootResponse = await fetch(`${API_URL}/portfolio/shoots/${selectedShoot.id}`, {
+          credentials: 'include'
+        })
+        if (shootResponse.ok) {
+          const shootData = await shootResponse.json()
+          console.log('🖼️ Updated shoot data:', shootData.shoot)
+          setSelectedShoot(shootData.shoot)
         }
+        await fetchShoots()
       } else {
         alert(responseData.error || 'Failed to update cover photo')
       }
     } catch (error) {
       console.error('Error toggling cover photo:', error)
-      alert('Server error. Please try again.')
+      alert(`Server error: ${error.message}`)
     }
   }
 
@@ -3700,12 +3711,23 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
               </button>
               <button 
                 className={`featured-btn ${isCoverPhoto ? 'active cover-active' : ''}`}
-                onClick={() => onToggleCoverPhoto(photo.id, isCoverPhoto)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('📷 Cover photo button clicked:', { photoId: photo.id, currentState: isCoverPhoto })
+                  if (onToggleCoverPhoto) {
+                    onToggleCoverPhoto(photo.id, isCoverPhoto)
+                  } else {
+                    console.error('onToggleCoverPhoto is not defined')
+                  }
+                }}
                 title={isCoverPhoto ? 'Remove as cover photo' : 'Set as cover photo'}
                 style={{ 
                   left: 'calc(var(--spacing-sm) + 88px)',
                   fontSize: '16px',
-                  backgroundColor: isCoverPhoto ? 'rgba(0, 123, 255, 0.2)' : 'transparent'
+                  backgroundColor: isCoverPhoto ? 'rgba(0, 123, 255, 0.2)' : 'transparent',
+                  zIndex: 10,
+                  position: 'relative'
                 }}
               >
                 📷
