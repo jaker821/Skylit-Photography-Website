@@ -806,6 +806,9 @@ const AdminDashboard = () => {
         body: JSON.stringify({ cover_photo: !currentCoverState })
       })
 
+      const responseData = await response.json()
+      console.log('🖼️ Cover photo response:', response.status, responseData)
+
       if (response.ok) {
         await fetchShoots()
         // Update selectedShoot if it exists by refetching the shoot
@@ -815,12 +818,12 @@ const AdminDashboard = () => {
           })
           if (shootResponse.ok) {
             const shootData = await shootResponse.json()
+            console.log('🖼️ Updated shoot data:', shootData.shoot)
             setSelectedShoot(shootData.shoot)
           }
         }
       } else {
-        const data = await response.json()
-        alert(data.error || 'Failed to update cover photo')
+        alert(responseData.error || 'Failed to update cover photo')
       }
     } catch (error) {
       console.error('Error toggling cover photo:', error)
@@ -3581,7 +3584,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
           
           const isHidden = photo.is_hidden === 1 || photo.is_hidden === true || photo.isHidden === true;
           const isFeatured = photo.featured === 1 || photo.featured === true;
-          const isCoverPhoto = photo.cover_photo === 1 || photo.cover_photo === true;
+          const isCoverPhoto = photo.cover_photo === 1 || photo.cover_photo === true || photo.coverPhoto === 1 || photo.coverPhoto === true;
           
           // Pick the larger of compressed or original sizes (bytes)
           const compressedBytes = Number(photo.compressedSize || 0);
