@@ -28,7 +28,7 @@ const About = () => {
               <p>
                 I'm a professional photographer with a passion for capturing powerful, unforgettable moments -  
                 whether it's the spark of an engagement, the sleek lines of a dream car, or the raw energy of a
-                motorcycle in motion.
+                motorcycle.
               </p>
               <p>
                 With every shot, I aim to blend emotion, style, and story - turning everday scenes into timeless images. 

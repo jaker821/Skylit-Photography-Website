@@ -202,7 +202,7 @@ const Home = () => {
               <p>
                 I'm a professional photographer with a passion for capturing powerful, unforgettable moments - 
                 whether it's the spark of an engagement, the sleek lines of a dream car, or the raw energy of a 
-                motorcycle in motion. With every shot, I aim to blend emotion, style, and story - turning everday 
+                motorcycle. With every shot, I aim to blend emotion, style, and story - turning everday 
                 scenes into timeless images.
               </p>
               <p>
@@ -228,7 +228,7 @@ const Home = () => {
             </div>
             <div className="service-card">
               <h3>Quick Turnaround</h3>
-              <p>Receive your photos within 1-2 weeks</p>
+              <p>Receive your photos within 5-10 days</p>
             </div>
             <div className="service-card">
               <h3>Custom Packages</h3>
