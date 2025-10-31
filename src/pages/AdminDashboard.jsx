@@ -31,6 +31,7 @@ const AdminDashboard = () => {
     duration: 10,
     message: ''
   })
+  const [paymentInfoCards, setPaymentInfoCards] = useState([])
   
   // Filter states
   const [sessionFilter, setSessionFilter] = useState('pending')
@@ -84,7 +85,8 @@ const AdminDashboard = () => {
       fetchUsers(),
       fetchStorageStats(),
       fetchWeddingSettings(),
-      fetchMaintenanceNotice()
+      fetchMaintenanceNotice(),
+      fetchPaymentInfoCards()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -288,6 +290,42 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error('Error saving wedding settings:', error)
       alert('Failed to save wedding settings')
+    }
+  }
+
+  const fetchPaymentInfoCards = async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings/payment-info`, {
+        credentials: 'include'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setPaymentInfoCards(data.cards || [])
+      }
+    } catch (error) {
+      console.error('Error fetching payment info cards:', error)
+      setPaymentInfoCards([])
+    }
+  }
+
+  const handleSavePaymentInfoCards = async (cards) => {
+    try {
+      const response = await fetch(`${API_URL}/settings/payment-info`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ cards })
+      })
+      
+      if (response.ok) {
+        await fetchPaymentInfoCards()
+        alert('Payment info cards saved successfully!')
+      } else {
+        alert('Failed to save payment info cards')
+      }
+    } catch (error) {
+      console.error('Error saving payment info cards:', error)
+      alert('Failed to save payment info cards')
     }
   }
 
@@ -2037,6 +2075,17 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Payment Info Cards Section */}
+              <div className="pricing-section">
+                <div className="section-header">
+                  <h2>Payment & Booking Information Cards</h2>
+                </div>
+                <PaymentInfoCardsForm 
+                  cards={paymentInfoCards}
+                  onSave={handleSavePaymentInfoCards}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -2464,6 +2513,90 @@ const MaintenanceNoticeForm = ({ notice, onSave }) => {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Payment Info Cards Form Component
+const PaymentInfoCardsForm = ({ cards, onSave }) => {
+  const [formData, setFormData] = useState(cards)
+
+  useEffect(() => {
+    setFormData(cards)
+  }, [cards])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    onSave(formData)
+  }
+
+  const handleChange = (index, field, value) => {
+    const updatedCards = [...formData]
+    updatedCards[index][field] = value
+    setFormData(updatedCards)
+  }
+
+  return (
+    <div className="settings-form">
+      <p style={{ marginBottom: '1.5rem', color: 'rgba(255, 255, 255, 0.7)' }}>
+        Manage the payment and booking information cards displayed on the pricing page. You can toggle each card on/off and edit their content.
+      </p>
+      
+      <form onSubmit={handleSubmit}>
+        {formData.map((card, index) => (
+          <div key={index} className="payment-card-form-item" style={{ 
+            marginBottom: '2rem', 
+            padding: '1.5rem', 
+            background: 'rgba(255, 255, 255, 0.02)', 
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={card.enabled}
+                  onChange={(e) => handleChange(index, 'enabled', e.target.checked)}
+                  style={{ width: '20px', height: '20px' }}
+                />
+                <span style={{ fontWeight: 600, fontSize: '1.1rem', color: card.enabled ? '#fff' : 'rgba(255, 255, 255, 0.5)' }}>
+                  {card.title}
+                </span>
+              </label>
+              {!card.enabled && <span style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)' }}>(Hidden from pricing page)</span>}
+            </div>
+            
+            {card.enabled && (
+              <>
+                <div className="form-group">
+                  <label>Card Title</label>
+                  <input
+                    type="text"
+                    value={card.title}
+                    onChange={(e) => handleChange(index, 'title', e.target.value)}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Card Content</label>
+                  <textarea
+                    value={card.content}
+                    onChange={(e) => handleChange(index, 'content', e.target.value)}
+                    rows="3"
+                    required
+                    style={{ minHeight: '80px' }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">Save Payment Info Cards</button>
         </div>
       </form>
     </div>

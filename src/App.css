@@ -2114,12 +2114,13 @@ img {
 }
 
 .featured-photos-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--spacing-lg);
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 var(--spacing-md) var(--spacing-xl) var(--spacing-md);
+  justify-content: center;
 }
 
 .featured-photo-item {
@@ -2130,17 +2131,22 @@ img {
   box-shadow: var(--shadow-md);
   transition: all var(--transition-normal);
   cursor: pointer;
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
-/* Portrait photos - span 1 column, tall */
+/* Portrait photos - 1 unit width */
 .featured-photo-portrait {
-  grid-column: span 1;
-  min-height: 400px;
+  width: 280px;
+  flex: 0 0 280px;
+  aspect-ratio: 2 / 3;
 }
 
-/* Landscape photos - span 2 columns, wide */
+/* Landscape photos - 2 units width */
 .featured-photo-landscape {
-  grid-column: span 2;
+  width: calc(280px * 2 + var(--spacing-lg));
+  flex: 0 0 calc(280px * 2 + var(--spacing-lg));
+  aspect-ratio: 16 / 9;
 }
 
 .featured-photo-item:hover {
@@ -7005,13 +7011,22 @@ img {
   }
 
   .featured-photos-grid {
-    grid-template-columns: 1fr;
     gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
   }
 
   .featured-photo-item {
     border-radius: var(--radius-md);
+  }
+  
+  .featured-photo-portrait {
+    width: 100%;
+    flex: 0 0 100%;
+  }
+  
+  .featured-photo-landscape {
+    width: 100%;
+    flex: 0 0 100%;
   }
 
   .gallery-nav {
@@ -7341,17 +7356,18 @@ img {
   }
 
   .featured-photos-grid {
-    grid-template-columns: 1fr;
     gap: var(--spacing-md);
     padding: 0 var(--spacing-sm);
   }
 
   .featured-photo-landscape {
-    grid-column: span 1;
+    width: 100%;
+    flex: 0 0 100%;
   }
 
   .featured-photo-portrait {
-    min-height: 300px;
+    width: 100%;
+    flex: 0 0 100%;
   }
 
   .page-header {

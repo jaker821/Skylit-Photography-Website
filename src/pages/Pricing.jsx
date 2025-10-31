@@ -6,11 +6,13 @@ const Pricing = () => {
   const [packages, setPackages] = useState([])
   const [addOns, setAddOns] = useState([])
   const [weddingSettings, setWeddingSettings] = useState({ enabled: false, message: '', startingPrice: '' })
+  const [paymentInfoCards, setPaymentInfoCards] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchPricing()
     fetchWeddingSettings()
+    fetchPaymentInfoCards()
   }, [])
 
   const fetchPricing = async () => {
@@ -44,6 +46,19 @@ const Pricing = () => {
       console.error('Error fetching wedding settings:', error)
       // Default settings if not configured
       setWeddingSettings({ enabled: false, message: '', startingPrice: '' })
+    }
+  }
+
+  const fetchPaymentInfoCards = async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings/payment-info`)
+      if (response.ok) {
+        const data = await response.json()
+        setPaymentInfoCards(data.cards || [])
+      }
+    } catch (error) {
+      console.error('Error fetching payment info cards:', error)
+      setPaymentInfoCards([])
     }
   }
 
@@ -188,28 +203,20 @@ const Pricing = () => {
           </section>
         )}
 
-        {/* Payment Info */}
-        <section className="payment-info">
-          <h3>Payment & Booking Information</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <h4>Booking Process</h4>
-              <p>A 30% deposit is required to secure your date. The remaining balance is due on the day of the session.</p>
+        {/* Payment Info - Only show if there are enabled cards */}
+        {paymentInfoCards.length > 0 && paymentInfoCards.some(card => card.enabled) && (
+          <section className="payment-info">
+            <h3>Payment & Booking Information</h3>
+            <div className="info-grid">
+              {paymentInfoCards.filter(card => card.enabled).map((card, index) => (
+                <div key={index} className="info-item">
+                  <h4>{card.title}</h4>
+                  <p>{card.content}</p>
+                </div>
+              ))}
             </div>
-            <div className="info-item">
-              <h4>Cancellation Policy</h4>
-              <p>Full refund if cancelled 14+ days before session. 50% refund if cancelled 7-13 days before.</p>
-            </div>
-            <div className="info-item">
-              <h4>Payment Methods</h4>
-              <p>We accept credit cards, debit cards, Venmo, PayPal, and cash payments.</p>
-            </div>
-            <div className="info-item">
-              <h4>Rescheduling</h4>
-              <p>Free rescheduling up to 7 days before your session, subject to availability.</p>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   )

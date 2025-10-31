@@ -3709,6 +3709,61 @@ async function startServer() {
       }
     })
     
+    // Get payment info cards settings (admin only)
+    app.get('/api/settings/payment-info', requireAdmin, async (req, res) => {
+      try {
+        const settings = await db.get('SELECT * FROM settings WHERE key = ?', ['payment_info'])
+        const defaultCards = [
+          { title: 'Booking Process', content: 'A 30% deposit is required to secure your date. The remaining balance is due on the day of the session.', enabled: true },
+          { title: 'Cancellation Policy', content: 'Full refund if cancelled 14+ days before session. 50% refund if cancelled 7-13 days before.', enabled: true },
+          { title: 'Payment Methods', content: 'We accept credit cards, debit cards, Venmo, PayPal, and cash payments.', enabled: true },
+          { title: 'Rescheduling', content: 'Free rescheduling up to 7 days before your session, subject to availability.', enabled: true }
+        ]
+        res.json({ 
+          cards: settings ? JSON.parse(settings.value) : defaultCards
+        })
+      } catch (error) {
+        console.error('Get payment info settings error:', error)
+        res.status(500).json({ error: 'Server error' })
+      }
+    })
+    
+    // Update payment info cards settings (admin only)
+    app.put('/api/settings/payment-info', requireAdmin, async (req, res) => {
+      try {
+        const { cards } = req.body
+        
+        if (!cards) {
+          return res.status(400).json({ error: 'Cards data is required' })
+        }
+        
+        // Check if settings already exist
+        const existing = await db.get('SELECT * FROM settings WHERE key = ?', ['payment_info'])
+        
+        const settingsValue = JSON.stringify(cards)
+        const now = new Date().toISOString()
+        
+        if (existing) {
+          const result = await db.run(
+            'UPDATE settings SET value = ?, updated_at = ? WHERE key = ?',
+            [settingsValue, now, 'payment_info']
+          )
+          console.log('Payment info settings updated:', result)
+        } else {
+          const result = await db.run(
+            'INSERT INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)',
+            ['payment_info', settingsValue, now, now]
+          )
+          console.log('Payment info settings created:', result)
+        }
+        
+        res.json({ success: true })
+      } catch (error) {
+        console.error('Update payment info settings error:', error)
+        res.status(500).json({ error: 'Server error', details: error.message })
+      }
+    })
+    
     // Serve React Frontend in Production (MUST be last, after all routes)
     if (process.env.NODE_ENV === 'production') {
       // Serve static files from the React app build directory
