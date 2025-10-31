@@ -235,7 +235,7 @@ const Contact = () => {
               <h3>Quick FAQs</h3>
               <div className="faq-item">
                 <h4>How far in advance should I book?</h4>
-                <p>I recommend booking 2-3 months in advance, especially for weddings and popular dates.</p>
+                <p>I recommend booking 1-2 months in advance.</p>
               </div>
               <div className="faq-item">
                 <h4>Do you travel for sessions?</h4>
@@ -243,7 +243,7 @@ const Contact = () => {
               </div>
               <div className="faq-item">
                 <h4>How long until I receive my photos?</h4>
-                <p>Standard delivery is 2-3 weeks. Rush delivery options are available.</p>
+                <p>Standard delivery is 6-12 days.</p>
               </div>
             </div>
           </div>

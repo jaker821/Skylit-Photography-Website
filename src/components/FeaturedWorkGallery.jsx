@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
 
 const FeaturedWorkGallery = ({ refreshTrigger }) => {
+  const { user } = useAuth()
   const [featuredPhotos, setFeaturedPhotos] = useState([])
   const [loading, setLoading] = useState(true)
   const [photoOrientations, setPhotoOrientations] = useState({})
+  const isAdmin = user?.role === 'admin'
 
   useEffect(() => {
     fetchFeaturedPhotos()
@@ -71,6 +74,46 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
     }
   }
 
+  const handleReorder = async (photoId, direction) => {
+    try {
+      const response = await fetch(`${API_URL}/featured-photos/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ photoId, direction })
+      })
+      
+      if (response.ok) {
+        await fetchFeaturedPhotos()
+      } else {
+        alert('Failed to reorder photo')
+      }
+    } catch (error) {
+      console.error('Error reordering photo:', error)
+      alert('Failed to reorder photo')
+    }
+  }
+
+  const handleDeselect = async (photoId) => {
+    try {
+      const response = await fetch(`${API_URL}/photos/${photoId}/featured`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ featured: false })
+      })
+      
+      if (response.ok) {
+        await fetchFeaturedPhotos()
+      } else {
+        alert('Failed to deselect photo')
+      }
+    } catch (error) {
+      console.error('Error deselecting photo:', error)
+      alert('Failed to deselect photo')
+    }
+  }
+
   if (loading) {
     return (
       <div className="featured-work-section">
@@ -119,11 +162,41 @@ const FeaturedWorkGallery = ({ refreshTrigger }) => {
       <div className="featured-photos-grid">
         {featuredPhotos.map((photo, index) => {
           const orientation = photoOrientations[photo.id] || 'portrait'
+          const isFirst = index === 0
+          const isLast = index === featuredPhotos.length - 1
+          
           return (
             <div 
               key={photo.id} 
               className={`featured-photo-item featured-photo-${orientation}`}
             >
+              {isAdmin && (
+                <div className="featured-photo-admin-controls">
+                  <button
+                    className="admin-control-btn admin-control-up"
+                    onClick={() => handleReorder(photo.id, 'up')}
+                    disabled={isFirst}
+                    title="Move up"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    className="admin-control-btn admin-control-down"
+                    onClick={() => handleReorder(photo.id, 'down')}
+                    disabled={isLast}
+                    title="Move down"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    className="admin-control-btn admin-control-deselect"
+                    onClick={() => handleDeselect(photo.id)}
+                    title="Remove from featured"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
               <img 
                 src={photo.displayUrl || photo.display_url} 
                 alt={`Featured work from ${photo.shootTitle || photo.shoot_title}`}

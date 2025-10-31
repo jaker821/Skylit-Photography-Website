@@ -2081,10 +2081,52 @@ const AdminDashboard = () => {
                 <div className="section-header">
                   <h2>Payment & Booking Information Cards</h2>
                 </div>
-                <PaymentInfoCardsForm 
-                  cards={paymentInfoCards}
-                  onSave={handleSavePaymentInfoCards}
-                />
+                
+                <div className="packages-grid">
+                  {paymentInfoCards.map((card, index) => (
+                    <div key={index} className={`pricing-package-card ${!card.enabled ? 'disabled-card' : ''}`}>
+                      {!card.enabled && <div className="disabled-badge">Hidden</div>}
+                      <h3>{card.title}</h3>
+                      <p className="payment-info-content">{card.content}</p>
+                      <div className="package-actions">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={card.enabled}
+                            onChange={async (e) => {
+                              const updatedCards = [...paymentInfoCards]
+                              updatedCards[index].enabled = e.target.checked
+                              await handleSavePaymentInfoCards(updatedCards)
+                            }}
+                            style={{ width: '18px', height: '18px' }}
+                          />
+                          <span>{card.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </label>
+                        <button 
+                          className="btn-small btn-secondary"
+                          onClick={() => {
+                            // Simple inline edit with prompt
+                            const newTitle = prompt('Edit card title:', card.title)
+                            if (newTitle && newTitle.trim()) {
+                              const newContent = prompt('Edit card content:', card.content)
+                              if (newContent && newContent.trim()) {
+                                const updatedCards = [...paymentInfoCards]
+                                updatedCards[index] = {
+                                  ...updatedCards[index],
+                                  title: newTitle.trim(),
+                                  content: newContent.trim()
+                                }
+                                handleSavePaymentInfoCards(updatedCards)
+                              }
+                            }
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -2513,90 +2555,6 @@ const MaintenanceNoticeForm = ({ notice, onSave }) => {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary">Save Settings</button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
-// Payment Info Cards Form Component
-const PaymentInfoCardsForm = ({ cards, onSave }) => {
-  const [formData, setFormData] = useState(cards)
-
-  useEffect(() => {
-    setFormData(cards)
-  }, [cards])
-
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  const handleChange = (index, field, value) => {
-    const updatedCards = [...formData]
-    updatedCards[index][field] = value
-    setFormData(updatedCards)
-  }
-
-  return (
-    <div className="settings-form">
-      <p style={{ marginBottom: '1.5rem', color: 'rgba(255, 255, 255, 0.7)' }}>
-        Manage the payment and booking information cards displayed on the pricing page. You can toggle each card on/off and edit their content.
-      </p>
-      
-      <form onSubmit={handleSubmit}>
-        {formData.map((card, index) => (
-          <div key={index} className="payment-card-form-item" style={{ 
-            marginBottom: '2rem', 
-            padding: '1.5rem', 
-            background: 'rgba(255, 255, 255, 0.02)', 
-            borderRadius: '8px',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}>
-                <input
-                  type="checkbox"
-                  checked={card.enabled}
-                  onChange={(e) => handleChange(index, 'enabled', e.target.checked)}
-                  style={{ width: '20px', height: '20px' }}
-                />
-                <span style={{ fontWeight: 600, fontSize: '1.1rem', color: card.enabled ? '#fff' : 'rgba(255, 255, 255, 0.5)' }}>
-                  {card.title}
-                </span>
-              </label>
-              {!card.enabled && <span style={{ fontSize: '0.875rem', color: 'rgba(255, 255, 255, 0.5)' }}>(Hidden from pricing page)</span>}
-            </div>
-            
-            {card.enabled && (
-              <>
-                <div className="form-group">
-                  <label>Card Title</label>
-                  <input
-                    type="text"
-                    value={card.title}
-                    onChange={(e) => handleChange(index, 'title', e.target.value)}
-                    required
-                  />
-                </div>
-                
-                <div className="form-group">
-                  <label>Card Content</label>
-                  <textarea
-                    value={card.content}
-                    onChange={(e) => handleChange(index, 'content', e.target.value)}
-                    rows="3"
-                    required
-                    style={{ minHeight: '80px' }}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        ))}
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary">Save Payment Info Cards</button>
         </div>
       </form>
     </div>

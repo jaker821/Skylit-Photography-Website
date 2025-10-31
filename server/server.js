@@ -3254,6 +3254,17 @@ app.get('/api/featured-photos', async (req, res) => {
     
     console.log('🌟 Found', photos.length, 'featured photos after filtering');
     
+    // Sort by featured_order if available, otherwise by uploaded_at
+    photos.sort((a, b) => {
+      const orderA = a.featured_order || 999999; // Photos without order go to end
+      const orderB = b.featured_order || 999999;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      // If same order, sort by upload date
+      return new Date(b.uploaded_at) - new Date(a.uploaded_at);
+    });
+    
     // Add camelCase versions for frontend compatibility
     const formattedPhotos = photos.map(photo => ({
       id: photo.id,
@@ -3268,6 +3279,7 @@ app.get('/api/featured-photos', async (req, res) => {
       has_high_res: photo.has_high_res,
       uploaded_at: photo.uploaded_at,
       featured: photo.featured,
+      featured_order: photo.featured_order || 0,
       shoot_title: photo.shoot_title,
       shoot_category: photo.shoot_category,
       // Add camelCase versions for frontend compatibility
@@ -3280,13 +3292,52 @@ app.get('/api/featured-photos', async (req, res) => {
       hasHighRes: photo.has_high_res,
       uploadedAt: photo.uploaded_at,
       shootTitle: photo.shoot_title,
-      shootCategory: photo.shoot_category
+      shootCategory: photo.shoot_category,
+      featuredOrder: photo.featured_order || 0
     }));
     
     console.log('🌟 Returning', formattedPhotos.length, 'formatted photos');
     res.json({ photos: formattedPhotos });
   } catch (error) {
     console.error('Get featured photos error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reorder featured photos (admin only)
+app.put('/api/featured-photos/reorder', requireAdmin, async (req, res) => {
+  try {
+    const { photoId, direction } = req.body;
+    
+    if (!photoId || !direction || !['up', 'down'].includes(direction)) {
+      return res.status(400).json({ error: 'Invalid request. Need photoId and direction (up/down)' });
+    }
+    
+    console.log(`🌟 Reordering photo ${photoId} ${direction}`);
+    
+    // Get current photo
+    const currentPhoto = await db.get('SELECT featured_order FROM photos WHERE id = ?', [photoId]);
+    if (!currentPhoto) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    
+    const currentOrder = currentPhoto.featured_order || 0;
+    const targetOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
+    
+    // Find photo at target position
+    const allFeatured = await db.all('SELECT id, featured_order FROM photos WHERE featured = 1');
+    const photoAtTarget = allFeatured.find(p => (p.featured_order || 0) === targetOrder);
+    
+    // Swap orders
+    await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [targetOrder, photoId]);
+    if (photoAtTarget) {
+      await db.run('UPDATE photos SET featured_order = ? WHERE id = ?', [currentOrder, photoAtTarget.id]);
+    }
+    
+    console.log(`🌟 Reordered photo ${photoId} successfully`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Reorder featured photos error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
