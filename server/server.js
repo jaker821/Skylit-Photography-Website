@@ -1640,6 +1640,7 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
         original_size: photo.original_size,
         compressed_size: photo.compressed_size,
         has_high_res: photo.has_high_res,
+        cover_photo: photo.cover_photo,
         uploaded_at: photo.uploaded_at,
         featured: photo.featured,
         // Add camelCase versions for frontend compatibility
@@ -1650,6 +1651,7 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
         originalSize: photo.original_size,
         compressedSize: photo.compressed_size,
         hasHighRes: photo.has_high_res,
+        coverPhoto: photo.cover_photo,
         uploadedAt: photo.uploaded_at
       })),
       authorizedEmails: db.parseJSONField(shoot.authorized_emails) || [],

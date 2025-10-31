@@ -3710,24 +3710,36 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 {isHidden ? '🚫' : '👁️'}
               </button>
               <button 
-                className={`featured-btn ${isCoverPhoto ? 'active cover-active' : ''}`}
+                className={`featured-btn cover-photo-btn ${isCoverPhoto ? 'active cover-active' : ''}`}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  console.log('📷 Cover photo button clicked:', { photoId: photo.id, currentState: isCoverPhoto })
+                  console.log('📷 Cover photo button clicked:', { photoId: photo.id, currentState: isCoverPhoto, shootId: shoot.id })
                   if (onToggleCoverPhoto) {
                     onToggleCoverPhoto(photo.id, isCoverPhoto)
                   } else {
                     console.error('onToggleCoverPhoto is not defined')
+                    alert('Cover photo handler not available')
                   }
                 }}
                 title={isCoverPhoto ? 'Remove as cover photo' : 'Set as cover photo'}
                 style={{ 
+                  position: 'absolute',
                   left: 'calc(var(--spacing-sm) + 88px)',
-                  fontSize: '16px',
-                  backgroundColor: isCoverPhoto ? 'rgba(0, 123, 255, 0.2)' : 'transparent',
+                  top: 'var(--spacing-sm)',
+                  fontSize: '18px',
+                  backgroundColor: isCoverPhoto ? 'rgba(0, 123, 255, 0.3)' : 'rgba(0, 0, 0, 0.6)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '6px 10px',
+                  cursor: 'pointer',
                   zIndex: 10,
-                  position: 'relative'
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '40px',
+                  minHeight: '40px'
                 }}
               >
                 📷
