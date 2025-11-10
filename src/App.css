@@ -9015,9 +9015,22 @@ img {
   font-weight: 500;
 }
 
+.user-detail-list li span:last-of-type,
+.user-detail-list li a {
+  color: var(--white);
+}
+
+.user-detail-list li a {
+  text-decoration: none;
+}
+
+.user-detail-list li a:hover {
+  text-decoration: underline;
+}
+
 .user-detail-empty {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--white);
   font-size: 0.95rem;
 }
 

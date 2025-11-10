@@ -1502,17 +1502,6 @@ const AdminDashboard = () => {
               <div className="no-data">Loading sessions...</div>
             )}
 
-            {showEmailModal && emailTarget && (
-              <EmailTemplateModal
-                session={emailTarget.session}
-                user={emailTarget.user}
-                isOpen={showEmailModal}
-                onClose={() => {
-                  setShowEmailModal(false)
-                  setEmailTarget(null)
-                }}
-              />
-            )}
           </div>
           )}
 
@@ -2238,7 +2227,6 @@ const AdminDashboard = () => {
                         <th>Email</th>
                         <th>Phone</th>
                         <th>Registration Date</th>
-                        <th>Approved Date</th>
                         <th>Auth Method</th>
                         <th>Actions</th>
                       </tr>
@@ -2255,7 +2243,6 @@ const AdminDashboard = () => {
                           <td>{user.email}</td>
                           <td>{user.phone || 'N/A'}</td>
                           <td>{new Date(user.createdAt).toLocaleDateString()}</td>
-                          <td>{user.approvedAt ? new Date(user.approvedAt).toLocaleDateString() : 'N/A'}</td>
                           <td>
                             <span className={`status-badge ${user.authMethod === 'google' ? 'status-google' : 'status-email'}`}>
                               {user.authMethod === 'google' ? 'Google' : 'Email'}
@@ -2417,6 +2404,18 @@ const AdminDashboard = () => {
           bookings={bookings}
           onClose={closeUserDetails}
           onSendEmail={handleEmailUser}
+        />
+      )}
+
+      {showEmailModal && emailTarget && (
+        <EmailTemplateModal
+          session={emailTarget.session}
+          user={emailTarget.user}
+          isOpen={showEmailModal}
+          onClose={() => {
+            setShowEmailModal(false)
+            setEmailTarget(null)
+          }}
         />
       )}
     </div>
