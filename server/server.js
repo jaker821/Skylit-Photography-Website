@@ -1570,10 +1570,10 @@ app.post('/api/reviews', requireAuth, async (req, res) => {
 // Admin endpoint - send review invite via email
 app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
   try {
-    const { sessionId, clientEmail, clientName, subject, body } = req.body;
+    const { sessionId, userId, clientEmail, clientName, subject, body } = req.body;
 
-    if (!clientEmail || !subject || !body) {
-      return res.status(400).json({ error: 'Client email, subject, and body are required.' });
+    if (!subject || !body) {
+      return res.status(400).json({ error: 'Subject and body are required.' });
     }
 
     if (!transporter) {
@@ -1581,6 +1581,7 @@ app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
     }
 
     let booking = null;
+    let userRecord = null;
     if (sessionId) {
       booking = await db.get('SELECT * FROM bookings WHERE id = ?', [sessionId]);
       if (!booking) {
@@ -1588,7 +1589,22 @@ app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
       }
     }
 
-    const normalizedEmail = clientEmail.toLowerCase();
+    if (userId) {
+      userRecord = await db.get('SELECT id, name, email FROM users WHERE id = ?', [userId]);
+      if (!userRecord) {
+        return res.status(404).json({ error: 'User not found.' });
+      }
+    }
+
+    if (!clientEmail && !userRecord && !booking) {
+      return res.status(400).json({ error: 'Client email or user information is required.' });
+    }
+
+    const normalizedEmail = (clientEmail || userRecord?.email || booking?.client_email || '').toLowerCase();
+    if (!normalizedEmail) {
+      return res.status(400).json({ error: 'A valid email address is required to send the review invite.' });
+    }
+
     const now = new Date();
     const token = randomUUID();
     const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30); // 30 days
@@ -1599,8 +1615,8 @@ app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
       [
         token,
         booking?.id || null,
-        booking?.user_id || null,
-        clientName || booking?.client_name || '',
+        userRecord?.id || booking?.user_id || null,
+        clientName || userRecord?.name || booking?.client_name || '',
         normalizedEmail,
         'pending',
         expiresAt.toISOString(),
@@ -1643,7 +1659,8 @@ app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
         token,
         reviewLink,
         expiresAt: expiresAt.toISOString(),
-        clientEmail: normalizedEmail
+        clientEmail: normalizedEmail,
+        userId: userRecord?.id || booking?.user_id || null
       }
     });
   } catch (error) {
@@ -3219,8 +3236,21 @@ app.post('/api/portfolio/categories', requireAdmin, async (req, res) => {
 // Get all users (admin only)
 app.get('/api/users', requireAdmin, async (req, res) => {
   try {
-    const users = await db.all('SELECT id, email, role, status, created_at, updated_at FROM users ORDER BY created_at DESC');
-    res.json({ users });
+    const users = await db.all('SELECT id, name, email, phone, role, status, auth_method, created_at, updated_at FROM users ORDER BY created_at DESC');
+    const formattedUsers = (users || []).map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      authMethod: user.auth_method,
+      createdAt: user.created_at,
+      updatedAt: user.updated_at,
+      approvedAt: null,
+      rejectedAt: null
+    }));
+    res.json({ users: formattedUsers });
   } catch (error) {
     console.error('Get users error:', error);
     res.status(500).json({ error: 'Server error' });

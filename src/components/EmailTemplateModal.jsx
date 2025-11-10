@@ -4,8 +4,7 @@ import { API_URL } from '../config'
 
 const EMAIL_TEMPLATES = {
   followUp: {
-    subject: "Thank you for choosing Skylit Photography!",
-    subject: "Follow up - Your Photography Session",
+    subject: "Follow up - Your photography session",
     body: `Hello {{client_name}},
 
 Thank you for booking your {{session_type}} session with Skylit Photography! We're excited to work with you.
@@ -17,6 +16,20 @@ If you need to make any changes or have any concerns, please don't hesitate to r
 Looking forward to capturing your special moments!
 
 Best regards,
+Alina Suedbeck
+Skylit Photography`
+  },
+  clientCheckIn: {
+    subject: "How are you enjoying your photos?",
+    body: `Hello {{first_name}},
+
+I hope you've been loving your photos! I wanted to check in to make sure everything turned out just the way you hoped.
+
+If you'd like to order additional edits, prints, or schedule a new session, I'm here to help.
+
+Thank you again for trusting me to capture your story!
+
+Warmly,
 Alina Suedbeck
 Skylit Photography`
   },
@@ -108,35 +121,80 @@ Thank you so much!
 Warmly,
 Alina Suedbeck
 Skylit Photography`
+  },
+  referralRequest: {
+    subject: "Share the Skylit experience with a friend",
+    body: `Hello {{first_name}},
+
+I loved working with you and would be honored to support your friends or family, too. If someone you know is looking for a photographer, I’d be grateful if you shared Skylit Photography with them.
+
+As a thank you, I’m happy to offer both you and your referral a special bonus on your next session.
+
+Let me know if there’s anyone I should reach out to or if you'd like referral cards.
+
+With appreciation,
+Alina Suedbeck
+Skylit Photography`
+  },
+  seasonalOffer: {
+    subject: "Limited availability: upcoming Skylit sessions",
+    body: `Hello {{first_name}},
+
+I’m opening a small number of {{session_type}} sessions for the upcoming season and wanted to invite you before I announce publicly.
+
+If you’d like to lock in your preferred date, reply to this email and I’ll send over the next steps.
+
+Can’t wait to create more magic with you!
+
+Best,
+Alina Suedbeck
+Skylit Photography`
   }
 }
 
-const EmailTemplateModal = ({ session, isOpen, onClose }) => {
+const TEMPLATE_HINTS = {
+  reviewRequest: 'A secure review link will be generated and inserted automatically when this email is sent.',
+  referralRequest: 'Encourage happy clients to refer friends. Mention your referral bonus or incentive.',
+  seasonalOffer: 'Share an exclusive booking window or mini-session announcement to drive new revenue.'
+}
+
+const EmailTemplateModal = ({ session, user, isOpen, onClose }) => {
   const [selectedTemplate, setSelectedTemplate] = useState('followUp')
   const [emailData, setEmailData] = useState({ subject: '', body: '' })
   const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
-    if (session && selectedTemplate) {
+    if ((session || user) && selectedTemplate) {
       fillTemplate(selectedTemplate)
     }
-  }, [session, selectedTemplate])
+  }, [session, user, selectedTemplate])
 
   const fillTemplate = (templateKey) => {
     const template = EMAIL_TEMPLATES[templateKey]
-    if (!template || !session) return
+    if (!template || (!session && !user)) return
 
     let subject = template.subject
     let body = template.body
 
+    const recipientName = session?.client_name || session?.clientName || user?.name || 'Valued Client'
+    const firstName = recipientName?.split(' ')[0] || 'Friend'
+    const sessionType = session?.session_type || session?.sessionType || 'photography'
+    const sessionDate = session?.date ? new Date(session.date).toLocaleDateString() : ''
+    const sessionTime = session?.time || ''
+    const sessionLocation = session?.location || ''
+    const quoteAmount = session?.quote_amount || ''
+    const recipientEmail = session?.client_email || session?.clientEmail || user?.email || ''
+
     // Replace placeholders
     const replacements = {
-      '{{client_name}}': session.client_name || 'Valued Client',
-      '{{session_type}}': session.session_type || 'photography',
-      '{{date}}': session.date ? new Date(session.date).toLocaleDateString() : 'your scheduled date',
-      '{{time}}': session.time || 'your scheduled time',
-      '{{location}}': session.location || 'your chosen location',
-      '{{quote_amount}}': session.quote_amount || 'amount'
+      '{{client_name}}': recipientName,
+      '{{first_name}}': firstName,
+      '{{client_email}}': recipientEmail,
+      '{{session_type}}': sessionType,
+      '{{date}}': sessionDate || 'your scheduled date',
+      '{{time}}': sessionTime || 'your scheduled time',
+      '{{location}}': sessionLocation || 'your chosen location',
+      '{{quote_amount}}': quoteAmount || 'your balance'
     }
 
     Object.keys(replacements).forEach(placeholder => {
@@ -148,6 +206,14 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
   }
 
   const handleSend = async () => {
+    const recipientEmail = session?.client_email || session?.clientEmail || user?.email || ''
+    const recipientName = session?.client_name || session?.clientName || user?.name || 'Valued Client'
+
+    if (!recipientEmail) {
+      alert('This user does not have an email address on file.')
+      return
+    }
+
     setIsSending(true)
     try {
       if (selectedTemplate === 'reviewRequest') {
@@ -157,8 +223,9 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
           credentials: 'include',
           body: JSON.stringify({
             sessionId: session?.id,
-            clientEmail: session?.client_email,
-            clientName: session?.client_name,
+            userId: user?.id || null,
+            clientEmail: recipientEmail,
+            clientName: recipientName,
             subject: emailData.subject,
             body: emailData.body
           })
@@ -184,10 +251,10 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          to: session.client_email,
+          to: recipientEmail,
           subject: emailData.subject,
           body: emailData.body,
-          sessionId: session.id
+          sessionId: session?.id || null
         })
       })
 
@@ -207,11 +274,15 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
 
   if (!isOpen) return null
 
+  const recipientName = session?.client_name || session?.clientName || user?.name || 'Valued Client'
+  const recipientEmail = session?.client_email || session?.clientEmail || user?.email || ''
+  const templateHint = TEMPLATE_HINTS[selectedTemplate]
+
   return (
     <div className="email-template-modal-overlay" onClick={onClose}>
       <div className="email-template-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Send Email to {session?.client_name}</h2>
+          <h2>Send Email to {recipientName}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -223,17 +294,20 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
               onChange={(e) => setSelectedTemplate(e.target.value)}
             >
               <option value="followUp">Follow Up</option>
+              <option value="clientCheckIn">Post-Session Check-In</option>
               <option value="reminder">Session Reminder</option>
               <option value="photosReady">Photos Are Ready</option>
               <option value="paymentNeeded">Payment Needed</option>
               <option value="thankYou">Thank You</option>
               <option value="reviewRequest">Review Request</option>
+              <option value="referralRequest">Request a Referral</option>
+              <option value="seasonalOffer">Seasonal Offer</option>
             </select>
           </div>
 
-          {selectedTemplate === 'reviewRequest' && (
+          {templateHint && (
             <div className="template-help">
-              A secure review link will be generated and inserted automatically when this email is sent.
+              {templateHint}
             </div>
           )}
 
@@ -242,7 +316,7 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
               <label>To:</label>
               <input
                 type="email"
-                value={session?.client_email || ''}
+                value={recipientEmail}
                 disabled
               />
             </div>

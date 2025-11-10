@@ -61,7 +61,9 @@ const AdminDashboard = () => {
   
   // Email template modal state
   const [showEmailModal, setShowEmailModal] = useState(false)
-  const [emailSession, setEmailSession] = useState(null)
+  const [emailTarget, setEmailTarget] = useState(null)
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [showUserDetail, setShowUserDetail] = useState(false)
   
   // Calendar event states
   const [calendarEvents, setCalendarEvents] = useState([])
@@ -331,6 +333,21 @@ const AdminDashboard = () => {
       console.error('Error saving payment info cards:', error)
       alert('Failed to save payment info cards')
     }
+  }
+
+  const openUserDetails = (userRecord) => {
+    setSelectedUser(userRecord)
+    setShowUserDetail(true)
+  }
+
+  const closeUserDetails = () => {
+    setShowUserDetail(false)
+    setSelectedUser(null)
+  }
+
+  const handleEmailUser = (userRecord) => {
+    setEmailTarget({ user: userRecord })
+    setShowEmailModal(true)
   }
 
   // Calculate financial stats
@@ -1476,7 +1493,7 @@ const AdminDashboard = () => {
                   }}
                   onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
                   onSendEmail={(session) => {
-                    setEmailSession(session)
+                    setEmailTarget({ session })
                     setShowEmailModal(true)
                   }}
                 />
@@ -1485,13 +1502,14 @@ const AdminDashboard = () => {
               <div className="no-data">Loading sessions...</div>
             )}
 
-            {showEmailModal && (
+            {showEmailModal && emailTarget && (
               <EmailTemplateModal
-                session={emailSession}
+                session={emailTarget.session}
+                user={emailTarget.user}
                 isOpen={showEmailModal}
                 onClose={() => {
                   setShowEmailModal(false)
-                  setEmailSession(null)
+                  setEmailTarget(null)
                 }}
               />
             )}
@@ -2179,6 +2197,12 @@ const AdminDashboard = () => {
                           <td>
                             <div className="action-buttons">
                               <button 
+                                className="btn-small btn-secondary"
+                                onClick={() => openUserDetails(user)}
+                              >
+                                View
+                              </button>
+                              <button 
                                 className="btn-small btn-primary"
                                 onClick={() => handleApproveUser(user.id)}
                               >
@@ -2238,17 +2262,24 @@ const AdminDashboard = () => {
                             </span>
                           </td>
                           <td>
-                            {user.role !== 'admin' && (
+                            <div className="action-buttons">
                               <button 
-                                className="btn-small btn-danger"
-                                onClick={() => handleDeleteUser(user.id)}
+                                className="btn-small btn-secondary"
+                                onClick={() => openUserDetails(user)}
                               >
-                                Delete
+                                View
                               </button>
-                            )}
-                            {user.role === 'admin' && (
-                              <span className="admin-protected">Protected</span>
-                            )}
+                              {user.role !== 'admin' ? (
+                                <button 
+                                  className="btn-small btn-danger"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                >
+                                  Delete
+                                </button>
+                              ) : (
+                                <span className="admin-protected">Protected</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2290,17 +2321,24 @@ const AdminDashboard = () => {
                           <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                           <td>{user.rejectedAt ? new Date(user.rejectedAt).toLocaleDateString() : 'N/A'}</td>
                           <td>
-                            {user.role !== 'admin' && (
+                            <div className="action-buttons">
                               <button 
-                                className="btn-small btn-danger"
-                                onClick={() => handleDeleteUser(user.id)}
+                                className="btn-small btn-secondary"
+                                onClick={() => openUserDetails(user)}
                               >
-                                Delete
+                                View
                               </button>
-                            )}
-                            {user.role === 'admin' && (
-                              <span className="admin-protected">Protected</span>
-                            )}
+                              {user.role !== 'admin' ? (
+                                <button 
+                                  className="btn-small btn-danger"
+                                  onClick={() => handleDeleteUser(user.id)}
+                                >
+                                  Delete
+                                </button>
+                              ) : (
+                                <span className="admin-protected">Protected</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -2371,6 +2409,162 @@ const AdminDashboard = () => {
             />
           </div>
         )}
+      </div>
+
+      {showUserDetail && selectedUser && (
+        <UserDetailPanel
+          user={selectedUser}
+          bookings={bookings}
+          onClose={closeUserDetails}
+          onSendEmail={handleEmailUser}
+        />
+      )}
+    </div>
+  )
+}
+
+function UserDetailPanel({ user, bookings, onClose, onSendEmail }) {
+  if (!user) return null
+
+  const statusText = user.status ? `${user.status}` : ''
+  const authMethod = user.authMethod || user.auth_method
+  const phoneValue = user.phone || user.phoneNumber || user.phone_number
+  const roleLabel = user.role || 'user'
+  const displayName = user.name || user.fullName || user.displayName || user.email || 'Client'
+
+  const formatDate = (value) => {
+    if (!value) return 'N/A'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return 'N/A'
+    return date.toLocaleDateString()
+  }
+
+  const userId = user.id
+  const userEmail = (user.email || '').toLowerCase()
+
+  const userBookings = Array.isArray(bookings)
+    ? bookings.filter(booking => {
+        const bookingUserId = booking.user_id ?? booking.userId
+        if (bookingUserId && userId) {
+          return bookingUserId === userId
+        }
+        const bookingEmail = (booking.client_email || booking.clientEmail || '').toLowerCase()
+        return bookingEmail && userEmail ? bookingEmail === userEmail : false
+      })
+    : []
+
+  return (
+    <div className="admin-user-detail-overlay" onClick={onClose}>
+      <div className="admin-user-detail-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="user-detail-header">
+          <div>
+            <h2>{displayName}</h2>
+            <div className="user-detail-tags">
+              {statusText && (
+                <span className={`status-badge status-${statusText.toLowerCase()}`}>
+                  {statusText.charAt(0).toUpperCase() + statusText.slice(1)}
+                </span>
+              )}
+              {roleLabel === 'admin' && <span className="admin-badge">👑 Admin</span>}
+              {authMethod && (
+                <span className={`status-badge ${authMethod === 'google' ? 'status-google' : 'status-email'}`}>
+                  {authMethod === 'google' ? 'Google Sign-In' : 'Email Login'}
+                </span>
+              )}
+            </div>
+          </div>
+          <button className="user-detail-close" onClick={onClose} aria-label="Close user details">
+            ×
+          </button>
+        </div>
+
+        <div className="user-detail-body">
+          <div className="user-detail-section">
+            <h3>Contact Information</h3>
+            <ul className="user-detail-list">
+              <li>
+                <span>Email</span>
+                {user.email ? (
+                  <a href={`mailto:${user.email}`}>{user.email}</a>
+                ) : (
+                  <em>No email on file</em>
+                )}
+              </li>
+              <li>
+                <span>Phone</span>
+                {phoneValue || <em>No phone on file</em>}
+              </li>
+              <li>
+                <span>Role</span>
+                {roleLabel}
+              </li>
+            </ul>
+          </div>
+
+          <div className="user-detail-section">
+            <h3>Account Timeline</h3>
+            <ul className="user-detail-list">
+              <li>
+                <span>Joined</span>
+                {formatDate(user.createdAt || user.created_at)}
+              </li>
+              <li>
+                <span>Last Updated</span>
+                {formatDate(user.updatedAt || user.updated_at)}
+              </li>
+              <li>
+                <span>Status Updated</span>
+                {formatDate(user.approvedAt || user.rejectedAt || user.updatedAt || user.updated_at)}
+              </li>
+            </ul>
+          </div>
+
+          <div className="user-detail-section">
+            <h3>Bookings & Sessions</h3>
+            {userBookings.length === 0 ? (
+              <p className="user-detail-empty">No bookings found for this user yet.</p>
+            ) : (
+              <div className="user-detail-bookings">
+                {userBookings.map(booking => (
+                  <div key={booking.id} className="user-booking-card">
+                    <div className="booking-card-header">
+                      <span className="booking-session-type">
+                        {booking.session_type || booking.sessionType || 'Session'}
+                      </span>
+                      {booking.status && (
+                        <span className={`status-badge status-${(booking.status || '').toLowerCase()}`}>
+                          {booking.status}
+                        </span>
+                      )}
+                    </div>
+                    <div className="booking-card-meta">
+                      <span>{formatDate(booking.date)}</span>
+                      {booking.time && <span>{booking.time}</span>}
+                    </div>
+                    {booking.location && (
+                      <div className="booking-card-location">
+                        📍 {booking.location}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="user-detail-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => onSendEmail(user)}
+            disabled={!user.email}
+          >
+            {user.email ? 'Send Email' : 'No Email Available'}
+          </button>
+          <button className="btn btn-secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   )
