@@ -253,6 +253,14 @@ class Database {
     console.log('Database connection closed');
   }
 
+  // Expose Supabase client for advanced queries
+  getClient() {
+    if (!this.supabase) {
+      throw new Error('Supabase client is not initialized. Call init() before using the client.');
+    }
+    return this.supabase;
+  }
+
   // Helper function to parse JSON fields
   parseJSONField(field) {
     if (!field) return null;

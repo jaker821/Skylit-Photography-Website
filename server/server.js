@@ -11,6 +11,7 @@ const sharp = require('sharp');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
 const archiver = require('archiver');
+const { randomUUID } = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
 const db = require('./database');
@@ -90,6 +91,7 @@ if (GOOGLE_OAUTH_ENABLED) {
 const emailUser = process.env.EMAIL_USER;
 const emailPass = process.env.EMAIL_PASSWORD;
 const adminEmail = process.env.ADMIN_EMAIL || emailUser;
+const FRONTEND_BASE_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // Create email transporter (will be used by both contact form and notifications)
 let transporter;
@@ -1283,6 +1285,499 @@ app.post('/api/categories/get-or-create', requireAuth, async (req, res) => {
     res.json({ success: true, category });
   } catch (error) {
     console.error('Get or create category error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
+// Reviews & Testimonials Routes
+// ===================================
+
+const REVIEW_SELECT_FIELDS = 'id, user_id, booking_id, invite_token, reviewer_name, reviewer_email, rating, comment, source, published, created_at, updated_at';
+
+function sanitizeReview(review, options = {}) {
+  if (!review) return null;
+
+  const {
+    includeEmail = false,
+    includeUserMetadata = false,
+    includeInviteToken = false
+  } = options;
+
+  const sanitized = {
+    id: review.id,
+    reviewer_name: review.reviewer_name || 'Valued Client',
+    rating: Number(review.rating) || 0,
+    comment: review.comment || '',
+    source: review.source || 'dashboard',
+    created_at: review.created_at,
+    published: review.published !== false
+  };
+
+  if (includeEmail) {
+    sanitized.reviewer_email = review.reviewer_email;
+  }
+
+  if (includeUserMetadata) {
+    sanitized.user_id = review.user_id;
+    sanitized.booking_id = review.booking_id;
+  }
+
+  if (includeInviteToken && review.invite_token) {
+    sanitized.invite_token = review.invite_token;
+  }
+
+  return sanitized;
+}
+
+function computeReviewStats(reviews = []) {
+  if (!reviews || reviews.length === 0) {
+    return { count: 0, average: null };
+  }
+
+  const count = reviews.length;
+  const total = reviews.reduce((sum, review) => sum + (Number(review.rating) || 0), 0);
+  const average = Math.round((total / count) * 10) / 10;
+
+  return { count, average };
+}
+
+async function getPublishedReviewsData() {
+  const supabase = db.getClient();
+  const { data, error } = await supabase
+    .from('reviews')
+    .select(REVIEW_SELECT_FIELDS)
+    .eq('published', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data || []).map(review => sanitizeReview(review));
+}
+
+async function getUserReviewEligibility(userId) {
+  const user = await db.get('SELECT id, name, email FROM users WHERE id = ?', [userId]);
+
+  if (!user) {
+    return {
+      eligible: false,
+      user: null,
+      userEmail: null,
+      existingReview: null,
+      reviewByUser: null,
+      reviewByEmail: null,
+      hasBooking: false,
+      hasSharedPhotos: false,
+      latestBookingId: null
+    };
+  }
+
+  const userEmail = user.email ? user.email.toLowerCase() : null;
+
+  const reviewByUser = await db.get('SELECT * FROM reviews WHERE user_id = ?', [userId]);
+  let reviewByEmail = null;
+
+  if (!reviewByUser && userEmail) {
+    reviewByEmail = await db.get('SELECT * FROM reviews WHERE reviewer_email = ?', [userEmail]);
+  }
+
+  const bookings = await db.all('SELECT id, status, created_at FROM bookings WHERE user_id = ?', [userId]) || [];
+  const activeBookings = bookings.filter(booking => (booking.status || '').toLowerCase() !== 'cancelled');
+  const hasBooking = activeBookings.length > 0;
+
+  let latestBookingId = null;
+  if (activeBookings.length > 0) {
+    activeBookings.sort((a, b) => {
+      const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return dateB - dateA;
+    });
+    latestBookingId = activeBookings[0]?.id || null;
+  }
+
+  let hasSharedPhotos = false;
+  if (userEmail) {
+    const shoots = await db.all('SELECT authorized_emails FROM shoots') || [];
+    for (const shoot of shoots) {
+      const authorizedEmails = db.parseJSONField(shoot.authorized_emails) || [];
+      if (authorizedEmails.some(email => email.toLowerCase() === userEmail)) {
+        hasSharedPhotos = true;
+        break;
+      }
+    }
+  }
+
+  return {
+    eligible: hasBooking || hasSharedPhotos,
+    user,
+    userEmail,
+    existingReview: reviewByUser || reviewByEmail || null,
+    reviewByUser: reviewByUser || null,
+    reviewByEmail: reviewByEmail || null,
+    hasBooking,
+    hasSharedPhotos,
+    latestBookingId
+  };
+}
+
+// Public endpoint - limited testimonials for home page
+app.get('/api/reviews/public', async (req, res) => {
+  try {
+    const reviews = await getPublishedReviewsData();
+    const stats = computeReviewStats(reviews);
+
+    res.json({
+      reviews: reviews.slice(0, 3),
+      stats: {
+        total: stats.count,
+        average_rating: stats.average
+      }
+    });
+  } catch (error) {
+    console.error('Get public reviews error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public endpoint - full testimonials list (admin sees unpublished)
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const supabase = db.getClient();
+    let query = supabase
+      .from('reviews')
+      .select(REVIEW_SELECT_FIELDS)
+      .order('created_at', { ascending: false });
+
+    const isAdmin = req.session?.userRole === 'admin';
+    if (!isAdmin) {
+      query = query.eq('published', true);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const reviews = (data || []).map(review =>
+      sanitizeReview(review, {
+        includeEmail: isAdmin,
+        includeUserMetadata: isAdmin,
+        includeInviteToken: isAdmin
+      })
+    );
+
+    const publishedReviews = reviews.filter(review => review.published);
+    const stats = computeReviewStats(publishedReviews);
+
+    res.json({
+      reviews,
+      stats: {
+        total: stats.count,
+        average_rating: stats.average
+      }
+    });
+  } catch (error) {
+    console.error('Get reviews error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Authenticated endpoint - determine if user can submit review
+app.get('/api/reviews/status', requireAuth, async (req, res) => {
+  try {
+    const eligibility = await getUserReviewEligibility(req.session.userId);
+
+    res.json({
+      eligible: eligibility.eligible,
+      hasReview: !!eligibility.existingReview,
+      review: sanitizeReview(eligibility.existingReview, {
+        includeEmail: true,
+        includeUserMetadata: true
+      }),
+      details: {
+        hasBooking: eligibility.hasBooking,
+        hasSharedPhotos: eligibility.hasSharedPhotos
+      }
+    });
+  } catch (error) {
+    console.error('Get review status error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Authenticated endpoint - submit review from dashboard
+app.post('/api/reviews', requireAuth, async (req, res) => {
+  try {
+    const { rating, comment, reviewerName } = req.body;
+
+    const numericRating = parseInt(rating, 10);
+    if (!numericRating || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    const trimmedComment = (comment || '').toString().trim().slice(0, 1000);
+    const trimmedName = (reviewerName || '').toString().trim().slice(0, 120);
+
+    const eligibility = await getUserReviewEligibility(req.session.userId);
+
+    if (!eligibility.eligible) {
+      return res.status(403).json({ error: 'You must have a completed session or shared photos before leaving a review.' });
+    }
+
+    if (eligibility.existingReview) {
+      return res.status(409).json({ error: 'You have already submitted a review.' });
+    }
+
+    const reviewerNameToUse = trimmedName || eligibility.user?.name || 'Valued Client';
+    const reviewerEmail = (eligibility.userEmail || '').toLowerCase() || null;
+    const now = new Date().toISOString();
+
+    const insertResult = await db.run(
+      `INSERT INTO reviews (user_id, booking_id, invite_token, reviewer_name, reviewer_email, rating, comment, source, published, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        eligibility.user?.id || null,
+        eligibility.latestBookingId || null,
+        null,
+        reviewerNameToUse,
+        reviewerEmail,
+        numericRating,
+        trimmedComment,
+        'dashboard',
+        true,
+        now,
+        now
+      ]
+    );
+
+    const insertedReview = await db.get('SELECT * FROM reviews WHERE id = ?', [insertResult.id]);
+
+    res.json({
+      success: true,
+      review: sanitizeReview(insertedReview, {
+        includeEmail: true,
+        includeUserMetadata: true
+      })
+    });
+  } catch (error) {
+    console.error('Create review error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin endpoint - send review invite via email
+app.post('/api/reviews/invite/send', requireAdmin, async (req, res) => {
+  try {
+    const { sessionId, clientEmail, clientName, subject, body } = req.body;
+
+    if (!clientEmail || !subject || !body) {
+      return res.status(400).json({ error: 'Client email, subject, and body are required.' });
+    }
+
+    if (!transporter) {
+      return res.status(503).json({ error: 'Email service not configured.' });
+    }
+
+    let booking = null;
+    if (sessionId) {
+      booking = await db.get('SELECT * FROM bookings WHERE id = ?', [sessionId]);
+      if (!booking) {
+        return res.status(404).json({ error: 'Session not found.' });
+      }
+    }
+
+    const normalizedEmail = clientEmail.toLowerCase();
+    const now = new Date();
+    const token = randomUUID();
+    const expiresAt = new Date(now.getTime() + 1000 * 60 * 60 * 24 * 30); // 30 days
+
+    await db.run(
+      `INSERT INTO review_invites (token, booking_id, user_id, client_name, client_email, status, expires_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        token,
+        booking?.id || null,
+        booking?.user_id || null,
+        clientName || booking?.client_name || '',
+        normalizedEmail,
+        'pending',
+        expiresAt.toISOString(),
+        now.toISOString()
+      ]
+    );
+
+    const reviewLinkBase = FRONTEND_BASE_URL.replace(/\/$/, '');
+    const reviewLink = `${reviewLinkBase}/reviews/invite/${token}`;
+
+    const processedBody = body.includes('{{review_link}}')
+      ? body.replace(/{{review_link}}/g, reviewLink)
+      : `${body}\n\nReview link: ${reviewLink}`;
+
+    const htmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px;">
+          <div style="white-space: pre-wrap; line-height: 1.6;">${processedBody}</div>
+        </div>
+        <div style="margin-top: 24px;">
+          <a href="${reviewLink}" style="display: inline-block; padding: 12px 20px; background-color: #6B46C1; color: #ffffff; text-decoration: none; border-radius: 6px;">Leave your review</a>
+        </div>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.9em;">
+          <p>This email was sent from Skylit Photography.</p>
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: normalizedEmail,
+      subject,
+      html: htmlBody,
+      text: processedBody
+    });
+
+    res.json({
+      success: true,
+      invite: {
+        token,
+        reviewLink,
+        expiresAt: expiresAt.toISOString(),
+        clientEmail: normalizedEmail
+      }
+    });
+  } catch (error) {
+    console.error('Send review invite error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public endpoint - fetch invite details
+app.get('/api/reviews/invite/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const invite = await db.get('SELECT * FROM review_invites WHERE token = ?', [token]);
+    if (!invite) {
+      return res.status(404).json({ error: 'Review invite not found.' });
+    }
+
+    const existingReview = await db.get('SELECT * FROM reviews WHERE invite_token = ?', [token]);
+    if (existingReview) {
+      if (invite.status !== 'completed') {
+        await db.run(
+          'UPDATE review_invites SET status = ?, completed_at = ? WHERE id = ?',
+          ['completed', existingReview.created_at || new Date().toISOString(), invite.id]
+        );
+      }
+
+      return res.json({
+        status: 'submitted',
+        invite: {
+          client_name: invite.client_name,
+          client_email: invite.client_email,
+          booking_id: invite.booking_id
+        },
+        review: sanitizeReview(existingReview)
+      });
+    }
+
+    const now = new Date();
+    if (invite.expires_at && new Date(invite.expires_at) < now) {
+      if (invite.status !== 'expired') {
+        await db.run('UPDATE review_invites SET status = ? WHERE id = ?', ['expired', invite.id]);
+      }
+      return res.status(410).json({ error: 'This review link has expired.' });
+    }
+
+    res.json({
+      status: 'pending',
+      invite: {
+        client_name: invite.client_name,
+        client_email: invite.client_email,
+        booking_id: invite.booking_id
+      }
+    });
+  } catch (error) {
+    console.error('Get review invite error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public endpoint - submit review from invite link
+app.post('/api/reviews/invite/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { rating, comment, reviewerName } = req.body;
+
+    const numericRating = parseInt(rating, 10);
+    if (!numericRating || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    const invite = await db.get('SELECT * FROM review_invites WHERE token = ?', [token]);
+    if (!invite) {
+      return res.status(404).json({ error: 'Review invite not found.' });
+    }
+
+    const now = new Date();
+    if (invite.expires_at && new Date(invite.expires_at) < now) {
+      if (invite.status !== 'expired') {
+        await db.run('UPDATE review_invites SET status = ? WHERE id = ?', ['expired', invite.id]);
+      }
+      return res.status(410).json({ error: 'This review link has expired.' });
+    }
+
+    if (invite.status === 'completed') {
+      return res.status(409).json({ error: 'A review has already been submitted for this invite.' });
+    }
+
+    const existingReview = await db.get('SELECT * FROM reviews WHERE invite_token = ?', [token]);
+    if (existingReview) {
+      if (invite.status !== 'completed') {
+        await db.run(
+          'UPDATE review_invites SET status = ?, completed_at = ? WHERE id = ?',
+          ['completed', existingReview.created_at || now.toISOString(), invite.id]
+        );
+      }
+      return res.status(409).json({ error: 'A review has already been submitted for this invite.' });
+    }
+
+    const sanitizedName = (reviewerName || invite.client_name || 'Valued Client').toString().trim().slice(0, 120);
+    const sanitizedComment = (comment || '').toString().trim().slice(0, 1000);
+    const timestamp = now.toISOString();
+
+    const insertResult = await db.run(
+      `INSERT INTO reviews (user_id, booking_id, invite_token, reviewer_name, reviewer_email, rating, comment, source, published, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        invite.user_id || null,
+        invite.booking_id || null,
+        invite.token,
+        sanitizedName,
+        invite.client_email ? invite.client_email.toLowerCase() : null,
+        numericRating,
+        sanitizedComment,
+        'invite',
+        true,
+        timestamp,
+        timestamp
+      ]
+    );
+
+    await db.run(
+      'UPDATE review_invites SET status = ?, completed_at = ? WHERE id = ?',
+      ['completed', timestamp, invite.id]
+    );
+
+    const insertedReview = await db.get('SELECT * FROM reviews WHERE id = ?', [insertResult.id]);
+
+    res.json({
+      success: true,
+      review: sanitizeReview(insertedReview)
+    });
+  } catch (error) {
+    console.error('Submit invited review error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

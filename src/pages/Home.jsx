@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import { API_URL } from '../config'
 import FeaturedWorkGallery from '../components/FeaturedWorkGallery'
 import AboutPhotoDisplay from '../components/AboutPhotoDisplay'
+import StarRating from '../components/StarRating'
 
 // FLOATING PARTICLES Animation
 const FloatingParticles = () => {
@@ -131,6 +133,9 @@ const FloatingParticles = () => {
 
 const Home = () => {
   const [featuredRefreshTrigger, setFeaturedRefreshTrigger] = useState(0)
+  const [reviews, setReviews] = useState([])
+  const [reviewStats, setReviewStats] = useState({ total: 0, average_rating: null })
+  const [reviewsLoading, setReviewsLoading] = useState(true)
 
   useEffect(() => {
     // Animate elements on scroll
@@ -150,6 +155,25 @@ const Home = () => {
     document.querySelectorAll('.fade-in').forEach(el => observer.observe(el))
 
     return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await fetch(`${API_URL}/reviews/public`)
+        if (response.ok) {
+          const data = await response.json()
+          setReviews(data.reviews || [])
+          setReviewStats(data.stats || { total: 0, average_rating: null })
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error)
+      } finally {
+        setReviewsLoading(false)
+      }
+    }
+
+    fetchReviews()
   }, [])
 
   // Function to trigger featured gallery refresh
@@ -238,6 +262,79 @@ const Home = () => {
               <h3>Personal Touch</h3>
               <p>A collaborative and comfortable experience</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Preview */}
+      <section className="reviews-preview fade-in">
+        <div className="container">
+          <div className="reviews-header">
+            <h2 className="section-title">Client Testimonials</h2>
+            <div className="reviews-summary">
+              <StarRating
+                value={reviewStats?.average_rating || 0}
+                readOnly
+                size={20}
+                ariaLabel="Average rating"
+              />
+              <div className="reviews-summary-text">
+                {reviewStats?.average_rating
+                  ? (
+                    <>
+                      <span className="reviews-average">
+                        {Number(reviewStats.average_rating).toFixed(1)} out of 5 stars
+                      </span>
+                      <span className="reviews-count">
+                        Based on {reviewStats.total || 0} {reviewStats.total === 1 ? 'review' : 'reviews'}
+                      </span>
+                    </>
+                    )
+                  : (
+                    <span className="reviews-empty">Reviews coming soon!</span>
+                    )}
+              </div>
+            </div>
+          </div>
+
+          <div className="reviews-grid">
+            {reviewsLoading ? (
+              <div className="review-card review-card-loading">
+                <span>Loading testimonials...</span>
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="review-card review-card-empty">
+                <span>Be the first to share your Skylit experience!</span>
+              </div>
+            ) : (
+              reviews.map(review => (
+                <div key={review.id} className="review-card">
+                  <StarRating
+                    value={review.rating || 0}
+                    readOnly
+                    size={18}
+                    ariaLabel={`Review rating ${review.rating || 0} out of 5`}
+                  />
+                  <p className="review-comment">
+                    “{(review.comment || '').trim() || 'No additional comments provided.'}”
+                  </p>
+                  <div className="review-meta">
+                    <span className="reviewer-name">{review.reviewer_name || 'Client'}</span>
+                    {review.created_at && (
+                      <span className="review-date">
+                        {new Date(review.created_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="reviews-cta">
+            <Link to="/reviews" className="btn btn-secondary">
+              Read All Reviews
+            </Link>
           </div>
         </div>
       </section>

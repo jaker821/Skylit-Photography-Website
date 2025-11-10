@@ -91,6 +91,23 @@ Thank you again for your trust in Skylit Photography!
 Best regards,
 Alina Suedbeck
 Skylit Photography`
+  },
+  reviewRequest: {
+    subject: "Share your Skylit Photography experience",
+    body: `Hello {{client_name}},
+
+I hope you're loving your photos! If you have a moment, I would truly appreciate it if you could leave a quick review about your experience with Skylit Photography.
+
+Please use the secure link below to leave a star rating and a short testimonial:
+{{review_link}}
+
+Your feedback helps me continue growing and supporting other clients.
+
+Thank you so much!
+
+Warmly,
+Alina Suedbeck
+Skylit Photography`
   }
 }
 
@@ -133,7 +150,35 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
   const handleSend = async () => {
     setIsSending(true)
     try {
-      // TODO: Implement email sending via API
+      if (selectedTemplate === 'reviewRequest') {
+        const response = await fetch(`${API_URL}/reviews/invite/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            sessionId: session?.id,
+            clientEmail: session?.client_email,
+            clientName: session?.client_name,
+            subject: emailData.subject,
+            body: emailData.body
+          })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const reviewLink = data?.invite?.reviewLink
+          alert(reviewLink
+            ? `Review request sent successfully!\n\nReview link: ${reviewLink}`
+            : 'Review request sent successfully!')
+          onClose()
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          alert(errorData.error || 'Failed to send review request')
+        }
+
+        return
+      }
+
       const response = await fetch(`${API_URL}/notifications/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,8 +227,15 @@ const EmailTemplateModal = ({ session, isOpen, onClose }) => {
               <option value="photosReady">Photos Are Ready</option>
               <option value="paymentNeeded">Payment Needed</option>
               <option value="thankYou">Thank You</option>
+              <option value="reviewRequest">Review Request</option>
             </select>
           </div>
+
+          {selectedTemplate === 'reviewRequest' && (
+            <div className="template-help">
+              A secure review link will be generated and inserted automatically when this email is sent.
+            </div>
+          )}
 
           <div className="email-fields">
             <div className="form-group">

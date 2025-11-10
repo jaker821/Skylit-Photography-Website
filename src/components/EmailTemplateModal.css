@@ -81,6 +81,12 @@
   font-size: 1rem;
 }
 
+.template-help {
+  margin-top: var(--spacing-xs);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
 .email-fields {
   display: flex;
   flex-direction: column;

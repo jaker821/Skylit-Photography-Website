@@ -12,6 +12,8 @@ import Contact from './pages/Contact'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PendingApproval from './pages/PendingApproval'
+import Reviews from './pages/Reviews'
+import ReviewInvite from './pages/ReviewInvite'
 import Profile from './pages/Profile'
 import UserDashboard from './pages/UserDashboard'
 import AdminDashboard from './pages/AdminDashboard'
@@ -34,6 +36,8 @@ function App() {
               <Route path="/portfolio/:shootId" element={<ShootView />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/about" element={<About />} />
+              <Route path="/reviews" element={<Reviews />} />
+              <Route path="/reviews/invite/:token" element={<ReviewInvite />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />

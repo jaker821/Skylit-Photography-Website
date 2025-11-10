@@ -242,6 +242,15 @@ const Navbar = () => {
             </li>
             <li>
               <Link 
+                to="/reviews" 
+                className={location.pathname.startsWith('/reviews') ? 'active' : ''}
+                onClick={closeMobileMenu}
+              >
+                Reviews
+              </Link>
+            </li>
+            <li>
+              <Link 
                 to="/contact" 
                 className={location.pathname === '/contact' ? 'active' : ''}
                 onClick={closeMobileMenu}

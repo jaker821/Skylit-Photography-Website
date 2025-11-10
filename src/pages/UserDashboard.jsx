@@ -1,7 +1,75 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { API_URL } from '../config'
+import StarRating from '../components/StarRating'
+
+const ReviewModal = ({ isOpen, onClose, formData, setFormData, submitting, onSubmit, error }) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="review-modal-overlay" onClick={onClose}>
+      <div className="review-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="review-modal-header">
+          <h2>Leave a Review</h2>
+          <button
+            type="button"
+            className="review-modal-close"
+            onClick={onClose}
+            aria-label="Close review form"
+            disabled={submitting}
+          >
+            ×
+          </button>
+        </div>
+        <form className="review-modal-body" onSubmit={onSubmit}>
+          <div className="form-group">
+            <label htmlFor="reviewerName">Name</label>
+            <input
+              id="reviewerName"
+              type="text"
+              value={formData.reviewerName}
+              onChange={(e) => setFormData({ ...formData, reviewerName: e.target.value })}
+              placeholder="Name to display with your review"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Rating</label>
+            <StarRating
+              value={formData.rating}
+              onChange={(rating) => setFormData({ ...formData, rating })}
+              ariaLabel="Select star rating"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="reviewComment">Share your experience</label>
+            <textarea
+              id="reviewComment"
+              rows="5"
+              value={formData.comment}
+              onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
+              placeholder="What stood out to you? How did you feel seeing your photos?"
+            />
+          </div>
+
+          {error && <div className="review-modal-error">{error}</div>}
+
+          <div className="review-modal-actions">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
 
 const UserDashboard = () => {
   const { user } = useAuth()
@@ -13,6 +81,21 @@ const UserDashboard = () => {
   const [packages, setPackages] = useState([])
   const [addOns, setAddOns] = useState([])
   const [authorizedShoots, setAuthorizedShoots] = useState([])
+  const [reviewStatus, setReviewStatus] = useState({
+    eligible: false,
+    hasReview: false,
+    review: null,
+    details: { hasBooking: false, hasSharedPhotos: false }
+  })
+  const [reviewStatusLoading, setReviewStatusLoading] = useState(true)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+  const [reviewForm, setReviewForm] = useState({
+    reviewerName: user?.name || '',
+    rating: 5,
+    comment: ''
+  })
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState(null)
   const [bookingData, setBookingData] = useState({
     sessionType: '',
     date: '',
@@ -27,6 +110,7 @@ const UserDashboard = () => {
     fetchBookings()
     fetchPricing()
     fetchAuthorizedShoots()
+    fetchReviewStatus()
   }, [])
 
   const fetchBookings = async () => {
@@ -72,6 +156,54 @@ const UserDashboard = () => {
     }
   }
 
+  const fetchReviewStatus = async () => {
+    try {
+      const response = await fetch(`${API_URL}/reviews/status`, {
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setReviewStatus({
+          eligible: data.eligible,
+          hasReview: data.hasReview,
+          review: data.review,
+          details: data.details || { hasBooking: false, hasSharedPhotos: false }
+        })
+
+        if (data.review) {
+          setReviewForm({
+            reviewerName: data.review.reviewer_name || user?.name || '',
+            rating: data.review.rating || 5,
+            comment: data.review.comment || ''
+          })
+        } else {
+          setReviewForm((prev) => ({
+            ...prev,
+            reviewerName: user?.name || prev.reviewerName || ''
+          }))
+        }
+      } else if (response.status === 401) {
+        setReviewStatus({
+          eligible: false,
+          hasReview: false,
+          review: null,
+          details: { hasBooking: false, hasSharedPhotos: false }
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching review status:', error)
+      setReviewStatus({
+        eligible: false,
+        hasReview: false,
+        review: null,
+        details: { hasBooking: false, hasSharedPhotos: false }
+      })
+    } finally {
+      setReviewStatusLoading(false)
+    }
+  }
+
   const handleBookingChange = (e) => {
     setBookingData({
       ...bookingData,
@@ -106,6 +238,58 @@ const UserDashboard = () => {
       }
     } catch (error) {
       console.error('Error creating booking:', error)
+    }
+  }
+
+  const handleOpenReviewModal = () => {
+    setReviewError(null)
+    setReviewForm((prev) => ({
+      reviewerName: prev.reviewerName || user?.name || '',
+      rating: prev.rating || 5,
+      comment: prev.comment || ''
+    }))
+    setShowReviewModal(true)
+  }
+
+  const handleCloseReviewModal = () => {
+    if (submittingReview) return
+    setShowReviewModal(false)
+  }
+
+  const handleSubmitReview = async (event) => {
+    event.preventDefault()
+    if (submittingReview) return
+
+    setSubmittingReview(true)
+    setReviewError(null)
+
+    try {
+      const response = await fetch(`${API_URL}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          reviewerName: reviewForm.reviewerName,
+          rating: reviewForm.rating,
+          comment: reviewForm.comment
+        })
+      })
+
+      if (response.ok) {
+        await fetchReviewStatus()
+        setShowReviewModal(false)
+        alert('Thank you for sharing your experience!')
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        setReviewError(errorData.error || 'Unable to submit review. Please try again.')
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      setReviewError('Unable to submit review. Please try again.')
+    } finally {
+      setSubmittingReview(false)
     }
   }
 
@@ -158,6 +342,53 @@ const UserDashboard = () => {
           >
             {showBookingForm ? 'Cancel' : '+ Book New Session'}
           </button>
+        </div>
+
+        <div className="review-status-card">
+          <div className="review-status-content">
+            <h2>Share Your Experience</h2>
+            {reviewStatusLoading ? (
+              <p>Checking your eligibility...</p>
+            ) : reviewStatus.hasReview && reviewStatus.review ? (
+              <div className="review-status-existing">
+                <StarRating
+                  value={reviewStatus.review.rating || 0}
+                  readOnly
+                  size={18}
+                  ariaLabel={`Your rating ${reviewStatus.review.rating || 0}`}
+                />
+                <p>Thank you for leaving a review! You can update it by reaching out to Skylit.</p>
+                <div className="review-status-links">
+                  <Link to="/reviews" className="btn btn-secondary">
+                    View Reviews
+                  </Link>
+                </div>
+              </div>
+            ) : reviewStatus.eligible ? (
+              <>
+                <p>
+                  Loved your session? A quick review helps other clients discover Skylit Photography.
+                </p>
+                <div className="review-status-actions">
+                  <button className="btn btn-primary" onClick={handleOpenReviewModal}>
+                    Leave a Review
+                  </button>
+                  <Link to="/reviews" className="btn btn-secondary">
+                    Read Client Reviews
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  Once you have a session or photos shared with you, you&apos;ll unlock the ability to leave a review.
+                </p>
+                <Link to="/reviews" className="btn btn-secondary">
+                  See What Others Say
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Booking Form */}
@@ -501,6 +732,16 @@ const UserDashboard = () => {
         )}
 
       </div>
+
+      <ReviewModal
+        isOpen={showReviewModal}
+        onClose={handleCloseReviewModal}
+        formData={reviewForm}
+        setFormData={setReviewForm}
+        submitting={submittingReview}
+        onSubmit={handleSubmitReview}
+        error={reviewError}
+      />
     </div>
   )
 }
