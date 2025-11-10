@@ -48,7 +48,7 @@ const Reviews = () => {
     setReplyEditingId(review.id)
     setReplyDrafts(prev => ({
       ...prev,
-      [review.id]: prev[review.id] ?? review.admin_reply || ''
+      [review.id]: prev[review.id] ?? review.admin_reply ?? ''
     }))
     setActionError(null)
   }
