@@ -3071,6 +3071,37 @@ img {
   flex-wrap: wrap;
 }
 
+.hero-review-summary {
+  margin-top: var(--spacing-lg);
+  display: inline-flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.9rem 1.4rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(6px);
+}
+
+.hero-review-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.hero-review-score {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hero-review-count {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
 .hero-scroll-indicator {
   position: absolute;
   bottom: 30px;
@@ -7183,6 +7214,18 @@ img {
     gap: var(--spacing-sm);
   }
 
+  .hero-review-summary {
+    width: 100%;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.65rem;
+  }
+
+  .hero-review-text {
+    align-items: center;
+  }
+
   /* Page Headings */
   .page-title {
     font-size: 2rem;
@@ -8729,6 +8772,87 @@ img {
   color: var(--text-muted);
 }
 
+.review-admin-reply {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  background: rgba(107, 70, 193, 0.12);
+  border: 1px solid rgba(107, 70, 193, 0.35);
+  color: var(--white);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.review-admin-reply-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.review-admin-reply-header span {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.review-admin-controls {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.review-admin-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.review-reply-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.review-reply-form label {
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: 0.02em;
+}
+
+.review-reply-form textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--white);
+  font-size: 0.95rem;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.review-reply-form textarea:focus {
+  outline: 2px solid rgba(107, 70, 193, 0.45);
+  outline-offset: 2px;
+}
+
+.review-reply-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: var(--white);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
 .review-invite-page {
   padding: 6rem 0;
   display: flex;
@@ -8988,6 +9112,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .user-detail-section h3 {
@@ -9004,24 +9129,31 @@ img {
 }
 
 .user-detail-list li {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
   gap: 1rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .user-detail-list li span:first-of-type {
-  color: var(--text-secondary);
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
 }
 
 .user-detail-list li span:last-of-type,
 .user-detail-list li a {
-  color: var(--white);
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .user-detail-list li a {
   text-decoration: none;
+  color: var(--accent-gold);
 }
 
 .user-detail-list li a:hover {
@@ -9030,7 +9162,7 @@ img {
 
 .user-detail-empty {
   margin: 0;
-  color: var(--white);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 0.95rem;
 }
 
@@ -9058,18 +9190,20 @@ img {
 
 .booking-session-type {
   font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--white);
 }
 
 .booking-card-meta {
   display: flex;
   gap: 1rem;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .booking-card-location {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .user-detail-actions {
@@ -9111,10 +9245,13 @@ img {
     max-height: 95vh;
   }
 
+  .user-detail-body {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
   .user-detail-list li {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
   }
 
   .user-detail-actions {

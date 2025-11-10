@@ -1293,7 +1293,7 @@ app.post('/api/categories/get-or-create', requireAuth, async (req, res) => {
 // Reviews & Testimonials Routes
 // ===================================
 
-const REVIEW_SELECT_FIELDS = 'id, user_id, booking_id, invite_token, reviewer_name, reviewer_email, rating, comment, source, published, created_at, updated_at';
+const REVIEW_SELECT_FIELDS = 'id, user_id, booking_id, invite_token, reviewer_name, reviewer_email, rating, comment, source, published, admin_reply, admin_reply_at, created_at, updated_at';
 
 function sanitizeReview(review, options = {}) {
   if (!review) return null;
@@ -1311,7 +1311,9 @@ function sanitizeReview(review, options = {}) {
     comment: review.comment || '',
     source: review.source || 'dashboard',
     created_at: review.created_at,
-    published: review.published !== false
+    published: review.published !== false,
+    admin_reply: review.admin_reply || null,
+    admin_reply_at: review.admin_reply_at || null
   };
 
   if (includeEmail) {
@@ -1563,6 +1565,73 @@ app.post('/api/reviews', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Create review error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin endpoint - update or clear review reply
+app.put('/api/reviews/:id/reply', requireAdmin, async (req, res) => {
+  try {
+    const reviewId = parseInt(req.params.id, 10);
+    const { reply } = req.body;
+
+    if (!reviewId || Number.isNaN(reviewId)) {
+      return res.status(400).json({ error: 'Invalid review ID' });
+    }
+
+    const sanitizedReply = (reply || '').toString().trim();
+    const now = new Date().toISOString();
+
+    const updateResult = await db.run(
+      `UPDATE reviews 
+       SET admin_reply = ?, admin_reply_at = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        sanitizedReply || null,
+        sanitizedReply ? now : null,
+        now,
+        reviewId
+      ]
+    );
+
+    if (updateResult.changes === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const updatedReview = await db.get('SELECT * FROM reviews WHERE id = ?', [reviewId]);
+
+    res.json({
+      success: true,
+      review: sanitizeReview(updatedReview, {
+        includeEmail: true,
+        includeUserMetadata: true,
+        includeInviteToken: true
+      })
+    });
+  } catch (error) {
+    console.error('Update review reply error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Admin endpoint - delete a review
+app.delete('/api/reviews/:id', requireAdmin, async (req, res) => {
+  try {
+    const reviewId = parseInt(req.params.id, 10);
+
+    if (!reviewId || Number.isNaN(reviewId)) {
+      return res.status(400).json({ error: 'Invalid review ID' });
+    }
+
+    const result = await db.run('DELETE FROM reviews WHERE id = ?', [reviewId]);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete review error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

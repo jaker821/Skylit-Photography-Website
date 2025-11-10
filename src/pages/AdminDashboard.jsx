@@ -2427,9 +2427,13 @@ function UserDetailPanel({ user, bookings, onClose, onSendEmail }) {
 
   const statusText = user.status ? `${user.status}` : ''
   const authMethod = user.authMethod || user.auth_method
-  const phoneValue = user.phone || user.phoneNumber || user.phone_number
-  const roleLabel = user.role || 'user'
+  const phoneValue = user.phone || user.phoneNumber || user.phone_number || '—'
+  const roleLabel = user.role || user.roleLabel || 'user'
   const displayName = user.name || user.fullName || user.displayName || user.email || 'Client'
+  const emailValue = user.email || user.emailAddress || null
+  const statusLabel = statusText 
+    ? statusText.charAt(0).toUpperCase() + statusText.slice(1) 
+    : 'Unknown'
 
   const formatDate = (value) => {
     if (!value) return 'N/A'
@@ -2483,19 +2487,23 @@ function UserDetailPanel({ user, bookings, onClose, onSendEmail }) {
             <ul className="user-detail-list">
               <li>
                 <span>Email</span>
-                {user.email ? (
-                  <a href={`mailto:${user.email}`}>{user.email}</a>
+                {emailValue ? (
+                  <a href={`mailto:${emailValue}`}>{emailValue}</a>
                 ) : (
                   <em>No email on file</em>
                 )}
               </li>
               <li>
                 <span>Phone</span>
-                {phoneValue || <em>No phone on file</em>}
+                {phoneValue !== '—' ? phoneValue : <em>No phone on file</em>}
               </li>
               <li>
                 <span>Role</span>
-                {roleLabel}
+                {roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1)}
+              </li>
+              <li>
+                <span>Status</span>
+                {statusLabel}
               </li>
             </ul>
           </div>

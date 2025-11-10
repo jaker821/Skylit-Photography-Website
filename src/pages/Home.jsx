@@ -208,6 +208,24 @@ const Home = () => {
             <Link to="/portfolio" className="btn btn-primary">View Portfolio</Link>
             <Link to="/contact" className="btn btn-secondary">Book a Session</Link>
           </div>
+          {reviewStats?.average_rating && reviewStats?.total > 0 && (
+            <div className="hero-review-summary animate-fade-in-delay-3">
+              <StarRating
+                value={reviewStats.average_rating}
+                readOnly
+                size={22}
+                ariaLabel="Average rating"
+              />
+              <div className="hero-review-text">
+                <span className="hero-review-score">
+                  {Number(reviewStats.average_rating).toFixed(1)} out of 5 stars
+                </span>
+                <span className="hero-review-count">
+                  Based on {reviewStats.total} {reviewStats.total === 1 ? 'review' : 'reviews'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
         <div className="hero-scroll-indicator">
           <div className="scroll-arrow"></div>
