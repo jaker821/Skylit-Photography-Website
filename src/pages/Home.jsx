@@ -202,7 +202,7 @@ const Home = () => {
             <span className="hero-highlight"> Blending Emotion, Style, and Story</span>
           </h1>
           <p className="hero-subtitle animate-fade-in-delay">
-            Professional photographary in Raleigh/Durham, NC
+            Professional photography in Raleigh/Durham, NC
           </p>
           <div className="hero-buttons animate-fade-in-delay-2">
             <Link to="/portfolio" className="btn btn-primary">View Portfolio</Link>
