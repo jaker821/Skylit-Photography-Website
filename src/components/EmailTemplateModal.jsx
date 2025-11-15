@@ -140,13 +140,42 @@ Skylit Photography`
     subject: "Limited availability: upcoming Skylit sessions",
     body: `Hello {{first_name}},
 
-I’m opening a small number of {{session_type}} sessions for the upcoming season and wanted to invite you before I announce publicly.
+I'm opening a small number of {{session_type}} sessions for the upcoming season and wanted to invite you before I announce publicly.
 
-If you’d like to lock in your preferred date, reply to this email and I’ll send over the next steps.
+If you'd like to lock in your preferred date, reply to this email and I'll send over the next steps.
 
-Can’t wait to create more magic with you!
+Can't wait to create more magic with you!
 
 Best,
+Alina Suedbeck
+Skylit Photography`
+  },
+  quote: {
+    subject: "Your Photography Session Quote - Skylit Photography",
+    body: `Hello {{client_name}},
+
+Thank you for your interest in booking a {{session_type}} photography session with Skylit Photography!
+
+I'm excited to work with you and capture your special moments. Below is your personalized quote:
+
+Session Details:
+- Session Type: {{session_type}}
+- Date: {{date}}
+- Time: {{time}}
+- Location: {{location}}
+
+Quote Amount: {{quote_amount}}
+
+This quote includes:
+- Professional photography session
+- High-resolution edited images
+- Online gallery access for viewing and downloading
+
+If you have any questions or would like to discuss any additional services or packages, please don't hesitate to reach out. I'm here to help make your session perfect!
+
+To proceed with booking, simply reply to this email or contact me directly. I look forward to working with you!
+
+Best regards,
 Alina Suedbeck
 Skylit Photography`
   }
@@ -158,16 +187,22 @@ const TEMPLATE_HINTS = {
   seasonalOffer: 'Share an exclusive booking window or mini-session announcement to drive new revenue.'
 }
 
-const EmailTemplateModal = ({ session, user, isOpen, onClose }) => {
-  const [selectedTemplate, setSelectedTemplate] = useState('followUp')
+const EmailTemplateModal = ({ session, user, isOpen, onClose, initialTemplate }) => {
+  const [selectedTemplate, setSelectedTemplate] = useState(initialTemplate || 'followUp')
   const [emailData, setEmailData] = useState({ subject: '', body: '' })
   const [isSending, setIsSending] = useState(false)
 
   useEffect(() => {
-    if ((session || user) && selectedTemplate) {
+    if (isOpen && initialTemplate) {
+      setSelectedTemplate(initialTemplate)
+    }
+  }, [isOpen, initialTemplate])
+
+  useEffect(() => {
+    if ((session || user) && selectedTemplate && isOpen) {
       fillTemplate(selectedTemplate)
     }
-  }, [session, user, selectedTemplate])
+  }, [session, user, selectedTemplate, isOpen])
 
   const fillTemplate = (templateKey) => {
     const template = EMAIL_TEMPLATES[templateKey]
@@ -182,7 +217,7 @@ const EmailTemplateModal = ({ session, user, isOpen, onClose }) => {
     const sessionDate = session?.date ? new Date(session.date).toLocaleDateString() : ''
     const sessionTime = session?.time || ''
     const sessionLocation = session?.location || ''
-    const quoteAmount = session?.quote_amount || ''
+    const quoteAmount = session?.quote_amount || session?.quote || ''
     const recipientEmail = session?.client_email || session?.clientEmail || user?.email || ''
 
     // Replace placeholders
@@ -194,7 +229,7 @@ const EmailTemplateModal = ({ session, user, isOpen, onClose }) => {
       '{{date}}': sessionDate || 'your scheduled date',
       '{{time}}': sessionTime || 'your scheduled time',
       '{{location}}': sessionLocation || 'your chosen location',
-      '{{quote_amount}}': quoteAmount || 'your balance'
+      '{{quote_amount}}': quoteAmount ? `$${parseFloat(quoteAmount).toFixed(2)}` : 'your balance'
     }
 
     Object.keys(replacements).forEach(placeholder => {
@@ -302,6 +337,7 @@ const EmailTemplateModal = ({ session, user, isOpen, onClose }) => {
               <option value="reviewRequest">Review Request</option>
               <option value="referralRequest">Request a Referral</option>
               <option value="seasonalOffer">Seasonal Offer</option>
+              <option value="quote">Quote</option>
             </select>
           </div>
 

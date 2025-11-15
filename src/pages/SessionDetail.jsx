@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { API_URL } from '../config'
 import '../css/SessionDetail.css'
+import EmailTemplateModal from '../components/EmailTemplateModal'
 
 const SessionDetail = () => {
   const { id } = useParams()
@@ -10,6 +11,9 @@ const SessionDetail = () => {
   const [loading, setLoading] = useState(true)
   const [editMode, setEditMode] = useState(false)
   const [formData, setFormData] = useState({})
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailDropdownOpen, setEmailDropdownOpen] = useState(false)
+  const [selectedEmailTemplate, setSelectedEmailTemplate] = useState('quote')
 
   useEffect(() => {
     fetchSession()
@@ -19,6 +23,22 @@ const SessionDetail = () => {
       setEditMode(true)
     }
   }, [id])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emailDropdownOpen && !event.target.closest('.email-dropdown-container')) {
+        setEmailDropdownOpen(false)
+      }
+    }
+
+    if (emailDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [emailDropdownOpen])
 
   const fetchSession = async () => {
     try {
@@ -225,9 +245,64 @@ const SessionDetail = () => {
           <h1>Session Details</h1>
           <div className="header-actions">
             {!editMode && (
-              <button className="btn btn-primary" onClick={() => setEditMode(true)}>
-                Edit
-              </button>
+              <>
+                <div className="email-dropdown-container">
+                  <button 
+                    className="btn btn-primary email-dropdown-btn"
+                    onClick={() => setEmailDropdownOpen(!emailDropdownOpen)}
+                  >
+                    📧 Email Client
+                    <span className="dropdown-arrow">▼</span>
+                  </button>
+                  {emailDropdownOpen && (
+                    <div className="email-dropdown-menu">
+                      <button
+                        className="email-dropdown-item"
+                        onClick={() => {
+                          setSelectedEmailTemplate('quote')
+                          setShowEmailModal(true)
+                          setEmailDropdownOpen(false)
+                        }}
+                      >
+                        📋 Email Quote
+                      </button>
+                      <button
+                        className="email-dropdown-item"
+                        onClick={() => {
+                          setSelectedEmailTemplate('followUp')
+                          setShowEmailModal(true)
+                          setEmailDropdownOpen(false)
+                        }}
+                      >
+                        ✉️ Follow Up
+                      </button>
+                      <button
+                        className="email-dropdown-item"
+                        onClick={() => {
+                          setSelectedEmailTemplate('reminder')
+                          setShowEmailModal(true)
+                          setEmailDropdownOpen(false)
+                        }}
+                      >
+                        🔔 Session Reminder
+                      </button>
+                      <button
+                        className="email-dropdown-item"
+                        onClick={() => {
+                          setSelectedEmailTemplate('paymentNeeded')
+                          setShowEmailModal(true)
+                          setEmailDropdownOpen(false)
+                        }}
+                      >
+                        💰 Payment Reminder
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button className="btn btn-primary" onClick={() => setEditMode(true)}>
+                  Edit
+                </button>
+              </>
             )}
             <button className="btn btn-danger" onClick={handleDelete}>
               Delete
@@ -505,6 +580,19 @@ const SessionDetail = () => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Email Template Modal */}
+        {showEmailModal && (
+          <EmailTemplateModal
+            session={session}
+            isOpen={showEmailModal}
+            onClose={() => {
+              setShowEmailModal(false)
+              setSelectedEmailTemplate('quote')
+            }}
+            initialTemplate={selectedEmailTemplate}
+          />
         )}
       </div>
     </div>

@@ -24,6 +24,70 @@
 .header-actions {
   display: flex;
   gap: var(--spacing-sm);
+  position: relative;
+}
+
+/* Email Dropdown Styles */
+.email-dropdown-container {
+  position: relative;
+}
+
+.email-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  position: relative;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+
+.email-dropdown-container:hover .dropdown-arrow,
+.email-dropdown-container:focus-within .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.email-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: var(--spacing-xs);
+  background: var(--white);
+  border: 1px solid rgba(78, 46, 58, 0.2);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(78, 46, 58, 0.2);
+  min-width: 200px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.email-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-md);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary-purple-dark);
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid rgba(78, 46, 58, 0.1);
+}
+
+.email-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.email-dropdown-item:hover {
+  background: rgba(78, 46, 58, 0.05);
+  color: var(--primary-purple);
+}
+
+.email-dropdown-item:active {
+  background: rgba(78, 46, 58, 0.1);
 }
 
 .status-badge-large {
@@ -294,6 +358,12 @@
 
   .header-actions {
     justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .email-dropdown-menu {
+    right: auto;
+    left: 0;
   }
 
   .session-info-grid {
