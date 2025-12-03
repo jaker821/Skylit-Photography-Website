@@ -2207,12 +2207,26 @@ app.get('/api/portfolio/shoots/:id', async (req, res) => {
     const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ? ORDER BY uploaded_at DESC', [shootId]);
     console.log(`📸 Found ${photos.length} photos for shoot ${shootId}`);
     
+    // Fetch category name if category_id exists
+    let categoryName = shoot.category || 'Uncategorized';
+    if (shoot.category_id) {
+      try {
+        const categoryRecord = await db.get('SELECT * FROM categories WHERE id = ?', [shoot.category_id]);
+        if (categoryRecord) {
+          categoryName = categoryRecord.name;
+        }
+      } catch (error) {
+        console.error('Error fetching category name:', error);
+      }
+    }
+    
     // Format response to match expected structure
     const shootData = {
       id: shoot.id,
       title: shoot.title,
       description: shoot.description,
-      category: shoot.category,
+      category: categoryName,
+      category_id: shoot.category_id,
       date: shoot.date,
       photos: photos.map(photo => ({
         id: photo.id,
@@ -2308,7 +2322,7 @@ app.post('/api/portfolio/shoots', requireAdmin, async (req, res) => {
 app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
   try {
     const shootId = parseInt(req.params.id);
-    const { title, description, category, date } = req.body;
+    const { title, description, category, category_id, date } = req.body;
     
     // Build update query dynamically
     const updateFields = [];
@@ -2322,10 +2336,53 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
       updateFields.push('description = ?');
       updateValues.push(description);
     }
-    if (category !== undefined) {
-      updateFields.push('category = ?');
-      updateValues.push(category);
+    
+    // Handle category_id (preferred) or category (legacy support)
+    if (category_id !== undefined) {
+      // Update category_id - this is the proper way
+      updateFields.push('category_id = ?');
+      updateValues.push(category_id || null);
+      
+      // Also update category text field to match the category name for backward compatibility
+      if (category_id) {
+        try {
+          const categoryRecord = await db.get('SELECT * FROM categories WHERE id = ?', [category_id]);
+          if (categoryRecord) {
+            updateFields.push('category = ?');
+            updateValues.push(categoryRecord.name);
+          }
+        } catch (error) {
+          console.error('Error fetching category name:', error);
+        }
+      } else {
+        // If category_id is null, set category to null as well
+        updateFields.push('category = ?');
+        updateValues.push(null);
+      }
+    } else if (category !== undefined) {
+      // Legacy support: if only category text is provided, try to find or create category
+      if (category && category.trim()) {
+        let categoryRecord = await db.get('SELECT * FROM categories WHERE name = ?', [category.trim()]);
+        if (!categoryRecord) {
+          // Create new category if it doesn't exist
+          const createResult = await db.run(
+            'INSERT INTO categories (name, description, created_at, updated_at) VALUES (?, ?, ?, ?)',
+            [category.trim(), null, new Date().toISOString(), new Date().toISOString()]
+          );
+          categoryRecord = await db.get('SELECT * FROM categories WHERE id = ?', [createResult.id]);
+        }
+        updateFields.push('category_id = ?');
+        updateValues.push(categoryRecord.id);
+        updateFields.push('category = ?');
+        updateValues.push(categoryRecord.name);
+      } else {
+        updateFields.push('category_id = ?');
+        updateValues.push(null);
+        updateFields.push('category = ?');
+        updateValues.push(null);
+      }
     }
+    
     if (date !== undefined) {
       updateFields.push('date = ?');
       updateValues.push(date);
@@ -2352,11 +2409,25 @@ app.put('/api/portfolio/shoots/:id', requireAdmin, async (req, res) => {
     const updatedShoot = await db.get('SELECT * FROM shoots WHERE id = ?', [shootId]);
     const photos = await db.all('SELECT * FROM photos WHERE shoot_id = ?', [shootId]);
     
+    // Fetch category name if category_id exists
+    let categoryName = updatedShoot.category || 'Uncategorized';
+    if (updatedShoot.category_id) {
+      try {
+        const categoryRecord = await db.get('SELECT * FROM categories WHERE id = ?', [updatedShoot.category_id]);
+        if (categoryRecord) {
+          categoryName = categoryRecord.name;
+        }
+      } catch (error) {
+        console.error('Error fetching category name:', error);
+      }
+    }
+    
     const shoot = {
       id: updatedShoot.id,
       title: updatedShoot.title,
       description: updatedShoot.description,
-      category: updatedShoot.category,
+      category: categoryName,
+      category_id: updatedShoot.category_id,
       date: updatedShoot.date,
       photos: photos.map(photo => ({
         id: photo.id,

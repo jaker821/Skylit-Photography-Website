@@ -1525,6 +1525,7 @@ const AdminDashboard = () => {
             {selectedShoot ? (
               <ShootDetail 
                 shoot={selectedShoot}
+                categories={categories}
                 onBack={() => setSelectedShoot(null)}
                 onPhotoUpload={handlePhotoUpload}
                 onPhotoDelete={handleDeletePhoto}
@@ -3503,7 +3504,7 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, onToggleCoverPhoto, isUploading, uploadProgress, onShootUpdate }) => {
+const ShootDetail = ({ shoot, categories = [], onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, onToggleCoverPhoto, isUploading, uploadProgress, onShootUpdate }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
@@ -3513,7 +3514,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
   const [editFormData, setEditFormData] = React.useState({
     title: shoot.title,
     description: shoot.description,
-    category: shoot.category,
+    category_id: shoot.category_id || null,
     date: shoot.date
   })
   
@@ -3528,7 +3529,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
     setEditFormData({
       title: shoot.title,
       description: shoot.description,
-      category: shoot.category,
+      category_id: shoot.category_id || null,
       date: shoot.date
     })
   }, [shoot])
@@ -3795,13 +3796,18 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                 placeholder="Shoot Title"
                 style={{ fontSize: '1.5rem', fontWeight: 'bold', padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
               />
-              <input
-                type="text"
-                value={editFormData.category}
-                onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}
-                placeholder="Category"
+              <select
+                value={editFormData.category_id || ''}
+                onChange={(e) => setEditFormData({...editFormData, category_id: e.target.value ? parseInt(e.target.value) : null})}
                 style={{ padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
-              />
+              >
+                <option value="">No Category</option>
+                {categories.map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               <input
                 type="date"
                 value={editFormData.date}
@@ -3830,7 +3836,7 @@ const ShootDetail = ({ shoot, onBack, onPhotoUpload, onPhotoDelete, onToggleFeat
                   setEditFormData({
                     title: shoot.title,
                     description: shoot.description,
-                    category: shoot.category,
+                    category_id: shoot.category_id || null,
                     date: shoot.date
                   })
                 }}
