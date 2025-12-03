@@ -144,7 +144,8 @@ const AdminDashboard = () => {
         console.log('🌟 First shoot photos:', data.shoots[0].photos?.map(p => ({ id: p.id, featured: p.featured })))
       }
       setShoots(data.shoots || [])
-      setCategories(data.categories || [])
+      // Don't overwrite categories here - they're fetched separately via fetchCategories()
+      // The admin portfolio endpoint returns category names as strings, not category objects
     } catch (error) {
       console.error('Error fetching shoots:', error)
     }
@@ -3504,19 +3505,54 @@ const ShootForm = ({ onSubmit, onCancel }) => {
 }
 
 // Shoot Detail Component
-const ShootDetail = ({ shoot, categories = [], onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, onToggleCoverPhoto, isUploading, uploadProgress, onShootUpdate }) => {
+const ShootDetail = ({ shoot, categories: propCategories = [], onBack, onPhotoUpload, onPhotoDelete, onToggleFeatured, onTogglePhotoVisibility, onToggleCoverPhoto, isUploading, uploadProgress, onShootUpdate }) => {
   const [authorizedEmails, setAuthorizedEmails] = React.useState([])
   const [newEmail, setNewEmail] = React.useState('')
   const [showAccessControl, setShowAccessControl] = React.useState(false)
   const [loadingEmails, setLoadingEmails] = React.useState(false)
   const [downloadStats, setDownloadStats] = React.useState({ totalDownloads: 0, downloadHistory: [] })
   const [editMode, setEditMode] = React.useState(false)
+  const [categories, setCategories] = React.useState(propCategories)
   const [editFormData, setEditFormData] = React.useState({
     title: shoot.title,
     description: shoot.description,
     category_id: shoot.category_id || null,
     date: shoot.date
   })
+  
+  // Fetch and update categories
+  React.useEffect(() => {
+    const loadCategories = async () => {
+      // First, check if propCategories are valid category objects
+      if (propCategories && propCategories.length > 0) {
+        const areValidObjects = propCategories.every(cat => 
+          typeof cat === 'object' && cat !== null && cat.id !== undefined && cat.name !== undefined
+        )
+        if (areValidObjects) {
+          setCategories(propCategories)
+          console.log('📋 Using categories from props:', propCategories)
+          return
+        }
+      }
+      
+      // If propCategories are not valid, fetch from API
+      try {
+        console.log('📋 Fetching categories in ShootDetail...')
+        const response = await fetch(`${API_URL}/categories`)
+        const data = await response.json()
+        if (data.categories && Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(data.categories)
+          console.log('📋 Fetched categories in ShootDetail:', data.categories)
+        } else {
+          console.warn('📋 No categories returned from API')
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+      }
+    }
+    
+    loadCategories()
+  }, [propCategories])
   
   // Fetch authorized emails when component mounts or shoot changes
   React.useEffect(() => {
@@ -3533,6 +3569,17 @@ const ShootDetail = ({ shoot, categories = [], onBack, onPhotoUpload, onPhotoDel
       date: shoot.date
     })
   }, [shoot])
+
+  // Debug: Log categories when they change
+  React.useEffect(() => {
+    console.log('📋 ShootDetail categories:', categories)
+    console.log('📋 Categories length:', categories?.length)
+    if (categories && categories.length > 0) {
+      console.log('📋 First category:', categories[0])
+      console.log('📋 First category has id?', categories[0].id !== undefined)
+      console.log('📋 First category has name?', categories[0].name !== undefined)
+    }
+  }, [categories])
 
   // Handle save shoot edits
   const handleSaveShootEdit = async () => {
@@ -3796,18 +3843,33 @@ const ShootDetail = ({ shoot, categories = [], onBack, onPhotoUpload, onPhotoDel
                 placeholder="Shoot Title"
                 style={{ fontSize: '1.5rem', fontWeight: 'bold', padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
               />
-              <select
-                value={editFormData.category_id || ''}
-                onChange={(e) => setEditFormData({...editFormData, category_id: e.target.value ? parseInt(e.target.value) : null})}
-                style={{ padding: '0.5rem', marginBottom: '0.5rem', width: '100%' }}
-              >
-                <option value="">No Category</option>
-                {categories.map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem', color: '#ccc' }}>
+                  Category {categories && categories.length > 0 && `(${categories.length} available)`}
+                </label>
+                <select
+                  value={editFormData.category_id || ''}
+                  onChange={(e) => setEditFormData({...editFormData, category_id: e.target.value ? parseInt(e.target.value) : null})}
+                  style={{ padding: '0.5rem', width: '100%', backgroundColor: '#1a1a1a', color: '#fff', border: '1px solid #333', borderRadius: '4px' }}
+                >
+                  <option value="">No Category</option>
+                  {categories && categories.length > 0 ? (
+                    categories.map(category => {
+                      // Ensure category is an object with id and name
+                      if (typeof category === 'object' && category !== null && category.id !== undefined && category.name !== undefined) {
+                        return (
+                          <option key={category.id} value={category.id}>
+                            {category.name}
+                          </option>
+                        )
+                      }
+                      return null
+                    })
+                  ) : (
+                    <option disabled>Loading categories...</option>
+                  )}
+                </select>
+              </div>
               <input
                 type="date"
                 value={editFormData.date}
