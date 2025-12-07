@@ -11,6 +11,8 @@ import About from './pages/About'
 import Contact from './pages/Contact'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import PendingApproval from './pages/PendingApproval'
 import Reviews from './pages/Reviews'
 import ReviewInvite from './pages/ReviewInvite'
@@ -41,6 +43,8 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/pending-approval" element={<PendingApproval />} />
               <Route 
                 path="/profile" 

@@ -466,6 +466,217 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
+// Forgot Password - Request password reset
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Check if user exists
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+
+    // Always return success to prevent email enumeration attacks
+    // But only send email if user exists
+    if (user && user.password_hash) {
+      // Generate reset token
+      const resetToken = randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+      // Store token in database
+      try {
+        await db.run(
+          `INSERT INTO password_reset_tokens (user_id, token, expires_at, created_at)
+           VALUES (?, ?, ?, ?)`,
+          [user.id, resetToken, expiresAt.toISOString(), new Date().toISOString()]
+        );
+      } catch (dbError) {
+        // If token insert fails, still return success to prevent enumeration
+        console.error('Error storing reset token:', dbError);
+      }
+
+      // Send reset email if transporter is configured
+      if (transporter) {
+        const resetUrl = `${FRONTEND_BASE_URL}/reset-password/${resetToken}`;
+        
+        const emailHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #6B46C1;">Password Reset Request</h2>
+            <div style="background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 20px;">
+              <p>Hello ${user.name || 'there'},</p>
+              <p>We received a request to reset your password for your Skylit Photography account.</p>
+              <p>Click the button below to reset your password:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${resetUrl}" 
+                   style="background-color: #6B46C1; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+                  Reset Password
+                </a>
+              </div>
+              <p style="font-size: 0.9em; color: #666;">Or copy and paste this link into your browser:</p>
+              <p style="font-size: 0.85em; color: #666; word-break: break-all;">${resetUrl}</p>
+              <p style="font-size: 0.9em; color: #666; margin-top: 20px;">
+                This link will expire in 1 hour. If you didn't request this password reset, please ignore this email.
+              </p>
+            </div>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 0.9em;">
+              <p>This email was sent from Skylit Photography.</p>
+            </div>
+          </div>
+        `;
+
+        try {
+          await transporter.sendMail({
+            from: `"Skylit Photography" <${emailUser}>`,
+            to: email,
+            subject: 'Password Reset Request - Skylit Photography',
+            html: emailHtml,
+            text: `
+Password Reset Request
+
+Hello ${user.name || 'there'},
+
+We received a request to reset your password for your Skylit Photography account.
+
+Click the link below to reset your password:
+${resetUrl}
+
+This link will expire in 1 hour. If you didn't request this password reset, please ignore this email.
+
+---
+This email was sent from Skylit Photography.
+            `.trim()
+          });
+
+          console.log(`✅ Password reset email sent to ${email}`);
+        } catch (emailError) {
+          console.error('Error sending password reset email:', emailError);
+          // Still return success to prevent enumeration
+        }
+      } else {
+        console.log('⚠️  Email service not configured - Password reset token:', resetToken);
+        console.log('   Reset URL would be:', `${FRONTEND_BASE_URL}/reset-password/${resetToken}`);
+      }
+    }
+
+    // Always return success to prevent email enumeration
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    // Still return success to prevent enumeration
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a password reset link has been sent.'
+    });
+  }
+});
+
+// Validate Reset Token
+app.get('/api/auth/reset-password/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required', valid: false });
+    }
+
+    // Find token in database using Supabase client directly for complex query
+    const supabase = db.getClient();
+    const { data: resetTokens, error: tokenError } = await supabase
+      .from('password_reset_tokens')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .limit(1);
+    
+    if (tokenError) {
+      console.error('Token query error:', tokenError);
+      return res.status(500).json({ error: 'Server error', valid: false });
+    }
+    
+    const resetToken = resetTokens && resetTokens.length > 0 ? resetTokens[0] : null;
+
+    if (!resetToken) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired reset token', 
+        valid: false 
+      });
+    }
+
+    res.json({ valid: true });
+  } catch (error) {
+    console.error('Token validation error:', error);
+    res.status(500).json({ error: 'Server error', valid: false });
+  }
+});
+
+// Reset Password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({ error: 'Token and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Find valid token using Supabase client directly for complex query
+    const supabase = db.getClient();
+    const { data: resetTokens, error: tokenError } = await supabase
+      .from('password_reset_tokens')
+      .select('*')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .limit(1);
+    
+    if (tokenError) {
+      console.error('Token query error:', tokenError);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    const resetToken = resetTokens && resetTokens.length > 0 ? resetTokens[0] : null;
+
+    if (!resetToken) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update user password
+    await db.run(
+      'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
+      [hashedPassword, new Date().toISOString(), resetToken.user_id]
+    );
+
+    // Mark token as used
+    await db.run(
+      'UPDATE password_reset_tokens SET used = TRUE WHERE id = ?',
+      [resetToken.id]
+    );
+
+    console.log(`✅ Password reset successful for user ID: ${resetToken.user_id}`);
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully'
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Check session
 app.get('/api/auth/session', async (req, res) => {
   try {

@@ -122,6 +122,12 @@ const Login = () => {
               />
             </div>
 
+            <div className="form-group" style={{ textAlign: 'right', marginTop: '-10px', marginBottom: '20px' }}>
+              <Link to="/forgot-password" style={{ fontSize: '0.9em', color: '#6B46C1', textDecoration: 'none' }}>
+                Forgot password?
+              </Link>
+            </div>
+
             <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
