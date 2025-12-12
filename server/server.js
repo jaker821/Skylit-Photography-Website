@@ -2263,6 +2263,248 @@ app.delete('/api/invoices/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Email invoice as PDF (admin only)
+app.post('/api/invoices/:id/email-pdf', requireAdmin, async (req, res) => {
+  try {
+    if (!transporter) {
+      return res.status(503).json({ error: 'Email service is not configured' });
+    }
+
+    const invoiceId = parseInt(req.params.id);
+    const supabase = db.getClient();
+    
+    // Get invoice details
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', invoiceId)
+      .single();
+    
+    if (invoiceError || !invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    // Parse items
+    let items = [];
+    try {
+      items = typeof invoice.items === 'string' ? JSON.parse(invoice.items) : (invoice.items || []);
+    } catch (e) {
+      items = [];
+    }
+
+    // Generate professional HTML invoice
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              padding: 40px; 
+              background: #fff;
+              color: #333;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 40px;
+              border-bottom: 3px solid #DFD08F;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              color: #4E2E3A;
+              font-size: 2.5em;
+              margin-bottom: 10px;
+            }
+            .header p {
+              color: #666;
+              font-size: 1.1em;
+            }
+            .invoice-info {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+            }
+            .bill-to, .invoice-details {
+              background: #f9f9f9;
+              padding: 20px;
+              border-radius: 8px;
+              flex: 1;
+              margin: 0 10px;
+            }
+            .bill-to h2, .invoice-details h2 {
+              color: #4E2E3A;
+              margin-bottom: 15px;
+              font-size: 1.3em;
+            }
+            .info-row {
+              margin-bottom: 8px;
+            }
+            .info-row strong {
+              color: #4E2E3A;
+              display: inline-block;
+              width: 100px;
+            }
+            .line-items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            .line-items-table th {
+              background: #4E2E3A;
+              color: #fff;
+              padding: 12px;
+              text-align: left;
+              font-weight: 600;
+            }
+            .line-items-table td {
+              padding: 12px;
+              border-bottom: 1px solid #ddd;
+            }
+            .line-items-table tbody tr:hover {
+              background: #f9f9f9;
+            }
+            .total-section {
+              text-align: right;
+              margin-top: 20px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 10px;
+              font-size: 1.1em;
+            }
+            .total-row strong {
+              width: 150px;
+              text-align: right;
+            }
+            .total-row.grand-total {
+              font-size: 1.5em;
+              font-weight: bold;
+              color: #4E2E3A;
+              border-top: 2px solid #4E2E3A;
+              padding-top: 10px;
+              margin-top: 10px;
+            }
+            .notes {
+              margin-top: 30px;
+              padding: 15px;
+              background: #f9f9f9;
+              border-radius: 8px;
+            }
+            .notes h3 {
+              color: #4E2E3A;
+              margin-bottom: 10px;
+            }
+            @media print {
+              body { padding: 20px; }
+              .header { page-break-after: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>INVOICE</h1>
+            <p>Skylit Photography</p>
+            <p>Invoice #${invoice.invoice_number || `INV-${invoice.id}`}</p>
+          </div>
+          
+          <div class="invoice-info">
+            <div class="bill-to">
+              <h2>Bill To:</h2>
+              <div class="info-row">
+                <strong>Name:</strong> <span>${invoice.client_name || 'N/A'}</span>
+              </div>
+              <div class="info-row">
+                <strong>Email:</strong> <span>${invoice.client_email || 'N/A'}</span>
+              </div>
+            </div>
+            <div class="invoice-details">
+              <h2>Invoice Details:</h2>
+              <div class="info-row">
+                <strong>Date:</strong> <span>${new Date(invoice.created_at).toLocaleDateString()}</span>
+              </div>
+              ${invoice.due_date ? `
+              <div class="info-row">
+                <strong>Due Date:</strong> <span>${new Date(invoice.due_date).toLocaleDateString()}</span>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <strong>Status:</strong> <span>${invoice.status || 'Pending'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <table class="line-items-table">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Unit Price</th>
+                <th style="text-align: right;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.length > 0 ? items.map(item => {
+                const qty = parseFloat(item.quantity || 1);
+                const price = parseFloat(item.price || 0);
+                const total = qty * price;
+                return `
+                  <tr>
+                    <td>${item.description || 'Item'}</td>
+                    <td style="text-align: center;">${qty}</td>
+                    <td style="text-align: right;">$${price.toFixed(2)}</td>
+                    <td style="text-align: right;">$${total.toFixed(2)}</td>
+                  </tr>
+                `;
+              }).join('') : `
+                <tr>
+                  <td colspan="4" style="text-align: center; padding: 20px; color: #666;">
+                    No line items specified
+                  </td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+          
+          <div class="total-section">
+            <div class="total-row grand-total">
+              <strong>Total:</strong> <span>$${parseFloat(invoice.amount || 0).toFixed(2)}</span>
+            </div>
+          </div>
+          
+          ${invoice.notes ? `
+          <div class="notes">
+            <h3>Notes:</h3>
+            <p>${invoice.notes}</p>
+          </div>
+          ` : ''}
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 0.9em;">
+            <p>Thank you for your business!</p>
+            <p>Please contact us if you have any questions about this invoice.</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Email the invoice
+    await transporter.sendMail({
+      from: `"Skylit Photography" <${emailUser}>`,
+      to: invoice.client_email,
+      subject: `Invoice ${invoice.invoice_number || `#${invoice.id}`} from Skylit Photography`,
+      html: invoiceHTML,
+      text: `Invoice ${invoice.invoice_number || `#${invoice.id}`}\n\nClient: ${invoice.client_name}\nAmount: $${parseFloat(invoice.amount || 0).toFixed(2)}\n\nPlease see the HTML invoice for details.`
+    });
+
+    res.json({ success: true, email: invoice.client_email });
+  } catch (error) {
+    console.error('Email invoice PDF error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===================================
 // Expenses Routes
 // ===================================

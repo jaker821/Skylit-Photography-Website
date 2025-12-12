@@ -1552,7 +1552,7 @@ const AdminDashboard = () => {
         {/* INVOICING TAB */}
         {activeTab === 'invoicing' && (
           <div className="tab-content">
-            <Invoicing users={users} />
+            <Invoicing users={users} packages={packages} />
           </div>
         )}
 

@@ -3,7 +3,7 @@ import { API_URL } from '../config'
 import EmailTemplateModal from './EmailTemplateModal'
 import './Invoicing.css'
 
-const Invoicing = ({ users = [] }) => {
+const Invoicing = ({ users = [], packages = [] }) => {
   const [invoices, setInvoices] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -105,6 +105,26 @@ const Invoicing = ({ users = [] }) => {
     } catch (error) {
       console.error('Error updating invoice:', error)
       alert('Failed to update invoice')
+    }
+  }
+
+  const handleEmailInvoicePDF = async (invoiceId) => {
+    try {
+      const response = await fetch(`${API_URL}/invoices/${invoiceId}/email-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+      
+      const data = await response.json()
+      if (response.ok) {
+        alert(`Invoice PDF sent successfully to ${data.email}!`)
+      } else {
+        alert(data.error || 'Failed to send invoice PDF')
+      }
+    } catch (error) {
+      console.error('Error sending invoice PDF:', error)
+      alert('Failed to send invoice PDF')
     }
   }
 
@@ -281,6 +301,13 @@ const Invoicing = ({ users = [] }) => {
                         )}
                         <button
                           className="btn-small btn-secondary"
+                          onClick={() => handleEmailInvoicePDF(invoice.id)}
+                          title="Email invoice as PDF"
+                        >
+                          📧 Email PDF
+                        </button>
+                        <button
+                          className="btn-small btn-secondary"
                           onClick={() => {
                             // Create a session-like object for email template
                             setEmailTarget({ 
@@ -318,6 +345,7 @@ const Invoicing = ({ users = [] }) => {
         <StandaloneInvoiceForm
           users={users}
           sessions={sessions}
+          packages={packages}
           onSubmit={handleCreateStandaloneInvoice}
           onCancel={() => setShowStandaloneInvoiceForm(false)}
         />
@@ -346,24 +374,51 @@ const Invoicing = ({ users = [] }) => {
 }
 
 // Standalone Invoice Form Component
-const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
+const StandaloneInvoiceForm = ({ users, sessions, packages = [], onSubmit, onCancel }) => {
   const [formData, setFormData] = useState({
     clientName: '',
     clientEmail: '',
     amount: '',
-    items: [{ description: '', quantity: 1, price: '' }],
+    items: [{ description: '', quantity: 1, price: '', packageId: '' }],
     notes: '',
     dueDate: '',
     userId: '',
     sessionId: ''
   })
 
+  // Auto-populate client info when user is selected
+  useEffect(() => {
+    if (formData.userId) {
+      const selectedUser = users.find(u => u.id === parseInt(formData.userId))
+      if (selectedUser) {
+        setFormData(prev => ({
+          ...prev,
+          clientName: selectedUser.name || '',
+          clientEmail: selectedUser.email || ''
+        }))
+      }
+    }
+  }, [formData.userId, users])
+
   const handleSubmit = (e) => {
     e.preventDefault()
+    
+    // Calculate total from items if amount is not set
+    let finalAmount = parseFloat(formData.amount) || 0
+    if (!finalAmount && formData.items.length > 0) {
+      finalAmount = formData.items.reduce((sum, item) => {
+        return sum + (parseFloat(item.price || 0) * parseFloat(item.quantity || 1))
+      }, 0)
+    }
+    
     onSubmit({
       ...formData,
-      amount: parseFloat(formData.amount),
-      items: formData.items,
+      amount: finalAmount,
+      items: formData.items.map(item => ({
+        description: item.description,
+        quantity: parseFloat(item.quantity || 1),
+        price: parseFloat(item.price || 0)
+      })),
       userId: formData.userId || null,
       session_id: formData.sessionId || null
     })
@@ -375,13 +430,19 @@ const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
     if (field === 'quantity' || field === 'price') {
       newItems[index].total = parseFloat(newItems[index].quantity || 0) * parseFloat(newItems[index].price || 0)
     }
-    setFormData({ ...formData, items: newItems })
+    
+    // Recalculate total amount
+    const total = newItems.reduce((sum, item) => {
+      return sum + (parseFloat(item.price || 0) * parseFloat(item.quantity || 1))
+    }, 0)
+    
+    setFormData({ ...formData, items: newItems, amount: total.toFixed(2) })
   }
 
   const addItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { description: '', quantity: 1, price: '' }]
+      items: [...formData.items, { description: '', quantity: 1, price: '', packageId: '' }]
     })
   }
 
@@ -400,6 +461,25 @@ const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="form-body">
+          {/* Link to User Account - Moved to top */}
+          {users.length > 0 && (
+            <div className="form-group">
+              <label>Link to User Account (optional)</label>
+              <select
+                value={formData.userId}
+                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+              >
+                <option value="">None</option>
+                {users.map(user => (
+                  <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
+                ))}
+              </select>
+              <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                Selecting a user will auto-populate client information below
+              </small>
+            </div>
+          )}
+
           <div className="form-row">
             <div className="form-group">
               <label>Client Name *</label>
@@ -427,26 +507,87 @@ const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
               type="number"
               step="0.01"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              onChange={(e) => {
+                const newAmount = e.target.value
+                setFormData({ ...formData, amount: newAmount })
+                // Recalculate total from items if amount is cleared
+                if (!newAmount && formData.items.length > 0) {
+                  const total = formData.items.reduce((sum, item) => {
+                    return sum + (parseFloat(item.price || 0) * parseFloat(item.quantity || 1))
+                  }, 0)
+                  setFormData(prev => ({ ...prev, amount: total.toFixed(2) }))
+                }
+              }}
               required
             />
+            <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+              Will auto-calculate from items if left empty
+            </small>
           </div>
 
           <div className="form-group">
-            <label>Invoice Items</label>
+            <label>Invoice Items *</label>
             {formData.items.map((item, index) => (
               <div key={index} className="invoice-item-row">
+                <select
+                  value={item.packageId || ''}
+                  onChange={(e) => {
+                    const packageId = e.target.value
+                    const newItems = [...formData.items]
+                    
+                    if (packageId) {
+                      const selectedPackage = packages.find(p => p.id === parseInt(packageId))
+                      if (selectedPackage) {
+                        const packagePrice = parseFloat(selectedPackage.price?.toString().replace(/[^0-9.]/g, '') || 0)
+                        newItems[index].packageId = packageId
+                        newItems[index].description = selectedPackage.name
+                        newItems[index].price = packagePrice.toFixed(2)
+                      }
+                    } else {
+                      newItems[index].packageId = ''
+                      newItems[index].description = ''
+                      newItems[index].price = ''
+                    }
+                    
+                    // Recalculate total
+                    const total = newItems.reduce((sum, it) => {
+                      return sum + (parseFloat(it.price || 0) * parseFloat(it.quantity || 1))
+                    }, 0)
+                    setFormData(prev => ({ ...prev, items: newItems, amount: total.toFixed(2) }))
+                  }}
+                  style={{ width: '200px', marginRight: '8px' }}
+                >
+                  <option value="">Select Package or Custom</option>
+                  {packages.map(pkg => {
+                    const pkgPrice = parseFloat(pkg.price?.toString().replace(/[^0-9.]/g, '') || 0)
+                    return (
+                      <option key={pkg.id} value={pkg.id}>
+                        {pkg.name} {pkgPrice > 0 ? `($${pkgPrice.toFixed(2)})` : ''}
+                      </option>
+                    )
+                  })}
+                </select>
                 <input
                   type="text"
                   placeholder="Description"
                   value={item.description}
                   onChange={(e) => updateItem(index, 'description', e.target.value)}
+                  style={{ flex: 1 }}
                 />
                 <input
                   type="number"
                   placeholder="Qty"
                   value={item.quantity}
-                  onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                  onChange={(e) => {
+                    updateItem(index, 'quantity', e.target.value)
+                    // Recalculate total
+                    const newItems = [...formData.items]
+                    newItems[index].quantity = e.target.value
+                    const total = newItems.reduce((sum, it) => {
+                      return sum + (parseFloat(it.price || 0) * parseFloat(it.quantity || 1))
+                    }, 0)
+                    setFormData(prev => ({ ...prev, items: newItems, amount: total.toFixed(2) }))
+                  }}
                   style={{ width: '80px' }}
                 />
                 <input
@@ -454,10 +595,27 @@ const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
                   step="0.01"
                   placeholder="Price"
                   value={item.price}
-                  onChange={(e) => updateItem(index, 'price', e.target.value)}
+                  onChange={(e) => {
+                    updateItem(index, 'price', e.target.value)
+                    // Recalculate total
+                    const newItems = [...formData.items]
+                    newItems[index].price = e.target.value
+                    const total = newItems.reduce((sum, it) => {
+                      return sum + (parseFloat(it.price || 0) * parseFloat(it.quantity || 1))
+                    }, 0)
+                    setFormData(prev => ({ ...prev, items: newItems, amount: total.toFixed(2) }))
+                  }}
                   style={{ width: '120px' }}
                 />
-                <button type="button" onClick={() => removeItem(index)}>×</button>
+                <button type="button" onClick={() => {
+                  removeItem(index)
+                  // Recalculate total after removal
+                  const newItems = formData.items.filter((_, i) => i !== index)
+                  const total = newItems.reduce((sum, it) => {
+                    return sum + (parseFloat(it.price || 0) * parseFloat(it.quantity || 1))
+                  }, 0)
+                  setFormData(prev => ({ ...prev, amount: total.toFixed(2) }))
+                }}>×</button>
               </div>
             ))}
             <button type="button" onClick={addItem} className="btn-small btn-secondary">+ Add Item</button>
@@ -475,21 +633,6 @@ const StandaloneInvoiceForm = ({ users, sessions, onSubmit, onCancel }) => {
                   <option key={session.id} value={session.id}>
                     {session.client_name} - {session.session_type} ({session.status})
                   </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {users.length > 0 && (
-            <div className="form-group">
-              <label>Link to User Account (optional)</label>
-              <select
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-              >
-                <option value="">None</option>
-                {users.map(user => (
-                  <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
                 ))}
               </select>
             </div>
