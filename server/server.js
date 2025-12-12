@@ -4602,19 +4602,17 @@ app.post('/api/users/bulk-email', requireAdmin, async (req, res) => {
 
     const { emailType, recipientType, selectedUserIds, subject, message, includeDiscountCode, discountCodeId } = req.body;
 
+    console.log('Bulk email request:', { recipientType, selectedUserIds: selectedUserIds?.length, subject });
+
     if (!subject || !message) {
       return res.status(400).json({ error: 'Subject and message are required' });
     }
 
-    // Get recipients
+    // Get recipients - IMPORTANT: Only use selected users if recipientType is explicitly 'selected'
     let recipients = [];
-    if (recipientType === 'all' || recipientType === 'approved') {
-      recipients = await db.all(
-        'SELECT id, name, email FROM users WHERE status = ? AND email IS NOT NULL AND email != ?',
-        ['approved', '']
-      );
-    } else if (recipientType === 'selected') {
-      if (!selectedUserIds || selectedUserIds.length === 0) {
+    if (recipientType === 'selected') {
+      // Only send to selected users
+      if (!selectedUserIds || !Array.isArray(selectedUserIds) || selectedUserIds.length === 0) {
         return res.status(400).json({ error: 'Please select at least one recipient' });
       }
       // Convert string IDs to integers for the database query
@@ -4627,6 +4625,17 @@ app.post('/api/users/bulk-email', requireAdmin, async (req, res) => {
         `SELECT id, name, email FROM users WHERE id IN (${placeholders}) AND email IS NOT NULL AND email != ?`,
         [...userIds, '']
       );
+      console.log(`Selected ${recipients.length} users from ${userIds.length} IDs`);
+    } else if (recipientType === 'all' || recipientType === 'approved') {
+      // Send to all approved users
+      recipients = await db.all(
+        'SELECT id, name, email FROM users WHERE status = ? AND email IS NOT NULL AND email != ?',
+        ['approved', '']
+      );
+      console.log(`Sending to all ${recipients.length} approved users`);
+    } else {
+      // Default to selected users if recipientType is not specified
+      return res.status(400).json({ error: 'Invalid recipient type specified' });
     }
 
     if (recipients.length === 0) {

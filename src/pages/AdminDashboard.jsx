@@ -1134,11 +1134,28 @@ const AdminDashboard = () => {
   const handleSendBulkEmail = async (emailData) => {
     setSendingBulkEmail(true)
     try {
+      // Ensure we're sending the correct data
+      const payload = {
+        emailType: emailData.emailType,
+        recipientType: emailData.recipientType,
+        selectedUserIds: emailData.recipientType === 'selected' ? emailData.selectedUserIds : undefined,
+        subject: emailData.subject,
+        message: emailData.message,
+        includeDiscountCode: emailData.includeDiscountCode || false,
+        discountCodeId: emailData.discountCodeId || null
+      }
+      
+      console.log('Sending bulk email with payload:', {
+        recipientType: payload.recipientType,
+        selectedUserIds: payload.selectedUserIds?.length || 0,
+        subject: payload.subject
+      })
+      
       const response = await fetch(`${API_URL}/users/bulk-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(emailData)
+        body: JSON.stringify(payload)
       })
       
       const data = await response.json()
