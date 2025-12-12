@@ -1,4 +1,4 @@
-# Skylit Photography Portfolio Website v2.2.0
+# Skylit Photography Portfolio Website v2.2.1
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
@@ -35,6 +35,8 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **PDF export** - Print session details with line items and customer information
 - **Discount code management** - Create and manage coupon codes with usage tracking
 - **Bulk email system** - Send promotional emails, announcements, and special offers to users
+- **Invoice PDF email** - Send professional invoices as PDFs directly to clients
+- **Package selection in invoices** - Select packages from dropdown in invoice items
 
 ## Tech Stack
 
@@ -46,6 +48,21 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **File Uploads:** Multer + Sharp (image compression)
 - **Image Processing:** react-image-crop for client-side cropping
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.2.1
+
+### 🎨 **New Features:**
+- **📧 Invoice PDF Email** - Send professional HTML invoices as PDFs directly to clients via email
+- **📦 Package Selection in Invoices** - Select packages from dropdown in invoice items, auto-fills description and price
+- **👤 Auto-Populate Client Info** - Selecting a user account automatically fills client name and email fields
+- **💰 Auto-Calculate Totals** - Invoice totals automatically calculate from line items in real-time
+- **🎯 Improved Invoice Form UX** - "Link to User Account" moved to top with helpful instructions
+
+### 🔧 **Improvements:**
+- **📄 Professional Invoice Design** - Beautiful HTML invoice template with proper formatting and styling
+- **🔄 Real-Time Calculations** - Invoice totals update automatically when items are added, removed, or modified
+- **📋 Flexible Item Entry** - Choose from packages or enter custom descriptions for invoice items
+- **🎨 Enhanced Form Layout** - Better organization with user account linking at the top
 
 ## What's New in v2.2.0
 
@@ -268,7 +285,15 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.2.0 (Current) - Discount Codes & Bulk Email
+### v2.2.1 (Current) - Enhanced Invoice System
+- **📧 NEW:** Email invoice as PDF functionality with professional HTML template
+- **📦 NEW:** Package dropdown selection in invoice items with auto-fill
+- **👤 NEW:** Auto-populate client name and email when user account is linked
+- **💰 NEW:** Real-time total calculation from invoice line items
+- **🎯 IMPROVED:** Moved "Link to User Account" to top of invoice form
+- **🎨 IMPROVED:** Enhanced invoice form layout and user experience
+
+### v2.2.0 - Discount Codes & Bulk Email
 - **🎟️ NEW:** Complete discount code system with percentage or fixed amount discounts
 - **💰 NEW:** Package price autofill in quote and booking forms
 - **📧 NEW:** Bulk email system for promotional campaigns and announcements
