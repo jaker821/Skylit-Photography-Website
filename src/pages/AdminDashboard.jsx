@@ -4889,17 +4889,18 @@ Skylit Photography`
             <div style={{ 
               maxHeight: '200px', 
               overflowY: 'auto', 
-              border: '1px solid #ddd', 
-              borderRadius: '4px', 
-              padding: '8px',
-              background: '#fff'
+              border: '2px solid #e0e0e0', 
+              borderRadius: '8px', 
+              padding: '12px',
+              background: '#f9f9f9'
             }}>
               {users.filter(u => u.status === 'approved' && u.email).map(user => (
                 <label key={user.id} style={{ 
                   display: 'block', 
                   marginBottom: '8px', 
                   cursor: 'pointer',
-                  color: '#2d1b3d'
+                  color: '#2a2a2a',
+                  fontSize: '0.95rem'
                 }}>
                   <input
                     type="checkbox"
