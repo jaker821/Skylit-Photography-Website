@@ -1244,6 +1244,440 @@ app.delete('/api/bookings/:id', requireAuth, async (req, res) => {
 });
 
 // ===================================
+// Sessions Routes (QuickBooks System)
+// ===================================
+
+// Get all sessions (admin only)
+app.get('/api/sessions', requireAdmin, async (req, res) => {
+  try {
+    const { status, clientEmail } = req.query;
+    const supabase = db.getClient();
+    
+    let query = supabase
+      .from('sessions')
+      .select(`
+        *,
+        users:user_id (email, name),
+        invoices:invoice_id (invoice_number, status)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (status) {
+      query = query.eq('status', status);
+    }
+    
+    if (clientEmail) {
+      query = query.eq('client_email', clientEmail);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Get sessions error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    // Flatten the nested structure
+    const sessions = (data || []).map(session => ({
+      ...session,
+      user_email: session.users?.email || null,
+      user_name: session.users?.name || null,
+      invoice_number: session.invoices?.invoice_number || null,
+      invoice_status: session.invoices?.status || null,
+      users: undefined,
+      invoices: undefined
+    }));
+    
+    res.json({ sessions });
+  } catch (error) {
+    console.error('Get sessions error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get single session by ID (admin only)
+app.get('/api/sessions/:id', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const supabase = db.getClient();
+    
+    const { data, error } = await supabase
+      .from('sessions')
+      .select(`
+        *,
+        users:user_id (email, name),
+        invoices:invoice_id (*)
+      `)
+      .eq('id', sessionId)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    // Flatten the nested structure
+    const session = {
+      ...data,
+      user_email: data.users?.email || null,
+      user_name: data.users?.name || null,
+      ...(data.invoices || {})
+    };
+    
+    res.json({ session });
+  } catch (error) {
+    console.error('Get session error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create quote (admin only)
+app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
+  try {
+    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, packageId, addOns, userId } = req.body;
+    
+    if (!clientName || !clientEmail || !sessionType || !quoteAmount) {
+      return res.status(400).json({ error: 'Client name, email, session type, and quote amount are required' });
+    }
+    
+    const now = new Date().toISOString();
+    const result = await db.run(
+      `INSERT INTO sessions (client_name, client_email, user_id, session_type, date, time, location, notes, status, quote_amount, package_id, add_ons, created_at, updated_at, quoted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'quoted', ?, ?, ?, ?, ?, ?)`,
+      [
+        clientName,
+        clientEmail,
+        userId || null,
+        sessionType,
+        date || null,
+        time || null,
+        location || null,
+        notes || null,
+        parseFloat(quoteAmount),
+        packageId || null,
+        addOns ? JSON.stringify(addOns) : '[]',
+        now,
+        now,
+        now
+      ]
+    );
+    
+    const newSession = await db.get('SELECT * FROM sessions WHERE id = ?', [result.id]);
+    res.json({ success: true, session: newSession });
+  } catch (error) {
+    console.error('Create quote error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Convert quote to booking (admin only)
+app.put('/api/sessions/:id/book', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { date, time, location, notes } = req.body;
+    
+    const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.status !== 'quoted') {
+      return res.status(400).json({ error: 'Only quoted sessions can be booked' });
+    }
+    
+    const now = new Date().toISOString();
+    const updateFields = ['status = ?', 'booked_at = ?', 'updated_at = ?'];
+    const updateValues = ['booked', now, now];
+    
+    if (date) {
+      updateFields.push('date = ?');
+      updateValues.push(date);
+    }
+    if (time) {
+      updateFields.push('time = ?');
+      updateValues.push(time);
+    }
+    if (location) {
+      updateFields.push('location = ?');
+      updateValues.push(location);
+    }
+    if (notes !== undefined) {
+      updateFields.push('notes = ?');
+      updateValues.push(notes);
+    }
+    
+    updateValues.push(sessionId);
+    
+    await db.run(
+      `UPDATE sessions SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+    
+    const updatedSession = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    res.json({ success: true, session: updatedSession });
+  } catch (error) {
+    console.error('Book session error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create booking directly (admin only)
+app.post('/api/sessions/booking', requireAdmin, async (req, res) => {
+  try {
+    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, invoiceAmount, packageId, addOns, userId } = req.body;
+    
+    if (!clientName || !clientEmail || !sessionType || !date) {
+      return res.status(400).json({ error: 'Client name, email, session type, and date are required' });
+    }
+    
+    const now = new Date().toISOString();
+    const result = await db.run(
+      `INSERT INTO sessions (client_name, client_email, user_id, session_type, date, time, location, notes, status, quote_amount, invoice_amount, package_id, add_ons, created_at, updated_at, quoted_at, booked_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'booked', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        clientName,
+        clientEmail,
+        userId || null,
+        sessionType,
+        date,
+        time || null,
+        location || null,
+        notes || null,
+        quoteAmount ? parseFloat(quoteAmount) : null,
+        invoiceAmount ? parseFloat(invoiceAmount) : null,
+        packageId || null,
+        addOns ? JSON.stringify(addOns) : '[]',
+        now,
+        now,
+        quoteAmount ? now : null,
+        now
+      ]
+    );
+    
+    const newSession = await db.get('SELECT * FROM sessions WHERE id = ?', [result.id]);
+    res.json({ success: true, session: newSession });
+  } catch (error) {
+    console.error('Create booking error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Invoice a session (admin only)
+app.post('/api/sessions/:id/invoice', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { invoiceAmount, items, notes, dueDate } = req.body;
+    
+    const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.status === 'invoiced') {
+      return res.status(400).json({ error: 'Session already invoiced' });
+    }
+    
+    // Generate invoice number
+    const supabase = db.getClient();
+    const { count } = await supabase
+      .from('invoices')
+      .select('*', { count: 'exact', head: true });
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
+    
+    const now = new Date().toISOString();
+    const invoiceResult = await db.run(
+      `INSERT INTO invoices (session_id, client_name, client_email, user_id, amount, status, invoice_number, items, notes, due_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
+      [
+        sessionId,
+        session.client_name,
+        session.client_email,
+        session.user_id,
+        invoiceAmount || session.quote_amount || session.invoice_amount || 0,
+        invoiceNumber,
+        items ? JSON.stringify(items) : '[]',
+        notes || null,
+        dueDate || null,
+        now,
+        now
+      ]
+    );
+    
+    // Update session status
+    await db.run(
+      `UPDATE sessions SET status = 'invoiced', invoice_id = ?, invoice_amount = ?, invoiced_at = ?, updated_at = ? WHERE id = ?`,
+      [invoiceResult.id, invoiceAmount || session.quote_amount || session.invoice_amount || 0, now, now, sessionId]
+    );
+    
+    const updatedSession = await db.get(`
+      SELECT s.*, i.* FROM sessions s
+      LEFT JOIN invoices i ON s.invoice_id = i.id
+      WHERE s.id = ?
+    `, [sessionId]);
+    
+    res.json({ success: true, session: updatedSession });
+  } catch (error) {
+    console.error('Invoice session error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create standalone invoice (no session) (admin only)
+app.post('/api/invoices/standalone', requireAdmin, async (req, res) => {
+  try {
+    const { clientName, clientEmail, amount, items, notes, dueDate, userId } = req.body;
+    
+    if (!clientName || !clientEmail || !amount) {
+      return res.status(400).json({ error: 'Client name, email, and amount are required' });
+    }
+    
+    // Generate invoice number
+    const supabase = db.getClient();
+    const { count } = await supabase
+      .from('invoices')
+      .select('*', { count: 'exact', head: true });
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
+    
+    const now = new Date().toISOString();
+    const result = await db.run(
+      `INSERT INTO invoices (session_id, client_name, client_email, user_id, amount, status, invoice_number, items, notes, due_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
+      [
+        null,
+        clientName,
+        clientEmail,
+        userId || null,
+        parseFloat(amount),
+        invoiceNumber,
+        items ? JSON.stringify(items) : '[]',
+        notes || null,
+        dueDate || null,
+        now,
+        now
+      ]
+    );
+    
+    const newInvoice = await db.get('SELECT * FROM invoices WHERE id = ?', [result.id]);
+    res.json({ success: true, invoice: newInvoice });
+  } catch (error) {
+    console.error('Create standalone invoice error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update session (admin only)
+app.put('/api/sessions/:id', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const updates = req.body;
+    
+    const updateFields = [];
+    const updateValues = [];
+    
+    const allowedFields = ['client_name', 'client_email', 'session_type', 'date', 'time', 'location', 'notes', 'quote_amount', 'invoice_amount', 'package_id', 'add_ons'];
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        if (key === 'add_ons') {
+          updateFields.push(`${key} = ?`);
+          updateValues.push(JSON.stringify(value));
+        } else {
+          updateFields.push(`${key} = ?`);
+          updateValues.push(value);
+        }
+      }
+    }
+    
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+    
+    updateFields.push('updated_at = ?');
+    updateValues.push(new Date().toISOString());
+    updateValues.push(sessionId);
+    
+    const result = await db.run(
+      `UPDATE sessions SET ${updateFields.join(', ')} WHERE id = ?`,
+      updateValues
+    );
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const updatedSession = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    res.json({ success: true, session: updatedSession });
+  } catch (error) {
+    console.error('Update session error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get financial metrics (admin only)
+app.get('/api/sessions/metrics', requireAdmin, async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const supabase = db.getClient();
+    
+    // Build date filter
+    let sessionsQuery = supabase.from('sessions').select('status, quote_amount, invoice_amount', { count: 'exact' });
+    let invoicesQuery = supabase.from('invoices').select('status, amount', { count: 'exact' });
+    
+    if (startDate && endDate) {
+      sessionsQuery = sessionsQuery.gte('created_at', startDate).lte('created_at', endDate);
+      invoicesQuery = invoicesQuery.gte('created_at', startDate).lte('created_at', endDate);
+    }
+    
+    const { data: sessions, error: sessionsError } = await sessionsQuery;
+    const { data: invoices, error: invoicesError } = await invoicesQuery;
+    
+    if (sessionsError || invoicesError) {
+      console.error('Metrics query error:', sessionsError || invoicesError);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    // Calculate session metrics
+    const sessionMetrics = {
+      total_sessions: sessions?.length || 0,
+      quoted_count: sessions?.filter(s => s.status === 'quoted').length || 0,
+      booked_count: sessions?.filter(s => s.status === 'booked').length || 0,
+      invoiced_count: sessions?.filter(s => s.status === 'invoiced').length || 0,
+      total_quoted: sessions?.reduce((sum, s) => sum + (parseFloat(s.quote_amount) || 0), 0) || 0,
+      total_invoiced: sessions?.reduce((sum, s) => sum + (parseFloat(s.invoice_amount) || 0), 0) || 0,
+      avg_quote: 0,
+      avg_invoice: 0
+    };
+    
+    const quotedSessions = sessions?.filter(s => s.quote_amount) || [];
+    const invoicedSessions = sessions?.filter(s => s.invoice_amount) || [];
+    
+    if (quotedSessions.length > 0) {
+      sessionMetrics.avg_quote = sessionMetrics.total_quoted / quotedSessions.length;
+    }
+    if (invoicedSessions.length > 0) {
+      sessionMetrics.avg_invoice = sessionMetrics.total_invoiced / invoicedSessions.length;
+    }
+    
+    // Calculate invoice metrics
+    const invoiceMetrics = {
+      total_invoices: invoices?.length || 0,
+      paid_count: invoices?.filter(i => i.status === 'paid').length || 0,
+      pending_count: invoices?.filter(i => i.status === 'pending').length || 0,
+      overdue_count: invoices?.filter(i => i.status === 'overdue').length || 0,
+      total_paid: invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) || 0,
+      total_pending: invoices?.filter(i => i.status === 'pending').reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0) || 0
+    };
+    
+    res.json({ 
+      metrics: { ...sessionMetrics, ...invoiceMetrics },
+      period: { startDate, endDate }
+    });
+  } catch (error) {
+    console.error('Get metrics error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
 // Invoices Routes
 // ===================================
 

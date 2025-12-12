@@ -5,6 +5,7 @@ import { API_URL } from '../config'
 import CategorySelector from '../components/CategorySelector'
 const SessionManagementTable = lazy(() => import('../components/SessionManagementTable'))
 import EmailTemplateModal from '../components/EmailTemplateModal'
+import QuickBooks from '../components/QuickBooks'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -1308,6 +1309,12 @@ const AdminDashboard = () => {
             Invoices
           </button>
           <button 
+            className={`tab-btn ${activeTab === 'quickbooks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('quickbooks')}
+          >
+            QuickBooks
+          </button>
+          <button 
             className={`tab-btn ${activeTab === 'pricing' ? 'active' : ''}`}
             onClick={() => setActiveTab('pricing')}
           >
@@ -1967,6 +1974,17 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* QUICKBOOKS TAB */}
+        {activeTab === 'quickbooks' && (
+          <div className="tab-content">
+            <QuickBooks
+              packages={packages}
+              addOns={addOns}
+              users={users}
+            />
           </div>
         )}
 
