@@ -4895,7 +4895,12 @@ Skylit Photography`
               background: '#fff'
             }}>
               {users.filter(u => u.status === 'approved' && u.email).map(user => (
-                <label key={user.id} style={{ display: 'block', marginBottom: '8px', cursor: 'pointer' }}>
+                <label key={user.id} style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  cursor: 'pointer',
+                  color: '#2d1b3d'
+                }}>
                   <input
                     type="checkbox"
                     checked={formData.selectedUserIds.includes(user.id.toString())}
