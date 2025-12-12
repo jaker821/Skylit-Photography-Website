@@ -4617,10 +4617,15 @@ app.post('/api/users/bulk-email', requireAdmin, async (req, res) => {
       if (!selectedUserIds || selectedUserIds.length === 0) {
         return res.status(400).json({ error: 'Please select at least one recipient' });
       }
-      const placeholders = selectedUserIds.map(() => '?').join(',');
+      // Convert string IDs to integers for the database query
+      const userIds = selectedUserIds.map(id => parseInt(id)).filter(id => !isNaN(id));
+      if (userIds.length === 0) {
+        return res.status(400).json({ error: 'Invalid user IDs provided' });
+      }
+      const placeholders = userIds.map(() => '?').join(',');
       recipients = await db.all(
         `SELECT id, name, email FROM users WHERE id IN (${placeholders}) AND email IS NOT NULL AND email != ?`,
-        [...selectedUserIds, '']
+        [...userIds, '']
       );
     }
 
