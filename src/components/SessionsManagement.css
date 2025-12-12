@@ -100,6 +100,19 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+.search-input:-webkit-autofill,
+.search-input:-webkit-autofill:hover,
+.search-input:-webkit-autofill:focus,
+.search-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 /* Sessions Table */
@@ -337,6 +350,20 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+/* Override browser autofill dark backgrounds */
+.sessions-management-container .form-group input:-webkit-autofill,
+.sessions-management-container .form-group input:-webkit-autofill:hover,
+.sessions-management-container .form-group input:-webkit-autofill:focus,
+.sessions-management-container .form-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .sessions-management-container .form-group textarea {
@@ -369,6 +396,19 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+.sessions-management-container .invoice-item-row input:-webkit-autofill,
+.sessions-management-container .invoice-item-row input:-webkit-autofill:hover,
+.sessions-management-container .invoice-item-row input:-webkit-autofill:focus,
+.sessions-management-container .invoice-item-row input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .sessions-management-container .invoice-item-row button {

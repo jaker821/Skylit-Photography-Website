@@ -1039,6 +1039,243 @@ app.delete('/api/pricing/addons/:id', requireAdmin, async (req, res) => {
 });
 
 // ===================================
+// Discount Codes Routes
+// ===================================
+
+// Get all discount codes
+app.get('/api/discount-codes', async (req, res) => {
+  try {
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    res.json({ discountCodes: data || [] });
+  } catch (error) {
+    console.error('Get discount codes error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get active discount codes (public)
+app.get('/api/discount-codes/active', async (req, res) => {
+  try {
+    const supabase = db.getClient();
+    const now = new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('active', true)
+      .or(`valid_from.is.null,valid_from.lte.${now}`)
+      .or(`valid_until.is.null,valid_until.gte.${now}`)
+      .order('code', { ascending: true });
+    
+    if (error) throw error;
+    
+    res.json({ discountCodes: data || [] });
+  } catch (error) {
+    console.error('Get active discount codes error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Validate discount code
+app.post('/api/discount-codes/validate', async (req, res) => {
+  try {
+    const { code, amount } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({ error: 'Discount code is required' });
+    }
+    
+    const supabase = db.getClient();
+    const now = new Date().toISOString().split('T')[0];
+    
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .select('*')
+      .eq('code', code.toUpperCase())
+      .eq('active', true)
+      .single();
+    
+    if (error || !data) {
+      return res.status(404).json({ error: 'Invalid or expired discount code' });
+    }
+    
+    // Check date validity
+    if (data.valid_from && data.valid_from > now) {
+      return res.status(400).json({ error: 'Discount code is not yet valid' });
+    }
+    
+    if (data.valid_until && data.valid_until < now) {
+      return res.status(400).json({ error: 'Discount code has expired' });
+    }
+    
+    // Check usage limit
+    if (data.usage_limit && data.usage_count >= data.usage_limit) {
+      return res.status(400).json({ error: 'Discount code has reached its usage limit' });
+    }
+    
+    // Check minimum purchase amount
+    if (data.min_purchase_amount && amount && parseFloat(amount) < parseFloat(data.min_purchase_amount)) {
+      return res.status(400).json({ 
+        error: `Minimum purchase amount of $${parseFloat(data.min_purchase_amount).toFixed(2)} required` 
+      });
+    }
+    
+    // Calculate discount
+    let discountAmount = 0;
+    if (data.discount_type === 'percentage') {
+      discountAmount = (parseFloat(amount) || 0) * (parseFloat(data.discount_value) / 100);
+      if (data.max_discount_amount) {
+        discountAmount = Math.min(discountAmount, parseFloat(data.max_discount_amount));
+      }
+    } else {
+      discountAmount = parseFloat(data.discount_value);
+    }
+    
+    res.json({ 
+      valid: true, 
+      discountCode: data,
+      discountAmount: discountAmount.toFixed(2)
+    });
+  } catch (error) {
+    console.error('Validate discount code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create discount code (admin only)
+app.post('/api/discount-codes', requireAdmin, async (req, res) => {
+  try {
+    const { 
+      code, 
+      description, 
+      discount_type, 
+      discount_value, 
+      min_purchase_amount, 
+      max_discount_amount,
+      valid_from,
+      valid_until,
+      usage_limit,
+      active 
+    } = req.body;
+    
+    if (!code || !discount_type || !discount_value) {
+      return res.status(400).json({ error: 'Code, discount type, and discount value are required' });
+    }
+    
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .insert({
+        code: code.toUpperCase(),
+        description: description || null,
+        discount_type,
+        discount_value: parseFloat(discount_value),
+        min_purchase_amount: min_purchase_amount ? parseFloat(min_purchase_amount) : null,
+        max_discount_amount: max_discount_amount ? parseFloat(max_discount_amount) : null,
+        valid_from: valid_from || null,
+        valid_until: valid_until || null,
+        usage_limit: usage_limit ? parseInt(usage_limit) : null,
+        active: active !== false
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        return res.status(400).json({ error: 'Discount code already exists' });
+      }
+      throw error;
+    }
+    
+    res.json({ success: true, discountCode: data });
+  } catch (error) {
+    console.error('Create discount code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update discount code (admin only)
+app.put('/api/discount-codes/:id', requireAdmin, async (req, res) => {
+  try {
+    const discountCodeId = parseInt(req.params.id);
+    const { 
+      code, 
+      description, 
+      discount_type, 
+      discount_value, 
+      min_purchase_amount, 
+      max_discount_amount,
+      valid_from,
+      valid_until,
+      usage_limit,
+      active 
+    } = req.body;
+    
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('discount_codes')
+      .update({
+        code: code ? code.toUpperCase() : undefined,
+        description: description !== undefined ? description : undefined,
+        discount_type,
+        discount_value: discount_value ? parseFloat(discount_value) : undefined,
+        min_purchase_amount: min_purchase_amount !== undefined ? (min_purchase_amount ? parseFloat(min_purchase_amount) : null) : undefined,
+        max_discount_amount: max_discount_amount !== undefined ? (max_discount_amount ? parseFloat(max_discount_amount) : null) : undefined,
+        valid_from: valid_from !== undefined ? valid_from : undefined,
+        valid_until: valid_until !== undefined ? valid_until : undefined,
+        usage_limit: usage_limit !== undefined ? (usage_limit ? parseInt(usage_limit) : null) : undefined,
+        active: active !== undefined ? active : undefined
+      })
+      .eq('id', discountCodeId)
+      .select()
+      .single();
+    
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(400).json({ error: 'Discount code already exists' });
+      }
+      throw error;
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Discount code not found' });
+    }
+    
+    res.json({ success: true, discountCode: data });
+  } catch (error) {
+    console.error('Update discount code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete discount code (admin only)
+app.delete('/api/discount-codes/:id', requireAdmin, async (req, res) => {
+  try {
+    const discountCodeId = parseInt(req.params.id);
+    
+    const supabase = db.getClient();
+    const { error } = await supabase
+      .from('discount_codes')
+      .delete()
+      .eq('id', discountCodeId);
+    
+    if (error) throw error;
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete discount code error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===================================
 // Bookings/Sessions Routes
 // ===================================
 
@@ -1350,10 +1587,31 @@ app.post('/api/sessions/request', async (req, res) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    const { sessionType, date, time, location, notes, packageId, addOns } = req.body;
+    const { sessionType, date, time, location, notes, packageId, addOns, discountCode, discountAmount } = req.body;
     
     if (!sessionType || !date) {
       return res.status(400).json({ error: 'Session type and date are required' });
+    }
+
+    // Look up discount code ID if provided
+    let discountCodeId = null;
+    if (discountCode) {
+      const supabase = db.getClient();
+      const { data: discountData } = await supabase
+        .from('discount_codes')
+        .select('id, usage_count')
+        .eq('code', discountCode.toUpperCase())
+        .single();
+      
+      if (discountData) {
+        discountCodeId = discountData.id;
+        // Increment usage count
+        const newUsageCount = (discountData.usage_count || 0) + 1;
+        await supabase
+          .from('discount_codes')
+          .update({ usage_count: newUsageCount })
+          .eq('id', discountCodeId);
+      }
     }
 
     // Get user info
@@ -1375,6 +1633,8 @@ app.post('/api/sessions/request', async (req, res) => {
         status: 'request',
         package_id: packageId || null,
         add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        discount_code_id: discountCodeId,
+        discount_amount: discountAmount ? parseFloat(discountAmount) : 0,
         created_at: now,
         updated_at: now
       })
@@ -1396,10 +1656,31 @@ app.post('/api/sessions/request', async (req, res) => {
 // Create quote (admin only)
 app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
   try {
-    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, packageId, addOns, userId } = req.body;
+    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, packageId, addOns, userId, discountCode, discountAmount } = req.body;
     
     if (!clientName || !clientEmail || !sessionType || !quoteAmount) {
       return res.status(400).json({ error: 'Client name, email, session type, and quote amount are required' });
+    }
+    
+    // Look up discount code ID if provided
+    let discountCodeId = null;
+    if (discountCode) {
+      const supabase = db.getClient();
+      const { data: discountData } = await supabase
+        .from('discount_codes')
+        .select('id, usage_count')
+        .eq('code', discountCode.toUpperCase())
+        .single();
+      
+      if (discountData) {
+        discountCodeId = discountData.id;
+        // Increment usage count
+        const newUsageCount = (discountData.usage_count || 0) + 1;
+        await supabase
+          .from('discount_codes')
+          .update({ usage_count: newUsageCount })
+          .eq('id', discountCodeId);
+      }
     }
     
     const now = new Date().toISOString();
@@ -1419,6 +1700,8 @@ app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
         quote_amount: parseFloat(quoteAmount),
         package_id: packageId || null,
         add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        discount_code_id: discountCodeId,
+        discount_amount: discountAmount ? parseFloat(discountAmount) : 0,
         created_at: now,
         updated_at: now,
         quoted_at: now
@@ -1442,7 +1725,7 @@ app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
 app.put('/api/sessions/:id/book', requireAdmin, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
-    const { date, time, location, notes, quoteAmount } = req.body;
+    const { date, time, location, notes, quoteAmount, discountCode, discountAmount } = req.body;
     
     const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
     if (!session) {
@@ -1451,6 +1734,27 @@ app.put('/api/sessions/:id/book', requireAdmin, async (req, res) => {
     
     if (!['request', 'quoted'].includes(session.status)) {
       return res.status(400).json({ error: 'Only request or quoted sessions can be booked' });
+    }
+    
+    // Look up discount code ID if provided
+    let discountCodeId = null;
+    if (discountCode) {
+      const supabase = db.getClient();
+      const { data: discountData } = await supabase
+        .from('discount_codes')
+        .select('id, usage_count')
+        .eq('code', discountCode.toUpperCase())
+        .single();
+      
+      if (discountData) {
+        discountCodeId = discountData.id;
+        // Increment usage count
+        const newUsageCount = (discountData.usage_count || 0) + 1;
+        await supabase
+          .from('discount_codes')
+          .update({ usage_count: newUsageCount })
+          .eq('id', discountCodeId);
+      }
     }
     
     const now = new Date().toISOString();
@@ -1466,6 +1770,8 @@ app.put('/api/sessions/:id/book', requireAdmin, async (req, res) => {
     if (location) updateData.location = location;
     if (notes !== undefined) updateData.notes = notes;
     if (quoteAmount) updateData.quote_amount = parseFloat(quoteAmount);
+    if (discountCodeId) updateData.discount_code_id = discountCodeId;
+    if (discountAmount !== undefined) updateData.discount_amount = parseFloat(discountAmount) || 0;
     if (session.status === 'request' && quoteAmount) {
       updateData.quoted_at = now;
     }
@@ -1534,10 +1840,31 @@ app.put('/api/sessions/:id/paid', requireAdmin, async (req, res) => {
 // Create booking directly (admin only)
 app.post('/api/sessions/booking', requireAdmin, async (req, res) => {
   try {
-    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, invoiceAmount, packageId, addOns, userId } = req.body;
+    const { clientName, clientEmail, sessionType, date, time, location, notes, quoteAmount, invoiceAmount, packageId, addOns, userId, discountCode, discountAmount } = req.body;
     
     if (!clientName || !clientEmail || !sessionType || !date) {
       return res.status(400).json({ error: 'Client name, email, session type, and date are required' });
+    }
+    
+    // Look up discount code ID if provided
+    let discountCodeId = null;
+    if (discountCode) {
+      const supabase = db.getClient();
+      const { data: discountData } = await supabase
+        .from('discount_codes')
+        .select('id, usage_count')
+        .eq('code', discountCode.toUpperCase())
+        .single();
+      
+      if (discountData) {
+        discountCodeId = discountData.id;
+        // Increment usage count
+        const newUsageCount = (discountData.usage_count || 0) + 1;
+        await supabase
+          .from('discount_codes')
+          .update({ usage_count: newUsageCount })
+          .eq('id', discountCodeId);
+      }
     }
     
     const now = new Date().toISOString();
@@ -1558,6 +1885,8 @@ app.post('/api/sessions/booking', requireAdmin, async (req, res) => {
         invoice_amount: invoiceAmount ? parseFloat(invoiceAmount) : null,
         package_id: packageId || null,
         add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        discount_code_id: discountCodeId,
+        discount_amount: discountAmount ? parseFloat(discountAmount) : 0,
         created_at: now,
         updated_at: now,
         quoted_at: quoteAmount ? now : null,
@@ -4260,6 +4589,114 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Send bulk email (admin only)
+app.post('/api/users/bulk-email', requireAdmin, async (req, res) => {
+  try {
+    if (!transporter) {
+      return res.status(503).json({ error: 'Email service is not configured' });
+    }
+
+    const { emailType, recipientType, selectedUserIds, subject, message, includeDiscountCode, discountCodeId } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({ error: 'Subject and message are required' });
+    }
+
+    // Get recipients
+    let recipients = [];
+    if (recipientType === 'all' || recipientType === 'approved') {
+      recipients = await db.all(
+        'SELECT id, name, email FROM users WHERE status = ? AND email IS NOT NULL AND email != ?',
+        ['approved', '']
+      );
+    } else if (recipientType === 'selected') {
+      if (!selectedUserIds || selectedUserIds.length === 0) {
+        return res.status(400).json({ error: 'Please select at least one recipient' });
+      }
+      const placeholders = selectedUserIds.map(() => '?').join(',');
+      recipients = await db.all(
+        `SELECT id, name, email FROM users WHERE id IN (${placeholders}) AND email IS NOT NULL AND email != ?`,
+        [...selectedUserIds, '']
+      );
+    }
+
+    if (recipients.length === 0) {
+      return res.status(400).json({ error: 'No valid recipients found' });
+    }
+
+    // Get discount code details if included
+    let discountDetails = '';
+    if (includeDiscountCode && discountCodeId) {
+      const supabase = db.getClient();
+      const { data: discountCode } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('id', parseInt(discountCodeId))
+        .single();
+      
+      if (discountCode) {
+        const discountValue = discountCode.discount_type === 'percentage' 
+          ? `${discountCode.discount_value}% off`
+          : `$${discountCode.discount_value} off`;
+        discountDetails = `\n\n🎉 SPECIAL DISCOUNT CODE: ${discountCode.code}\nGet ${discountValue} on your next session!`;
+        if (discountCode.description) {
+          discountDetails += `\n${discountCode.description}`;
+        }
+        if (discountCode.valid_until) {
+          discountDetails += `\nValid until: ${new Date(discountCode.valid_until).toLocaleDateString()}`;
+        }
+      }
+    }
+
+    // Send emails
+    let sentCount = 0;
+    let failedCount = 0;
+    const errors = [];
+
+    for (const recipient of recipients) {
+      try {
+        // Replace placeholders in message
+        let personalizedMessage = message
+          .replace(/\{\{name\}\}/g, recipient.name || 'Valued Client')
+          .replace(/\{\{email\}\}/g, recipient.email || '');
+        
+        // Add discount details if included
+        if (discountDetails) {
+          personalizedMessage = personalizedMessage.replace(/\{\{discount_details\}\}/g, discountDetails);
+        }
+
+        // Replace custom_message placeholder if it exists
+        personalizedMessage = personalizedMessage.replace(/\{\{custom_message\}\}/g, '');
+
+        await transporter.sendMail({
+          from: `"Skylit Photography" <${emailUser}>`,
+          to: recipient.email,
+          subject: subject,
+          text: personalizedMessage,
+          html: personalizedMessage.replace(/\n/g, '<br>')
+        });
+
+        sentCount++;
+      } catch (error) {
+        console.error(`Error sending email to ${recipient.email}:`, error);
+        failedCount++;
+        errors.push(recipient.email);
+      }
+    }
+
+    res.json({
+      success: true,
+      sentCount,
+      failedCount,
+      totalRecipients: recipients.length,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Bulk email error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

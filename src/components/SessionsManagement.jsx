@@ -465,19 +465,107 @@ const QuoteForm = ({ session, packages, addOns, users, onSubmit, onCancel }) => 
     quoteAmount: session?.quote_amount || '',
     packageId: session?.package_id || '',
     userId: session?.user_id || '',
-    addOns: session?.add_ons || []
+    addOns: session?.add_ons || [],
+    discountCode: session?.discount_code_id ? '' : '',
+    discountAmount: session?.discount_amount || 0
   })
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [discountValidation, setDiscountValidation] = useState(null)
+  const [validatingDiscount, setValidatingDiscount] = useState(false)
+
+  useEffect(() => {
+    fetchDiscountCodes()
+  }, [])
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/active`)
+      const data = await response.json()
+      setDiscountCodes(data.discountCodes || [])
+    } catch (error) {
+      console.error('Error fetching discount codes:', error)
+    }
+  }
+
+  // Autofill price when package is selected
+  useEffect(() => {
+    if (formData.packageId && packages.length > 0) {
+      const selectedPackage = packages.find(pkg => pkg.id === parseInt(formData.packageId))
+      if (selectedPackage) {
+        const packagePrice = parseFloat(selectedPackage.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        if (packagePrice > 0) {
+          setFormData(prev => ({ ...prev, quoteAmount: packagePrice.toFixed(2) }))
+          // Re-validate discount if one is applied
+          if (formData.discountCode) {
+            validateDiscountCode(formData.discountCode, packagePrice)
+          }
+        }
+      }
+    }
+  }, [formData.packageId])
+
+  const validateDiscountCode = async (code, amount) => {
+    if (!code) {
+      setDiscountValidation(null)
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+      return
+    }
+
+    setValidatingDiscount(true)
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.toUpperCase(), amount: amount || formData.quoteAmount })
+      })
+      
+      const data = await response.json()
+      if (response.ok && data.valid) {
+        setDiscountValidation({ valid: true, message: `Discount: $${data.discountAmount}` })
+        setFormData(prev => ({ ...prev, discountAmount: parseFloat(data.discountAmount) }))
+      } else {
+        setDiscountValidation({ valid: false, message: data.error || 'Invalid discount code' })
+        setFormData(prev => ({ ...prev, discountAmount: 0 }))
+      }
+    } catch (error) {
+      setDiscountValidation({ valid: false, message: 'Error validating discount code' })
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+    } finally {
+      setValidatingDiscount(false)
+    }
+  }
+
+  const handleDiscountCodeChange = (e) => {
+    const code = e.target.value
+    setFormData(prev => ({ ...prev, discountCode: code }))
+    if (code) {
+      validateDiscountCode(code, formData.quoteAmount)
+    } else {
+      setDiscountValidation(null)
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+    }
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const baseAmount = parseFloat(formData.quoteAmount) || 0
+    const discount = parseFloat(formData.discountAmount) || 0
+    const finalAmount = Math.max(0, baseAmount - discount)
+    
     onSubmit({
       ...formData,
-      quoteAmount: parseFloat(formData.quoteAmount),
+      quoteAmount: finalAmount,
       packageId: formData.packageId || null,
       userId: formData.userId || null,
-      addOns: formData.addOns
+      addOns: formData.addOns,
+      discountCode: formData.discountCode || null,
+      discountAmount: discount
     })
   }
+
+  const baseAmount = parseFloat(formData.quoteAmount) || 0
+  const discount = parseFloat(formData.discountAmount) || 0
+  const finalAmount = Math.max(0, baseAmount - discount)
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -581,10 +669,74 @@ const QuoteForm = ({ session, packages, addOns, users, onSubmit, onCancel }) => 
                 onChange={(e) => setFormData({ ...formData, packageId: e.target.value })}
               >
                 <option value="">None</option>
-                {packages.map(pkg => (
-                  <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                ))}
+                {packages.map(pkg => {
+                  const pkgPrice = parseFloat(pkg.price?.toString().replace(/[^0-9.]/g, '') || 0)
+                  return (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name} {pkgPrice > 0 ? `($${pkgPrice.toFixed(2)})` : ''}
+                    </option>
+                  )
+                })}
               </select>
+            </div>
+          )}
+
+          <div className="form-row">
+            <div className="form-group">
+              <label>Quote Amount *</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.quoteAmount}
+                onChange={(e) => {
+                  const newAmount = e.target.value
+                  setFormData({ ...formData, quoteAmount: newAmount })
+                  if (formData.discountCode) {
+                    validateDiscountCode(formData.discountCode, newAmount)
+                  }
+                }}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Discount Code (optional)</label>
+              <input
+                type="text"
+                value={formData.discountCode}
+                onChange={handleDiscountCodeChange}
+                placeholder="Enter code"
+                style={{ textTransform: 'uppercase' }}
+              />
+              {validatingDiscount && <small style={{ color: '#666' }}>Validating...</small>}
+              {discountValidation && (
+                <small style={{ color: discountValidation.valid ? '#4caf50' : '#f44336' }}>
+                  {discountValidation.message}
+                </small>
+              )}
+            </div>
+          </div>
+
+          {(discount > 0 || finalAmount !== baseAmount) && (
+            <div className="form-group" style={{ 
+              padding: '12px', 
+              background: '#f5f5f5', 
+              borderRadius: '8px',
+              border: '1px solid #ddd'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span>Base Amount:</span>
+                <strong>${baseAmount.toFixed(2)}</strong>
+              </div>
+              {discount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#4caf50' }}>
+                  <span>Discount:</span>
+                  <strong>-${discount.toFixed(2)}</strong>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #ddd', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                <span>Total Amount:</span>
+                <strong>${finalAmount.toFixed(2)}</strong>
+              </div>
             </div>
           )}
 
@@ -620,29 +772,119 @@ const BookingForm = ({ session, packages, addOns, users, onSubmit, onCancel }) =
     quoteAmount: session?.quote_amount || '',
     packageId: session?.package_id || '',
     userId: session?.user_id || '',
-    addOns: session?.add_ons || []
+    addOns: session?.add_ons || [],
+    discountCode: session?.discount_code_id ? '' : '',
+    discountAmount: session?.discount_amount || 0
   })
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [discountValidation, setDiscountValidation] = useState(null)
+  const [validatingDiscount, setValidatingDiscount] = useState(false)
+
+  useEffect(() => {
+    fetchDiscountCodes()
+  }, [])
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/active`)
+      const data = await response.json()
+      setDiscountCodes(data.discountCodes || [])
+    } catch (error) {
+      console.error('Error fetching discount codes:', error)
+    }
+  }
+
+  // Autofill price when package is selected
+  useEffect(() => {
+    if (formData.packageId && packages.length > 0) {
+      const selectedPackage = packages.find(pkg => pkg.id === parseInt(formData.packageId))
+      if (selectedPackage) {
+        const packagePrice = parseFloat(selectedPackage.price?.toString().replace(/[^0-9.]/g, '') || 0)
+        if (packagePrice > 0) {
+          setFormData(prev => ({ ...prev, quoteAmount: packagePrice.toFixed(2) }))
+          // Re-validate discount if one is applied
+          if (formData.discountCode) {
+            validateDiscountCode(formData.discountCode, packagePrice)
+          }
+        }
+      }
+    }
+  }, [formData.packageId])
+
+  const validateDiscountCode = async (code, amount) => {
+    if (!code) {
+      setDiscountValidation(null)
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+      return
+    }
+
+    setValidatingDiscount(true)
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.toUpperCase(), amount: amount || formData.quoteAmount })
+      })
+      
+      const data = await response.json()
+      if (response.ok && data.valid) {
+        setDiscountValidation({ valid: true, message: `Discount: $${data.discountAmount}` })
+        setFormData(prev => ({ ...prev, discountAmount: parseFloat(data.discountAmount) }))
+      } else {
+        setDiscountValidation({ valid: false, message: data.error || 'Invalid discount code' })
+        setFormData(prev => ({ ...prev, discountAmount: 0 }))
+      }
+    } catch (error) {
+      setDiscountValidation({ valid: false, message: 'Error validating discount code' })
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+    } finally {
+      setValidatingDiscount(false)
+    }
+  }
+
+  const handleDiscountCodeChange = (e) => {
+    const code = e.target.value
+    setFormData(prev => ({ ...prev, discountCode: code }))
+    if (code) {
+      validateDiscountCode(code, formData.quoteAmount)
+    } else {
+      setDiscountValidation(null)
+      setFormData(prev => ({ ...prev, discountAmount: 0 }))
+    }
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const baseAmount = parseFloat(formData.quoteAmount) || 0
+    const discount = parseFloat(formData.discountAmount) || 0
+    const finalAmount = Math.max(0, baseAmount - discount)
+    
     if (session) {
       onSubmit({
         date: formData.date,
         time: formData.time,
         location: formData.location,
         notes: formData.notes,
-        quoteAmount: formData.quoteAmount
+        quoteAmount: finalAmount,
+        discountCode: formData.discountCode || null,
+        discountAmount: discount
       })
     } else {
       onSubmit({
         ...formData,
-        quoteAmount: formData.quoteAmount ? parseFloat(formData.quoteAmount) : null,
+        quoteAmount: finalAmount,
         packageId: formData.packageId || null,
         userId: formData.userId || null,
-        addOns: formData.addOns
+        addOns: formData.addOns,
+        discountCode: formData.discountCode || null,
+        discountAmount: discount
       })
     }
   }
+
+  const baseAmount = parseFloat(formData.quoteAmount) || 0
+  const discount = parseFloat(formData.discountAmount) || 0
+  const finalAmount = Math.max(0, baseAmount - discount)
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
@@ -675,25 +917,14 @@ const BookingForm = ({ session, packages, addOns, users, onSubmit, onCancel }) =
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Session Type *</label>
-                  <input
-                    type="text"
-                    value={formData.sessionType}
-                    onChange={(e) => setFormData({ ...formData, sessionType: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Quote Amount</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.quoteAmount}
-                    onChange={(e) => setFormData({ ...formData, quoteAmount: e.target.value })}
-                  />
-                </div>
+              <div className="form-group">
+                <label>Session Type *</label>
+                <input
+                  type="text"
+                  value={formData.sessionType}
+                  onChange={(e) => setFormData({ ...formData, sessionType: e.target.value })}
+                  required
+                />
               </div>
             </>
           )}
@@ -752,10 +983,74 @@ const BookingForm = ({ session, packages, addOns, users, onSubmit, onCancel }) =
                     onChange={(e) => setFormData({ ...formData, packageId: e.target.value })}
                   >
                     <option value="">None</option>
-                    {packages.map(pkg => (
-                      <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                    ))}
+                    {packages.map(pkg => {
+                      const pkgPrice = parseFloat(pkg.price?.toString().replace(/[^0-9.]/g, '') || 0)
+                      return (
+                        <option key={pkg.id} value={pkg.id}>
+                          {pkg.name} {pkgPrice > 0 ? `($${pkgPrice.toFixed(2)})` : ''}
+                        </option>
+                      )
+                    })}
                   </select>
+                </div>
+              )}
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Quote Amount {!session && '*'}</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.quoteAmount}
+                    onChange={(e) => {
+                      const newAmount = e.target.value
+                      setFormData({ ...formData, quoteAmount: newAmount })
+                      if (formData.discountCode) {
+                        validateDiscountCode(formData.discountCode, newAmount)
+                      }
+                    }}
+                    required={!session}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Discount Code (optional)</label>
+                  <input
+                    type="text"
+                    value={formData.discountCode}
+                    onChange={handleDiscountCodeChange}
+                    placeholder="Enter code"
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                  {validatingDiscount && <small style={{ color: '#666' }}>Validating...</small>}
+                  {discountValidation && (
+                    <small style={{ color: discountValidation.valid ? '#4caf50' : '#f44336' }}>
+                      {discountValidation.message}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              {(discount > 0 || finalAmount !== baseAmount) && (
+                <div className="form-group" style={{ 
+                  padding: '12px', 
+                  background: '#f5f5f5', 
+                  borderRadius: '8px',
+                  border: '1px solid #ddd'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span>Base Amount:</span>
+                    <strong>${baseAmount.toFixed(2)}</strong>
+                  </div>
+                  {discount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#4caf50' }}>
+                      <span>Discount:</span>
+                      <strong>-${discount.toFixed(2)}</strong>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #ddd', fontSize: '1.1rem', fontWeight: 'bold' }}>
+                    <span>Total Amount:</span>
+                    <strong>${finalAmount.toFixed(2)}</strong>
+                  </div>
                 </div>
               )}
             </>

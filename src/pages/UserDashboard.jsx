@@ -103,15 +103,76 @@ const UserDashboard = () => {
     location: '',
     notes: '',
     packageId: '',
-    addonIds: []
+    addonIds: [],
+    discountCode: '',
+    discountAmount: 0
   })
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [discountValidation, setDiscountValidation] = useState(null)
+  const [validatingDiscount, setValidatingDiscount] = useState(false)
 
   useEffect(() => {
     fetchBookings()
     fetchPricing()
     fetchAuthorizedShoots()
     fetchReviewStatus()
+    fetchDiscountCodes()
   }, [])
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/active`)
+      const data = await response.json()
+      setDiscountCodes(data.discountCodes || [])
+    } catch (error) {
+      console.error('Error fetching discount codes:', error)
+    }
+  }
+
+  const validateDiscountCode = async (code, amount) => {
+    if (!code) {
+      setDiscountValidation(null)
+      setBookingData(prev => ({ ...prev, discountAmount: 0 }))
+      return
+    }
+
+    setValidatingDiscount(true)
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/validate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.toUpperCase(), amount })
+      })
+      
+      const data = await response.json()
+      if (response.ok && data.valid) {
+        setDiscountValidation({ valid: true, message: `Discount: $${data.discountAmount}` })
+        setBookingData(prev => ({ ...prev, discountAmount: parseFloat(data.discountAmount) }))
+      } else {
+        setDiscountValidation({ valid: false, message: data.error || 'Invalid discount code' })
+        setBookingData(prev => ({ ...prev, discountAmount: 0 }))
+      }
+    } catch (error) {
+      setDiscountValidation({ valid: false, message: 'Error validating discount code' })
+      setBookingData(prev => ({ ...prev, discountAmount: 0 }))
+    } finally {
+      setValidatingDiscount(false)
+    }
+  }
+
+  const handleDiscountCodeChange = (e) => {
+    const code = e.target.value
+    setBookingData(prev => ({ ...prev, discountCode: code }))
+    if (code) {
+      // Calculate total amount for validation
+      const selectedPackage = packages.find(pkg => pkg.id === parseInt(bookingData.packageId))
+      const packagePrice = selectedPackage ? parseFloat(selectedPackage.price?.toString().replace(/[^0-9.]/g, '') || 0) : 0
+      validateDiscountCode(code, packagePrice)
+    } else {
+      setDiscountValidation(null)
+      setBookingData(prev => ({ ...prev, discountAmount: 0 }))
+    }
+  }
 
   const fetchBookings = async () => {
     try {
@@ -238,7 +299,9 @@ const UserDashboard = () => {
           location: bookingData.location,
           notes: bookingData.notes,
           packageId: bookingData.packageId || null,
-          addOns: bookingData.addonIds || []
+          addOns: bookingData.addonIds || [],
+          discountCode: bookingData.discountCode || null,
+          discountAmount: bookingData.discountAmount || 0
         })
       })
 
@@ -252,7 +315,9 @@ const UserDashboard = () => {
           location: '',
           notes: '',
           packageId: '',
-          addonIds: []
+          addonIds: [],
+          discountCode: '',
+          discountAmount: 0
         })
         alert('Session request submitted successfully! The photographer will review your request.')
       } else {
@@ -588,6 +653,30 @@ const UserDashboard = () => {
                   rows="3"
                   placeholder="Any special requests or details..."
                 ></textarea>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="discountCode">Discount Code (Optional)</label>
+                <input
+                  type="text"
+                  id="discountCode"
+                  name="discountCode"
+                  value={bookingData.discountCode}
+                  onChange={handleDiscountCodeChange}
+                  placeholder="Enter discount code"
+                  style={{ textTransform: 'uppercase' }}
+                />
+                {validatingDiscount && <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>Validating...</small>}
+                {discountValidation && (
+                  <small style={{ 
+                    color: discountValidation.valid ? '#4caf50' : '#f44336', 
+                    display: 'block', 
+                    marginTop: '4px',
+                    fontWeight: '600'
+                  }}>
+                    {discountValidation.message}
+                  </small>
+                )}
               </div>
 
               <button type="submit" className="btn btn-primary">

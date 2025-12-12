@@ -324,6 +324,20 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+/* Override browser autofill dark backgrounds */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .form-group textarea {
@@ -366,6 +380,19 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+.invoice-item-row input:-webkit-autofill,
+.invoice-item-row input:-webkit-autofill:hover,
+.invoice-item-row input:-webkit-autofill:focus,
+.invoice-item-row input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .invoice-item-row button {

@@ -1,6 +1,6 @@
 {
   "name": "skylit-photography",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Portfolio website for Skylit Photography by Alina Suedbeck",
   "main": "server/server.js",
   "scripts": {

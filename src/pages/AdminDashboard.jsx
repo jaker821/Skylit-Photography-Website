@@ -75,6 +75,15 @@ const AdminDashboard = () => {
   // Payment info card edit state
   const [editingPaymentCard, setEditingPaymentCard] = useState(null)
   const [showPaymentCardForm, setShowPaymentCardForm] = useState(false)
+  
+  // Discount codes state
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [editingDiscountCode, setEditingDiscountCode] = useState(null)
+  const [showDiscountCodeForm, setShowDiscountCodeForm] = useState(false)
+  
+  // Bulk email state
+  const [showBulkEmailForm, setShowBulkEmailForm] = useState(false)
+  const [sendingBulkEmail, setSendingBulkEmail] = useState(false)
 
   useEffect(() => {
     fetchAllData()
@@ -94,7 +103,8 @@ const AdminDashboard = () => {
       fetchStorageStats(),
       fetchWeddingSettings(),
       fetchMaintenanceNotice(),
-      fetchPaymentInfoCards()
+      fetchPaymentInfoCards(),
+      fetchDiscountCodes()
       ])
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -170,6 +180,16 @@ const AdminDashboard = () => {
       setAddOns(data.addOns || [])
     } catch (error) {
       console.error('Error fetching pricing:', error)
+    }
+  }
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/discount-codes`, { credentials: 'include' })
+      const data = await response.json()
+      setDiscountCodes(data.discountCodes || [])
+    } catch (error) {
+      console.error('Error fetching discount codes:', error)
     }
   }
 
@@ -1058,6 +1078,81 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Error deleting add-on:', error)
+    }
+  }
+
+  // Create/Update discount code
+  const handleSaveDiscountCode = async (discountCodeData) => {
+    try {
+      const url = editingDiscountCode 
+        ? `${API_URL}/discount-codes/${editingDiscountCode.id}`
+        : `${API_URL}/discount-codes`
+      
+      const method = editingDiscountCode ? 'PUT' : 'POST'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(discountCodeData)
+      })
+      
+      if (response.ok) {
+        await fetchDiscountCodes()
+        setShowDiscountCodeForm(false)
+        setEditingDiscountCode(null)
+        alert(editingDiscountCode ? 'Discount code updated successfully!' : 'Discount code created successfully!')
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to save discount code')
+      }
+    } catch (error) {
+      console.error('Error saving discount code:', error)
+      alert('Server error. Please try again.')
+    }
+  }
+
+  // Delete discount code
+  const handleDeleteDiscountCode = async (discountCodeId) => {
+    if (!window.confirm('Delete this discount code?')) return
+    
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/${discountCodeId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      
+      if (response.ok) {
+        await fetchDiscountCodes()
+      }
+    } catch (error) {
+      console.error('Error deleting discount code:', error)
+    }
+  }
+
+  // Send bulk email
+  const handleSendBulkEmail = async (emailData) => {
+    setSendingBulkEmail(true)
+    try {
+      const response = await fetch(`${API_URL}/users/bulk-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(emailData)
+      })
+      
+      const data = await response.json()
+      if (response.ok) {
+        alert(`Bulk email sent successfully to ${data.sentCount} users!`)
+        setShowBulkEmailForm(false)
+      } else {
+        alert(data.error || 'Failed to send bulk email')
+      }
+    } catch (error) {
+      console.error('Error sending bulk email:', error)
+      alert('Server error. Please try again.')
+    } finally {
+      setSendingBulkEmail(false)
     }
   }
 
@@ -1972,6 +2067,102 @@ const AdminDashboard = () => {
                   }}
                 />
               )}
+
+              {/* Discount Codes Section */}
+              <div className="pricing-section">
+                <div className="section-header">
+                  <h2>Discount Codes</h2>
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setEditingDiscountCode(null)
+                      setShowDiscountCodeForm(true)
+                    }}
+                  >
+                    + Create Discount Code
+                  </button>
+                </div>
+
+                {showDiscountCodeForm && (
+                  <DiscountCodeForm 
+                    discountCode={editingDiscountCode}
+                    onSubmit={handleSaveDiscountCode}
+                    onCancel={() => {
+                      setShowDiscountCodeForm(false)
+                      setEditingDiscountCode(null)
+                    }}
+                  />
+                )}
+
+                <div className="data-table-container">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Usage</th>
+                        <th>Valid Dates</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discountCodes.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                            No discount codes created yet
+                          </td>
+                        </tr>
+                      ) : (
+                        discountCodes.map(code => (
+                          <tr key={code.id}>
+                            <td><strong>{code.code}</strong></td>
+                            <td>{code.discount_type === 'percentage' ? 'Percentage' : 'Fixed'}</td>
+                            <td>
+                              {code.discount_type === 'percentage' 
+                                ? `${code.discount_value}%` 
+                                : `$${parseFloat(code.discount_value).toFixed(2)}`}
+                            </td>
+                            <td>
+                              {code.usage_limit 
+                                ? `${code.usage_count || 0} / ${code.usage_limit}`
+                                : `${code.usage_count || 0} (unlimited)`}
+                            </td>
+                            <td>
+                              {code.valid_from || code.valid_until 
+                                ? `${code.valid_from || 'No start'} - ${code.valid_until || 'No end'}`
+                                : 'Always valid'}
+                            </td>
+                            <td>
+                              <span className={`badge ${code.active ? 'badge-success' : 'badge-secondary'}`}>
+                                {code.active ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td>
+                              <button 
+                                className="btn-small btn-secondary"
+                                onClick={() => {
+                                  setEditingDiscountCode(code)
+                                  setShowDiscountCodeForm(true)
+                                }}
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                className="btn-small btn-danger"
+                                onClick={() => handleDeleteDiscountCode(code.id)}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2162,6 +2353,31 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+
+            {/* Bulk Email Section */}
+            <div className="users-section">
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h3>Bulk Email</h3>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setShowBulkEmailForm(true)}
+                >
+                  📧 Send Bulk Email
+                </button>
+              </div>
+              <p style={{ color: '#666', marginBottom: '1rem' }}>
+                Send promotional emails, announcements, special offers, and more to your users.
+              </p>
+            </div>
+
+            {showBulkEmailForm && (
+              <BulkEmailForm
+                users={users}
+                onSubmit={handleSendBulkEmail}
+                onCancel={() => setShowBulkEmailForm(false)}
+                sending={sendingBulkEmail}
+              />
+            )}
           </div>
         )}
 
@@ -4315,6 +4531,474 @@ const AddOnForm = ({ addOn, onSubmit, onCancel }) => {
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
           <button type="submit" className="btn btn-primary">
             {addOn ? 'Update Add-on' : 'Create Add-on'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Discount Code Form Component
+const DiscountCodeForm = ({ discountCode, onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    code: discountCode?.code || '',
+    description: discountCode?.description || '',
+    discount_type: discountCode?.discount_type || 'percentage',
+    discount_value: discountCode?.discount_value || '',
+    min_purchase_amount: discountCode?.min_purchase_amount || '',
+    max_discount_amount: discountCode?.max_discount_amount || '',
+    valid_from: discountCode?.valid_from || '',
+    valid_until: discountCode?.valid_until || '',
+    usage_limit: discountCode?.usage_limit || '',
+    active: discountCode?.active !== false
+  })
+  
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const data = {
+      ...formData,
+      code: formData.code.toUpperCase(),
+      discount_value: parseFloat(formData.discount_value),
+      min_purchase_amount: formData.min_purchase_amount ? parseFloat(formData.min_purchase_amount) : null,
+      max_discount_amount: formData.max_discount_amount ? parseFloat(formData.max_discount_amount) : null,
+      valid_from: formData.valid_from || null,
+      valid_until: formData.valid_until || null,
+      usage_limit: formData.usage_limit ? parseInt(formData.usage_limit) : null,
+      active: formData.active
+    }
+    onSubmit(data)
+  }
+  
+  return (
+    <div className="form-card">
+      <h3>{discountCode ? 'Edit Discount Code' : 'Create New Discount Code'}</h3>
+      <form onSubmit={handleSubmit}>
+        <div className="form-row">
+          <div className="form-group">
+            <label>Code *</label>
+            <input
+              type="text"
+              value={formData.code}
+              onChange={(e) => setFormData({...formData, code: e.target.value.toUpperCase()})}
+              required
+              placeholder="e.g., SUMMER2024"
+              style={{ textTransform: 'uppercase' }}
+            />
+          </div>
+          <div className="form-group">
+            <label>Discount Type *</label>
+            <select
+              value={formData.discount_type}
+              onChange={(e) => setFormData({...formData, discount_type: e.target.value})}
+              required
+            >
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed Amount</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label>Discount Value *</label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.discount_value}
+              onChange={(e) => setFormData({...formData, discount_value: e.target.value})}
+              required
+              placeholder={formData.discount_type === 'percentage' ? 'e.g., 10 for 10%' : 'e.g., 50 for $50'}
+            />
+            <small>{formData.discount_type === 'percentage' ? 'Enter percentage (e.g., 10 for 10%)' : 'Enter dollar amount (e.g., 50 for $50)'}</small>
+          </div>
+          <div className="form-group">
+            <label>Description</label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              placeholder="Optional description"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Minimum Purchase Amount</label>
+            <input
+              type="number"
+              step="0.01"
+              value={formData.min_purchase_amount}
+              onChange={(e) => setFormData({...formData, min_purchase_amount: e.target.value})}
+              placeholder="Leave empty for no minimum"
+            />
+          </div>
+          {formData.discount_type === 'percentage' && (
+            <div className="form-group">
+              <label>Maximum Discount Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.max_discount_amount}
+                onChange={(e) => setFormData({...formData, max_discount_amount: e.target.value})}
+                placeholder="Leave empty for no maximum"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Valid From</label>
+            <input
+              type="date"
+              value={formData.valid_from}
+              onChange={(e) => setFormData({...formData, valid_from: e.target.value})}
+            />
+            <small>Leave empty for no start date</small>
+          </div>
+          <div className="form-group">
+            <label>Valid Until</label>
+            <input
+              type="date"
+              value={formData.valid_until}
+              onChange={(e) => setFormData({...formData, valid_until: e.target.value})}
+            />
+            <small>Leave empty for no expiration</small>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Usage Limit</label>
+            <input
+              type="number"
+              value={formData.usage_limit}
+              onChange={(e) => setFormData({...formData, usage_limit: e.target.value})}
+              placeholder="Leave empty for unlimited"
+            />
+            <small>Maximum number of times this code can be used</small>
+          </div>
+          <div className="form-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={formData.active}
+                onChange={(e) => setFormData({...formData, active: e.target.checked})}
+              />
+              Active (code can be used)
+            </label>
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="submit" className="btn btn-primary">
+            {discountCode ? 'Update Discount Code' : 'Create Discount Code'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// Bulk Email Form Component
+const BulkEmailForm = ({ users, onSubmit, onCancel, sending }) => {
+  const [formData, setFormData] = useState({
+    emailType: 'custom',
+    recipientType: 'all',
+    selectedUserIds: [],
+    subject: '',
+    message: '',
+    includeDiscountCode: false,
+    discountCodeId: ''
+  })
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [previewRecipients, setPreviewRecipients] = useState([])
+
+  useEffect(() => {
+    fetchDiscountCodes()
+    updatePreviewRecipients()
+  }, [formData.recipientType, formData.selectedUserIds])
+
+  const fetchDiscountCodes = async () => {
+    try {
+      const response = await fetch(`${API_URL}/discount-codes/active`, { credentials: 'include' })
+      const data = await response.json()
+      setDiscountCodes(data.discountCodes || [])
+    } catch (error) {
+      console.error('Error fetching discount codes:', error)
+    }
+  }
+
+  const updatePreviewRecipients = () => {
+    let recipients = []
+    if (formData.recipientType === 'all') {
+      recipients = users.filter(u => u.status === 'approved' && u.email)
+    } else if (formData.recipientType === 'approved') {
+      recipients = users.filter(u => u.status === 'approved' && u.email)
+    } else if (formData.recipientType === 'selected') {
+      recipients = users.filter(u => formData.selectedUserIds.includes(u.id.toString()) && u.email)
+    }
+    setPreviewRecipients(recipients)
+  }
+
+  const emailTemplates = {
+    deals: {
+      subject: 'Special Offer - Limited Time Deal!',
+      message: `Hi {{name}},
+
+We have an exciting special offer just for you! 
+
+{{discount_details}}
+
+This offer is valid for a limited time, so don't miss out!
+
+Book your session today and take advantage of this amazing deal.
+
+Best regards,
+Skylit Photography`
+    },
+    holidays: {
+      subject: 'Holiday Special - Book Your Session Now!',
+      message: `Hi {{name}},
+
+The holiday season is approaching, and we're offering special holiday photography sessions!
+
+Capture your family's precious moments this holiday season with our professional photography services.
+
+{{discount_details}}
+
+Book now to secure your spot!
+
+Warm regards,
+Skylit Photography`
+    },
+    special_pricing: {
+      subject: 'Special Pricing Available Now!',
+      message: `Hi {{name}},
+
+We're excited to offer you special pricing on our photography packages!
+
+{{discount_details}}
+
+Take advantage of these great rates while they last.
+
+Contact us today to book your session!
+
+Best regards,
+Skylit Photography`
+    },
+    announcement: {
+      subject: 'Important Announcement from Skylit Photography',
+      message: `Hi {{name}},
+
+We wanted to share some exciting news with you!
+
+{{custom_message}}
+
+Thank you for being a valued client.
+
+Best regards,
+Skylit Photography`
+    },
+    seasonal: {
+      subject: 'Seasonal Photography Sessions Available!',
+      message: `Hi {{name}},
+
+The perfect season for photography is here! 
+
+{{discount_details}}
+
+Book your seasonal session now and capture beautiful memories.
+
+Best regards,
+Skylit Photography`
+    },
+    custom: {
+      subject: '',
+      message: ''
+    }
+  }
+
+  const handleEmailTypeChange = (type) => {
+    const template = emailTemplates[type]
+    setFormData({
+      ...formData,
+      emailType: type,
+      subject: template.subject || formData.subject,
+      message: template.message || formData.message
+    })
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!formData.subject || !formData.message) {
+      alert('Please fill in both subject and message')
+      return
+    }
+    if (formData.recipientType === 'selected' && formData.selectedUserIds.length === 0) {
+      alert('Please select at least one recipient')
+      return
+    }
+    if (previewRecipients.length === 0) {
+      alert('No recipients selected')
+      return
+    }
+    onSubmit(formData)
+  }
+
+  const selectedDiscountCode = discountCodes.find(dc => dc.id === parseInt(formData.discountCodeId))
+
+  return (
+    <div className="form-card" style={{ marginTop: '2rem' }}>
+      <h3>📧 Send Bulk Email</h3>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Email Type *</label>
+          <select
+            value={formData.emailType}
+            onChange={(e) => handleEmailTypeChange(e.target.value)}
+            required
+          >
+            <option value="custom">Custom Message</option>
+            <option value="deals">Special Deals & Offers</option>
+            <option value="holidays">Holiday Specials</option>
+            <option value="special_pricing">Special Pricing</option>
+            <option value="seasonal">Seasonal Sessions</option>
+            <option value="announcement">Announcement</option>
+          </select>
+        </div>
+
+        <div className="form-group">
+          <label>Recipients *</label>
+          <select
+            value={formData.recipientType}
+            onChange={(e) => setFormData({ ...formData, recipientType: e.target.value, selectedUserIds: [] })}
+            required
+          >
+            <option value="all">All Approved Users ({users.filter(u => u.status === 'approved' && u.email).length})</option>
+            <option value="approved">Approved Users Only ({users.filter(u => u.status === 'approved' && u.email).length})</option>
+            <option value="selected">Select Specific Users</option>
+          </select>
+        </div>
+
+        {formData.recipientType === 'selected' && (
+          <div className="form-group">
+            <label>Select Users *</label>
+            <div style={{ 
+              maxHeight: '200px', 
+              overflowY: 'auto', 
+              border: '1px solid #ddd', 
+              borderRadius: '4px', 
+              padding: '8px',
+              background: '#fff'
+            }}>
+              {users.filter(u => u.status === 'approved' && u.email).map(user => (
+                <label key={user.id} style={{ display: 'block', marginBottom: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.selectedUserIds.includes(user.id.toString())}
+                    onChange={(e) => {
+                      const userId = user.id.toString()
+                      const updatedIds = e.target.checked
+                        ? [...formData.selectedUserIds, userId]
+                        : formData.selectedUserIds.filter(id => id !== userId)
+                      setFormData({ ...formData, selectedUserIds: updatedIds })
+                    }}
+                    style={{ marginRight: '8px' }}
+                  />
+                  {user.name || 'No name'} ({user.email})
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="form-group">
+          <label>Subject *</label>
+          <input
+            type="text"
+            value={formData.subject}
+            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+            required
+            placeholder="Email subject line"
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Message *</label>
+          <textarea
+            rows="12"
+            value={formData.message}
+            onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+            required
+            placeholder="Email message body. Use {{name}} to personalize with user's name."
+            style={{ fontFamily: 'inherit', lineHeight: '1.6' }}
+          />
+          <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+            Available placeholders: {'{{name}}'} (user's name), {'{{email}}'} (user's email)
+          </small>
+        </div>
+
+        <div className="form-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={formData.includeDiscountCode}
+              onChange={(e) => setFormData({ ...formData, includeDiscountCode: e.target.checked, discountCodeId: e.target.checked ? formData.discountCodeId : '' })}
+            />
+            Include Discount Code
+          </label>
+        </div>
+
+        {formData.includeDiscountCode && (
+          <div className="form-group">
+            <label>Select Discount Code</label>
+            <select
+              value={formData.discountCodeId}
+              onChange={(e) => setFormData({ ...formData, discountCodeId: e.target.value })}
+              required={formData.includeDiscountCode}
+            >
+              <option value="">Select a discount code</option>
+              {discountCodes.map(code => (
+                <option key={code.id} value={code.id}>
+                  {code.code} - {code.discount_type === 'percentage' ? `${code.discount_value}%` : `$${code.discount_value}`}
+                </option>
+              ))}
+            </select>
+            {selectedDiscountCode && (
+              <small style={{ color: '#666', display: 'block', marginTop: '4px' }}>
+                Code: <strong>{selectedDiscountCode.code}</strong> | 
+                {selectedDiscountCode.description && ` ${selectedDiscountCode.description}`}
+              </small>
+            )}
+          </div>
+        )}
+
+        <div className="form-group" style={{ 
+          padding: '12px', 
+          background: '#f5f5f5', 
+          borderRadius: '8px',
+          border: '1px solid #ddd'
+        }}>
+          <strong>Preview:</strong>
+          <p style={{ margin: '8px 0 0 0', color: '#666' }}>
+            This email will be sent to <strong>{previewRecipients.length}</strong> recipient{previewRecipients.length !== 1 ? 's' : ''}
+          </p>
+          {previewRecipients.length > 0 && previewRecipients.length <= 10 && (
+            <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#666' }}>
+              Recipients: {previewRecipients.map(u => u.email).join(', ')}
+            </div>
+          )}
+        </div>
+
+        <div className="form-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={sending}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={sending || previewRecipients.length === 0}>
+            {sending ? 'Sending...' : `Send to ${previewRecipients.length} Recipient${previewRecipients.length !== 1 ? 's' : ''}`}
           </button>
         </div>
       </form>

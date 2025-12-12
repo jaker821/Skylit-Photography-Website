@@ -1,4 +1,4 @@
-# Skylit Photography Portfolio Website v2.1.0
+# Skylit Photography Portfolio Website v2.2.0
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
@@ -33,6 +33,8 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - Expense tracking
 - **Inline photo editing** - click photos to update directly on pages
 - **PDF export** - Print session details with line items and customer information
+- **Discount code management** - Create and manage coupon codes with usage tracking
+- **Bulk email system** - Send promotional emails, announcements, and special offers to users
 
 ## Tech Stack
 
@@ -44,6 +46,26 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **File Uploads:** Multer + Sharp (image compression)
 - **Image Processing:** react-image-crop for client-side cropping
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.2.0
+
+### 🎨 **New Features:**
+- **🎟️ Discount Code System** - Complete discount/coupon code management with percentage or fixed amount discounts
+- **💰 Package Price Autofill** - Selecting a package in quote/booking forms automatically fills the price
+- **📧 Bulk Email System** - Send promotional emails, announcements, and special offers to all users or selected groups
+- **🎯 Smart Discount Integration** - Discount codes can be applied to quotes, bookings, and session requests with automatic calculation
+- **📊 Discount Code Management** - Full CRUD interface in Pricing tab with usage tracking, date validation, and limits
+
+### 🔧 **Improvements:**
+- **💵 Automatic Price Calculation** - Package selection now auto-fills quote amounts, reducing manual entry
+- **🎨 Enhanced Form UX** - Real-time discount validation and total calculation display in quote/booking forms
+- **📧 Email Templates** - Pre-built templates for deals, holidays, special pricing, seasonal offers, and announcements
+- **👥 Flexible Recipient Selection** - Bulk emails can target all users, approved users only, or specific user groups
+- **🎁 Discount Code Validation** - Real-time validation with minimum purchase amounts, usage limits, and expiration dates
+
+### 🐛 **Bug Fixes:**
+- **✅ Fixed Input Field Readability** - Improved text contrast in form inputs (dark text on light backgrounds)
+- **✅ Fixed Browser Autofill Styling** - Override browser autofill dark backgrounds for better visibility
 
 ## What's New in v2.1.0
 
@@ -246,7 +268,19 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.1.0 (Current) - Unified Session & Invoicing System
+### v2.2.0 (Current) - Discount Codes & Bulk Email
+- **🎟️ NEW:** Complete discount code system with percentage or fixed amount discounts
+- **💰 NEW:** Package price autofill in quote and booking forms
+- **📧 NEW:** Bulk email system for promotional campaigns and announcements
+- **🎯 NEW:** Discount code integration in session requests, quotes, and bookings
+- **📊 NEW:** Discount code management interface in Pricing tab
+- **🎨 IMPROVED:** Real-time discount validation and total calculation
+- **📧 IMPROVED:** Email templates for deals, holidays, special pricing, and more
+- **👥 IMPROVED:** Flexible recipient selection for bulk emails
+- **🐛 FIXED:** Input field readability with improved text contrast
+- **🐛 FIXED:** Browser autofill styling issues
+
+### v2.1.0 - Unified Session & Invoicing System
 - **🔄 MAJOR:** Complete consolidation of bookings and sessions into unified system
 - **📊 NEW:** Full quote-to-invoice workflow with status tracking (request → quoted → booked → paid → invoiced)
 - **💼 NEW:** Dedicated Sessions tab with comprehensive session management

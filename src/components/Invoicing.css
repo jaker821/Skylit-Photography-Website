@@ -67,6 +67,20 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+/* Override browser autofill dark backgrounds */
+.invoicing-container .form-group input:-webkit-autofill,
+.invoicing-container .form-group input:-webkit-autofill:hover,
+.invoicing-container .form-group input:-webkit-autofill:focus,
+.invoicing-container .form-group input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 3px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .invoicing-container .form-group textarea {
@@ -99,6 +113,19 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+.invoicing-container .invoice-item-row input:-webkit-autofill,
+.invoicing-container .invoice-item-row input:-webkit-autofill:hover,
+.invoicing-container .invoice-item-row input:-webkit-autofill:focus,
+.invoicing-container .invoice-item-row input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .invoicing-container .invoice-item-row button {
@@ -256,6 +283,27 @@
   outline: none;
   border-color: var(--primary-purple);
   box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1);
+  background: var(--white) !important;
+  color: var(--black) !important;
+}
+
+.search-input:-webkit-autofill,
+.search-input:-webkit-autofill:hover,
+.search-input:-webkit-autofill:focus,
+.search-input:-webkit-autofill:active,
+.status-filter:-webkit-autofill,
+.status-filter:-webkit-autofill:hover,
+.status-filter:-webkit-autofill:focus,
+.status-filter:-webkit-autofill:active,
+.type-filter:-webkit-autofill,
+.type-filter:-webkit-autofill:hover,
+.type-filter:-webkit-autofill:focus,
+.type-filter:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--white) inset !important;
+  -webkit-text-fill-color: var(--black) !important;
+  box-shadow: 0 0 0 2px rgba(78, 46, 58, 0.1) !important;
+  background: var(--white) !important;
+  color: var(--black) !important;
 }
 
 .search-input {
