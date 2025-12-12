@@ -1247,11 +1247,16 @@ app.delete('/api/bookings/:id', requireAuth, async (req, res) => {
 // Sessions Routes (QuickBooks System)
 // ===================================
 
-// Get all sessions (admin only)
-app.get('/api/sessions', requireAdmin, async (req, res) => {
+// Get sessions (admin sees all, users see only theirs)
+app.get('/api/sessions', async (req, res) => {
   try {
-    const { status, clientEmail } = req.query;
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { status, clientEmail, user_id } = req.query;
     const supabase = db.getClient();
+    const isAdmin = req.session.userRole === 'admin';
     
     let query = supabase
       .from('sessions')
@@ -1262,11 +1267,19 @@ app.get('/api/sessions', requireAdmin, async (req, res) => {
       `)
       .order('created_at', { ascending: false });
     
+    // Users can only see their own sessions, admins see all
+    if (!isAdmin) {
+      query = query.eq('user_id', req.session.userId);
+    } else if (user_id) {
+      // Admin can filter by user_id
+      query = query.eq('user_id', user_id);
+    }
+    
     if (status) {
       query = query.eq('status', status);
     }
     
-    if (clientEmail) {
+    if (clientEmail && isAdmin) {
       query = query.eq('client_email', clientEmail);
     }
     
@@ -1330,6 +1343,56 @@ app.get('/api/sessions/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// Create session request (users can create, admin can create)
+app.post('/api/sessions/request', async (req, res) => {
+  try {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const { sessionType, date, time, location, notes, packageId, addOns } = req.body;
+    
+    if (!sessionType || !date) {
+      return res.status(400).json({ error: 'Session type and date are required' });
+    }
+
+    // Get user info
+    const user = await db.get('SELECT * FROM users WHERE id = ?', [req.session.userId]);
+    
+    const now = new Date().toISOString();
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('sessions')
+      .insert({
+        client_name: user?.name || 'Unknown',
+        client_email: user?.email || 'unknown@email.com',
+        user_id: req.session.userId,
+        session_type: sessionType,
+        date: date,
+        time: time || null,
+        location: location || null,
+        notes: notes || null,
+        status: 'request',
+        package_id: packageId || null,
+        add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        created_at: now,
+        updated_at: now
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Create session request error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    res.json({ success: true, session: data });
+  } catch (error) {
+    console.error('Create session request error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create quote (admin only)
 app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
   try {
@@ -1340,82 +1403,130 @@ app.post('/api/sessions/quote', requireAdmin, async (req, res) => {
     }
     
     const now = new Date().toISOString();
-    const result = await db.run(
-      `INSERT INTO sessions (client_name, client_email, user_id, session_type, date, time, location, notes, status, quote_amount, package_id, add_ons, created_at, updated_at, quoted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'quoted', ?, ?, ?, ?, ?, ?)`,
-      [
-        clientName,
-        clientEmail,
-        userId || null,
-        sessionType,
-        date || null,
-        time || null,
-        location || null,
-        notes || null,
-        parseFloat(quoteAmount),
-        packageId || null,
-        addOns ? JSON.stringify(addOns) : '[]',
-        now,
-        now,
-        now
-      ]
-    );
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('sessions')
+      .insert({
+        client_name: clientName,
+        client_email: clientEmail,
+        user_id: userId || null,
+        session_type: sessionType,
+        date: date || null,
+        time: time || null,
+        location: location || null,
+        notes: notes || null,
+        status: 'quoted',
+        quote_amount: parseFloat(quoteAmount),
+        package_id: packageId || null,
+        add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        created_at: now,
+        updated_at: now,
+        quoted_at: now
+      })
+      .select()
+      .single();
     
-    const newSession = await db.get('SELECT * FROM sessions WHERE id = ?', [result.id]);
-    res.json({ success: true, session: newSession });
+    if (error) {
+      console.error('Create quote error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    res.json({ success: true, session: data });
   } catch (error) {
     console.error('Create quote error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Convert quote to booking (admin only)
+// Convert request/quote to booked (admin only)
 app.put('/api/sessions/:id/book', requireAdmin, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
-    const { date, time, location, notes } = req.body;
+    const { date, time, location, notes, quoteAmount } = req.body;
     
     const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
     }
     
-    if (session.status !== 'quoted') {
-      return res.status(400).json({ error: 'Only quoted sessions can be booked' });
+    if (!['request', 'quoted'].includes(session.status)) {
+      return res.status(400).json({ error: 'Only request or quoted sessions can be booked' });
     }
     
     const now = new Date().toISOString();
-    const updateFields = ['status = ?', 'booked_at = ?', 'updated_at = ?'];
-    const updateValues = ['booked', now, now];
+    const supabase = db.getClient();
+    const updateData = {
+      status: 'booked',
+      booked_at: now,
+      updated_at: now
+    };
     
-    if (date) {
-      updateFields.push('date = ?');
-      updateValues.push(date);
-    }
-    if (time) {
-      updateFields.push('time = ?');
-      updateValues.push(time);
-    }
-    if (location) {
-      updateFields.push('location = ?');
-      updateValues.push(location);
-    }
-    if (notes !== undefined) {
-      updateFields.push('notes = ?');
-      updateValues.push(notes);
+    if (date) updateData.date = date;
+    if (time) updateData.time = time;
+    if (location) updateData.location = location;
+    if (notes !== undefined) updateData.notes = notes;
+    if (quoteAmount) updateData.quote_amount = parseFloat(quoteAmount);
+    if (session.status === 'request' && quoteAmount) {
+      updateData.quoted_at = now;
     }
     
-    updateValues.push(sessionId);
+    const { data, error } = await supabase
+      .from('sessions')
+      .update(updateData)
+      .eq('id', sessionId)
+      .select()
+      .single();
     
-    await db.run(
-      `UPDATE sessions SET ${updateFields.join(', ')} WHERE id = ?`,
-      updateValues
-    );
+    if (error) {
+      console.error('Book session error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
     
-    const updatedSession = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
-    res.json({ success: true, session: updatedSession });
+    res.json({ success: true, session: data });
   } catch (error) {
     console.error('Book session error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Mark session as paid (admin only)
+app.put('/api/sessions/:id/paid', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = parseInt(req.params.id);
+    const { paidAmount } = req.body;
+    
+    const session = await db.get('SELECT * FROM sessions WHERE id = ?', [sessionId]);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    if (session.status !== 'booked') {
+      return res.status(400).json({ error: 'Only booked sessions can be marked as paid' });
+    }
+    
+    const now = new Date().toISOString();
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('sessions')
+      .update({
+        status: 'paid',
+        paid: true,
+        paid_at: now,
+        paid_amount: paidAmount ? parseFloat(paidAmount) : session.quote_amount || session.invoice_amount,
+        updated_at: now
+      })
+      .eq('id', sessionId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Mark paid error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    res.json({ success: true, session: data });
+  } catch (error) {
+    console.error('Mark paid error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -1430,38 +1541,44 @@ app.post('/api/sessions/booking', requireAdmin, async (req, res) => {
     }
     
     const now = new Date().toISOString();
-    const result = await db.run(
-      `INSERT INTO sessions (client_name, client_email, user_id, session_type, date, time, location, notes, status, quote_amount, invoice_amount, package_id, add_ons, created_at, updated_at, quoted_at, booked_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'booked', ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        clientName,
-        clientEmail,
-        userId || null,
-        sessionType,
-        date,
-        time || null,
-        location || null,
-        notes || null,
-        quoteAmount ? parseFloat(quoteAmount) : null,
-        invoiceAmount ? parseFloat(invoiceAmount) : null,
-        packageId || null,
-        addOns ? JSON.stringify(addOns) : '[]',
-        now,
-        now,
-        quoteAmount ? now : null,
-        now
-      ]
-    );
+    const supabase = db.getClient();
+    const { data, error } = await supabase
+      .from('sessions')
+      .insert({
+        client_name: clientName,
+        client_email: clientEmail,
+        user_id: userId || null,
+        session_type: sessionType,
+        date: date,
+        time: time || null,
+        location: location || null,
+        notes: notes || null,
+        status: 'booked',
+        quote_amount: quoteAmount ? parseFloat(quoteAmount) : null,
+        invoice_amount: invoiceAmount ? parseFloat(invoiceAmount) : null,
+        package_id: packageId || null,
+        add_ons: addOns ? JSON.stringify(addOns) : '[]',
+        created_at: now,
+        updated_at: now,
+        quoted_at: quoteAmount ? now : null,
+        booked_at: now
+      })
+      .select()
+      .single();
     
-    const newSession = await db.get('SELECT * FROM sessions WHERE id = ?', [result.id]);
-    res.json({ success: true, session: newSession });
+    if (error) {
+      console.error('Create booking error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    res.json({ success: true, session: data });
   } catch (error) {
     console.error('Create booking error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Invoice a session (admin only)
+// Invoice a session (admin only) - can invoice paid sessions or booked sessions
 app.post('/api/sessions/:id/invoice', requireAdmin, async (req, res) => {
   try {
     const sessionId = parseInt(req.params.id);
@@ -1476,6 +1593,10 @@ app.post('/api/sessions/:id/invoice', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Session already invoiced' });
     }
     
+    if (!['booked', 'paid'].includes(session.status)) {
+      return res.status(400).json({ error: 'Only booked or paid sessions can be invoiced' });
+    }
+    
     // Generate invoice number
     const supabase = db.getClient();
     const { count } = await supabase
@@ -1484,35 +1605,54 @@ app.post('/api/sessions/:id/invoice', requireAdmin, async (req, res) => {
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
     
     const now = new Date().toISOString();
-    const invoiceResult = await db.run(
-      `INSERT INTO invoices (session_id, client_name, client_email, user_id, amount, status, invoice_number, items, notes, due_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
-      [
-        sessionId,
-        session.client_name,
-        session.client_email,
-        session.user_id,
-        invoiceAmount || session.quote_amount || session.invoice_amount || 0,
-        invoiceNumber,
-        items ? JSON.stringify(items) : '[]',
-        notes || null,
-        dueDate || null,
-        now,
-        now
-      ]
-    );
+    const finalAmount = invoiceAmount || session.quote_amount || session.invoice_amount || 0;
+    
+    // Create invoice
+    const { data: invoiceData, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        session_id: sessionId,
+        client_name: session.client_name,
+        client_email: session.client_email,
+        user_id: session.user_id,
+        amount: finalAmount,
+        status: 'pending',
+        invoice_number: invoiceNumber,
+        items: items ? JSON.stringify(items) : '[]',
+        notes: notes || null,
+        due_date: dueDate || null,
+        created_at: now,
+        updated_at: now
+      })
+      .select()
+      .single();
+    
+    if (invoiceError) {
+      console.error('Create invoice error:', invoiceError);
+      return res.status(500).json({ error: 'Server error' });
+    }
     
     // Update session status
-    await db.run(
-      `UPDATE sessions SET status = 'invoiced', invoice_id = ?, invoice_amount = ?, invoiced_at = ?, updated_at = ? WHERE id = ?`,
-      [invoiceResult.id, invoiceAmount || session.quote_amount || session.invoice_amount || 0, now, now, sessionId]
-    );
+    const { data: updatedSession, error: updateError } = await supabase
+      .from('sessions')
+      .update({
+        status: 'invoiced',
+        invoice_id: invoiceData.id,
+        invoice_amount: finalAmount,
+        invoiced_at: now,
+        updated_at: now
+      })
+      .eq('id', sessionId)
+      .select(`
+        *,
+        invoices:invoice_id (*)
+      `)
+      .single();
     
-    const updatedSession = await db.get(`
-      SELECT s.*, i.* FROM sessions s
-      LEFT JOIN invoices i ON s.invoice_id = i.id
-      WHERE s.id = ?
-    `, [sessionId]);
+    if (updateError) {
+      console.error('Update session error:', updateError);
+      return res.status(500).json({ error: 'Server error' });
+    }
     
     res.json({ success: true, session: updatedSession });
   } catch (error) {
@@ -1524,7 +1664,7 @@ app.post('/api/sessions/:id/invoice', requireAdmin, async (req, res) => {
 // Create standalone invoice (no session) (admin only)
 app.post('/api/invoices/standalone', requireAdmin, async (req, res) => {
   try {
-    const { clientName, clientEmail, amount, items, notes, dueDate, userId } = req.body;
+    const { clientName, clientEmail, amount, items, notes, dueDate, userId, session_id } = req.body;
     
     if (!clientName || !clientEmail || !amount) {
       return res.status(400).json({ error: 'Client name, email, and amount are required' });
@@ -1538,26 +1678,31 @@ app.post('/api/invoices/standalone', requireAdmin, async (req, res) => {
     const invoiceNumber = `INV-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, '0')}`;
     
     const now = new Date().toISOString();
-    const result = await db.run(
-      `INSERT INTO invoices (session_id, client_name, client_email, user_id, amount, status, invoice_number, items, notes, due_date, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)`,
-      [
-        null,
-        clientName,
-        clientEmail,
-        userId || null,
-        parseFloat(amount),
-        invoiceNumber,
-        items ? JSON.stringify(items) : '[]',
-        notes || null,
-        dueDate || null,
-        now,
-        now
-      ]
-    );
+    const { data, error } = await supabase
+      .from('invoices')
+      .insert({
+        session_id: session_id || null,
+        client_name: clientName,
+        client_email: clientEmail,
+        user_id: userId || null,
+        amount: parseFloat(amount),
+        status: 'pending',
+        invoice_number: invoiceNumber,
+        items: items ? JSON.stringify(items) : '[]',
+        notes: notes || null,
+        due_date: dueDate || null,
+        created_at: now,
+        updated_at: now
+      })
+      .select()
+      .single();
     
-    const newInvoice = await db.get('SELECT * FROM invoices WHERE id = ?', [result.id]);
-    res.json({ success: true, invoice: newInvoice });
+    if (error) {
+      console.error('Create standalone invoice error:', error);
+      return res.status(500).json({ error: 'Server error' });
+    }
+    
+    res.json({ success: true, invoice: data });
   } catch (error) {
     console.error('Create standalone invoice error:', error);
     res.status(500).json({ error: 'Server error' });

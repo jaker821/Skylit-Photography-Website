@@ -10,12 +10,15 @@ CREATE TABLE IF NOT EXISTS sessions (
   time TEXT,
   location TEXT,
   notes TEXT,
-  status TEXT NOT NULL DEFAULT 'quoted' CHECK (status IN ('quoted', 'booked', 'invoiced')),
+  status TEXT NOT NULL DEFAULT 'request' CHECK (status IN ('request', 'quoted', 'booked', 'paid', 'invoiced')),
   quote_amount DECIMAL(10, 2),
   invoice_amount DECIMAL(10, 2),
   invoice_id INTEGER, -- Foreign key constraint added separately
   package_id INTEGER,
   add_ons JSONB DEFAULT '[]'::jsonb,
+  paid BOOLEAN DEFAULT FALSE,
+  paid_at TIMESTAMPTZ,
+  paid_amount DECIMAL(10, 2),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   quoted_at TIMESTAMPTZ,
@@ -75,10 +78,12 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers to auto-update updated_at
+-- Triggers to auto-update updated_at (drop first if exists)
+DROP TRIGGER IF EXISTS update_sessions_updated_at ON sessions;
 CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON sessions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
 CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

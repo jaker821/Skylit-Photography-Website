@@ -1,4 +1,4 @@
-# Skylit Photography Portfolio Website v2.0.3
+# Skylit Photography Portfolio Website v2.1.0
 
 Professional portfolio website for photographer Alina Suedbeck with **Supabase database integration** for complete data persistence across deployments.
 
@@ -44,6 +44,28 @@ Professional portfolio website for photographer Alina Suedbeck with **Supabase d
 - **File Uploads:** Multer + Sharp (image compression)
 - **Image Processing:** react-image-crop for client-side cropping
 - **Styling:** CSS3 with dark/light mode support
+
+## What's New in v2.1.0
+
+### 🎨 **Major System Overhaul:**
+- **🔄 Unified Session System** - Complete consolidation of bookings and sessions into a single, comprehensive tracking system
+- **📊 Complete Quote-to-Invoice Workflow** - Full lifecycle tracking from session request → quote → booking → paid → invoiced
+- **💼 Professional Session Management** - New Sessions tab with status filtering (request, quoted, booked, paid, invoiced)
+- **💰 Advanced Invoicing System** - Dedicated Invoicing tab with standalone and session-linked invoice management
+- **📈 Financial Metrics Dashboard** - Real-time tracking of revenue, pending payments, and financial health
+- **📧 Enhanced Email Integration** - ADHOC email system integrated with session management for seamless client communication
+
+### 🔧 **Improvements:**
+- **🎯 Streamlined Admin Dashboard** - Refactored tabs: Overview, Portfolio, Sessions, Invoicing, Expenses, Pricing, Users, Settings
+- **📋 Status-Based Workflow** - Clear progression from request to invoice with actionable status transitions
+- **🎨 Improved Readability** - Enhanced form styling with proper color contrast (dark text on light backgrounds)
+- **🔄 Database Consolidation** - Single source of truth for all session data, eliminating duplication
+- **⚡ Better Performance** - Optimized queries using Supabase client for complex joins and filtering
+
+### 🐛 **Bug Fixes:**
+- **✅ Fixed Migration Triggers** - Resolved duplicate trigger errors in database migrations
+- **✅ Fixed Invoice Field Names** - Corrected session_id field references in standalone invoices
+- **✅ Fixed Color Contrast** - Improved readability across all form modals and components
 
 ## What's New in v2.0.3
 
@@ -224,7 +246,20 @@ If upgrading from a previous version:
 
 ## Changelog
 
-### v2.0.3 (Current) - Session Management & Business Tools
+### v2.1.0 (Current) - Unified Session & Invoicing System
+- **🔄 MAJOR:** Complete consolidation of bookings and sessions into unified system
+- **📊 NEW:** Full quote-to-invoice workflow with status tracking (request → quoted → booked → paid → invoiced)
+- **💼 NEW:** Dedicated Sessions tab with comprehensive session management
+- **💰 NEW:** Dedicated Invoicing tab for standalone and session-linked invoices
+- **📈 NEW:** Financial metrics dashboard with real-time calculations
+- **🎯 IMPROVED:** Streamlined admin dashboard with refactored tab structure
+- **🎨 IMPROVED:** Enhanced form readability with proper color contrast
+- **🔄 IMPROVED:** Database schema consolidation for single source of truth
+- **🐛 FIXED:** Migration trigger errors
+- **🐛 FIXED:** Invoice field name references
+- **🐛 FIXED:** Color contrast issues in form modals
+
+### v2.0.3 - Session Management & Business Tools
 - **📋 NEW:** Enhanced session management table with filtering, sorting, and search
 - **📧 NEW:** Email template system with pre-filled client communication templates
 - **📅 NEW:** Interactive calendar with clickable days showing session details

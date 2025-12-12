@@ -5,7 +5,8 @@ import { API_URL } from '../config'
 import CategorySelector from '../components/CategorySelector'
 const SessionManagementTable = lazy(() => import('../components/SessionManagementTable'))
 import EmailTemplateModal from '../components/EmailTemplateModal'
-import QuickBooks from '../components/QuickBooks'
+import SessionsManagement from '../components/SessionsManagement'
+import Invoicing from '../components/Invoicing'
 
 const AdminDashboard = () => {
   const { user } = useAuth()
@@ -104,11 +105,20 @@ const AdminDashboard = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch(`${API_URL}/bookings`, { credentials: 'include' })
+      // Fetch sessions instead of bookings
+      const response = await fetch(`${API_URL}/sessions`, { credentials: 'include' })
       const data = await response.json()
-      setBookings(data.bookings || [])
+      setBookings(data.sessions || [])
     } catch (error) {
-      console.error('Error fetching bookings:', error)
+      console.error('Error fetching sessions:', error)
+      // Fallback to bookings if sessions endpoint fails
+      try {
+        const response = await fetch(`${API_URL}/bookings`, { credentials: 'include' })
+        const data = await response.json()
+        setBookings(data.bookings || [])
+      } catch (fallbackError) {
+        console.error('Error fetching bookings:', fallbackError)
+      }
     }
   }
 
@@ -376,47 +386,31 @@ const AdminDashboard = () => {
     return { totalRevenue, totalExpenses, pendingRevenue, netProfit }
   }
 
-  // Get upcoming sessions (next 30 days) - only confirmed "Booked" sessions
+  // Get upcoming sessions (next 30 days) - booked, paid, or invoiced sessions
   const getUpcomingSessions = () => {
     const now = new Date()
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
     
     return bookings
       .filter(booking => {
+        if (!booking.date) return false
         const bookingDate = new Date(booking.date)
-        return booking.status?.toLowerCase() === 'booked' && bookingDate >= now && bookingDate <= thirtyDaysFromNow
+        const status = booking.status?.toLowerCase()
+        return ['booked', 'paid', 'invoiced'].includes(status) && bookingDate >= now && bookingDate <= thirtyDaysFromNow
       })
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .slice(0, 5)
   }
 
-  // Get sessions by status (case-insensitive)
-  const pendingSessions = bookings.filter(b => b.status?.toLowerCase() === 'pending')
-  const quotedSessions = bookings.filter(b => b.status?.toLowerCase() === 'quoted')
-  const bookedSessions = bookings.filter(b => b.status?.toLowerCase() === 'booked')
-  const invoicedSessions = bookings.filter(b => b.status?.toLowerCase() === 'invoiced')
+  // Get sessions by status
+  const requestSessions = bookings.filter(b => b.status === 'request')
+  const quotedSessions = bookings.filter(b => b.status === 'quoted')
+  const bookedSessions = bookings.filter(b => b.status === 'booked')
+  const paidSessions = bookings.filter(b => b.status === 'paid')
+  const invoicedSessions = bookings.filter(b => b.status === 'invoiced')
   
-  // Debug: Log bookings to check what's coming from the API
-  console.log('All bookings:', bookings)
-  console.log('Pending sessions:', pendingSessions)
-
-  // Confirm pending session (move to booked)
-  const handleConfirmSession = async (sessionId) => {
-    try {
-      const response = await fetch(`${API_URL}/bookings/${sessionId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: 'Booked' })
-      })
-      
-      if (response.ok) {
-        await fetchBookings()
-      }
-    } catch (error) {
-      console.error('Error confirming session:', error)
-    }
-  }
+  // Note: Session management is now handled in SessionsManagement component
+  // These variables are kept for Overview tab statistics
 
   // Book quoted session (move to booked)
   const handleBookQuote = async (sessionId) => {
@@ -1279,40 +1273,28 @@ const AdminDashboard = () => {
             Overview
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
-            onClick={() => setActiveTab('sessions')}
-          >
-            Sessions
-          </button>
-          <button 
             className={`tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
             onClick={() => setActiveTab('portfolio')}
           >
             Portfolio
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
+            className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sessions')}
           >
-            Calendar
+            Sessions
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'invoicing' ? 'active' : ''}`}
+            onClick={() => setActiveTab('invoicing')}
+          >
+            Invoicing
           </button>
           <button 
             className={`tab-btn ${activeTab === 'expenses' ? 'active' : ''}`}
             onClick={() => setActiveTab('expenses')}
           >
             Expenses
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'invoices' ? 'active' : ''}`}
-            onClick={() => setActiveTab('invoices')}
-          >
-            Invoices
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'quickbooks' ? 'active' : ''}`}
-            onClick={() => setActiveTab('quickbooks')}
-          >
-            QuickBooks
           </button>
           <button 
             className={`tab-btn ${activeTab === 'pricing' ? 'active' : ''}`}
@@ -1447,71 +1429,20 @@ const AdminDashboard = () => {
         {/* SESSIONS TAB */}
         {activeTab === 'sessions' && (
           <div className="tab-content">
-            <div style={{ marginBottom: '2rem' }}>
-              <div className="section-header">
-                <h2>Sessions Management</h2>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                  <button 
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      setSelectedSession(null)
-                      setShowSessionForm(true)
-                    }}
-                  >
-                    + Create Quote
-                  </button>
-                  <button 
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setSelectedSession({ isBooking: true })
-                      setShowSessionForm(true)
-                    }}
-                  >
-                    + Create Booking
-                  </button>
-                </div>
-              </div>
-
-              {showSessionForm && (
-                <SessionForm 
-                  session={selectedSession}
-                  packages={packages}
-                  addOns={addOns}
-                  onSubmit={handleCreateSession}
-                  onCancel={() => {
-                    setShowSessionForm(false)
-                    setSelectedSession(null)
-                  }}
-                />
-              )}
-            </div>
-            
-            {Array.isArray(bookings) && bookings.length > 0 ? (
-              <Suspense fallback={<div className="no-data">Loading sessions...</div>}>
-                <SessionManagementTable
-                  sessions={bookings}
-                  packages={packages}
-                  addOns={addOns}
-                  onApprove={(session) => handleConfirmSession(session.id)}
-                  onGenerateShoot={(session) => handleGenerateShoot(session)}
-                  onInvoice={(session) => handleInvoiceSession(session)}
-                  onEdit={(session) => {
-                    setSelectedSession(session)
-                    setShowSessionForm(true)
-                  }}
-                  onViewDetails={(session) => navigate(`/admin/session/${session.id}`)}
-                  onSendEmail={(session) => {
-                    setEmailTarget({ session })
-                    setShowEmailModal(true)
-                  }}
-                />
-              </Suspense>
-            ) : (
-              <div className="no-data">Loading sessions...</div>
-            )}
-
+            <SessionsManagement
+              packages={packages}
+              addOns={addOns}
+              users={users}
+            />
           </div>
-          )}
+        )}
+
+        {/* INVOICING TAB */}
+        {activeTab === 'invoicing' && (
+          <div className="tab-content">
+            <Invoicing users={users} />
+          </div>
+        )}
 
         {/* PORTFOLIO TAB */}
         {activeTab === 'portfolio' && (
@@ -1607,8 +1538,17 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* CALENDAR TAB */}
+        {/* CALENDAR TAB - REMOVED */}
         {activeTab === 'calendar' && (
+          <div className="tab-content">
+            <div className="no-data">
+              <p>Calendar feature has been moved. View sessions in the Sessions tab.</p>
+            </div>
+          </div>
+        )}
+        
+        {/* OLD CALENDAR - DISABLED */}
+        {false && activeTab === 'calendar_old' && (
           <div className="tab-content">
             <div className="section-header">
               <div>
@@ -1855,138 +1795,6 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* INVOICES TAB */}
-        {activeTab === 'invoices' && (
-          <div className="tab-content financial-dashboard">
-            <div className="section-header">
-              <div>
-                <h2>🧾 Invoices</h2>
-                <p className="section-subtitle">Track and manage client invoices</p>
-              </div>
-            </div>
-
-            {/* Invoice Summary Cards */}
-            <div className="financial-summary-grid">
-              <div className="financial-card income">
-                <div className="card-icon">✅</div>
-                <div className="card-content">
-                  <h3>Paid Invoices</h3>
-                  <p className="amount positive">
-                    ${invoices.filter(i => i.status === 'Paid').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
-                  </p>
-                  <span className="card-subtitle">{invoices.filter(i => i.status === 'Paid').length} invoices</span>
-                </div>
-              </div>
-
-              <div className="financial-card pending">
-                <div className="card-icon">⏳</div>
-                <div className="card-content">
-                  <h3>Pending Payments</h3>
-                  <p className="amount neutral">
-                    ${invoices.filter(i => i.status === 'Pending').reduce((sum, inv) => sum + inv.amount, 0).toFixed(2)}
-                  </p>
-                  <span className="card-subtitle">{invoices.filter(i => i.status === 'Pending').length} invoices</span>
-                </div>
-              </div>
-
-              <div className="financial-card info">
-                <div className="card-icon">📄</div>
-                <div className="card-content">
-                  <h3>Total Invoices</h3>
-                  <p className="amount">
-                    {invoices.length}
-                  </p>
-                  <span className="card-subtitle">All time</span>
-                </div>
-              </div>
-
-              <div className="financial-card profit">
-                <div className="card-icon">📊</div>
-                <div className="card-content">
-                  <h3>Average Invoice</h3>
-                  <p className="amount">
-                    ${invoices.length > 0 ? (invoices.reduce((sum, inv) => sum + inv.amount, 0) / invoices.length).toFixed(2) : '0.00'}
-                  </p>
-                  <span className="card-subtitle">Per invoice</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Invoices Table */}
-            <div className="financial-section">
-              <div className="section-header-small">
-                <h3>📋 Invoice History</h3>
-                <span className="badge-count">{invoices.length} invoices</span>
-              </div>
-              
-              {invoices.length === 0 ? (
-                <div className="no-data">
-                  <p>No invoices created yet</p>
-                  <p className="text-secondary">Invoices are created when you mark a session as "Invoiced"</p>
-                </div>
-              ) : (
-                <div className="table-container">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Invoice #</th>
-                        <th>Client</th>
-                        <th>Date</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoices.sort((a, b) => new Date(b.date) - new Date(a.date)).map(invoice => (
-                        <tr key={invoice.id}>
-                          <td>
-                            <strong>#{invoice.invoiceNumber || invoice.id}</strong>
-                          </td>
-                          <td>{invoice.clientName}</td>
-                          <td>{new Date(invoice.date).toLocaleDateString()}</td>
-                          <td className="amount-cell">${invoice.amount.toFixed(2)}</td>
-                          <td>
-                            <span className={`status-badge status-${invoice.status.toLowerCase()}`}>
-                              {invoice.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="action-buttons">
-                              <button 
-                                className="btn-small btn-secondary"
-                                title="Email invoice to client"
-                              >
-                                📧 Email
-                              </button>
-                              <button 
-                                className="btn-small btn-primary"
-                                title="Download as PDF"
-                              >
-                                📥 PDF
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* QUICKBOOKS TAB */}
-        {activeTab === 'quickbooks' && (
-          <div className="tab-content">
-            <QuickBooks
-              packages={packages}
-              addOns={addOns}
-              users={users}
-            />
-          </div>
-        )}
 
         {/* PRICING TAB */}
         {activeTab === 'pricing' && (

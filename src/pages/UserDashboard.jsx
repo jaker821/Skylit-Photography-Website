@@ -115,13 +115,23 @@ const UserDashboard = () => {
 
   const fetchBookings = async () => {
     try {
-      const response = await fetch(`${API_URL}/bookings`, {
+      // Fetch user's sessions (requests, quoted, booked, etc.)
+      const response = await fetch(`${API_URL}/sessions`, {
         credentials: 'include'
       })
-      const data = await response.json()
-      setBookings(data.bookings || [])
+      if (response.ok) {
+        const data = await response.json()
+        setBookings(data.sessions || [])
+      } else {
+        // Fallback to bookings if sessions endpoint not available
+        const response = await fetch(`${API_URL}/bookings`, {
+          credentials: 'include'
+        })
+        const data = await response.json()
+        setBookings(data.bookings || [])
+      }
     } catch (error) {
-      console.error('Error fetching bookings:', error)
+      console.error('Error fetching sessions:', error)
     } finally {
       setLoading(false)
     }
@@ -214,13 +224,22 @@ const UserDashboard = () => {
   const handleBookingSubmit = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch(`${API_URL}/bookings`, {
+      // Create session request instead of booking
+      const response = await fetch(`${API_URL}/sessions/request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         credentials: 'include',
-        body: JSON.stringify(bookingData)
+        body: JSON.stringify({
+          sessionType: bookingData.sessionType,
+          date: bookingData.date,
+          time: bookingData.time,
+          location: bookingData.location,
+          notes: bookingData.notes,
+          packageId: bookingData.packageId || null,
+          addOns: bookingData.addonIds || []
+        })
       })
 
       if (response.ok) {
@@ -235,9 +254,14 @@ const UserDashboard = () => {
           packageId: '',
           addonIds: []
         })
+        alert('Session request submitted successfully! The photographer will review your request.')
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        alert(errorData.error || 'Failed to submit session request')
       }
     } catch (error) {
-      console.error('Error creating booking:', error)
+      console.error('Error creating session request:', error)
+      alert('Error submitting session request')
     }
   }
 
@@ -340,7 +364,7 @@ const UserDashboard = () => {
             className="btn btn-primary"
             onClick={() => setShowBookingForm(!showBookingForm)}
           >
-            {showBookingForm ? 'Cancel' : '+ Book New Session'}
+            {showBookingForm ? 'Cancel' : '+ Request New Session'}
           </button>
         </div>
 
@@ -394,7 +418,7 @@ const UserDashboard = () => {
         {/* Booking Form */}
         {showBookingForm && (
           <div className="booking-form-card">
-            <h2>Book a New Session</h2>
+            <h2>Request a New Session</h2>
             <form onSubmit={handleBookingSubmit} className="booking-form">
               <div className="form-row">
                 <div className="form-group">
@@ -567,7 +591,7 @@ const UserDashboard = () => {
               </div>
 
               <button type="submit" className="btn btn-primary">
-                Submit Booking Request
+                Submit Session Request
               </button>
             </form>
           </div>

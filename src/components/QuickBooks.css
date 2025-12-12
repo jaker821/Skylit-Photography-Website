@@ -249,62 +249,123 @@
 }
 
 /* Forms */
-.form-modal {
-  max-width: 600px;
+.quickbooks-container .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.quickbooks-container .form-modal {
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border: 1px solid #e5e5e5;
 }
 
 .form-body {
   padding: var(--spacing-xl);
+  background: #ffffff;
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
 .form-group {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: var(--spacing-xs);
-  font-weight: 600;
-  color: var(--primary-purple-dark);
+  margin-bottom: var(--spacing-sm);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--primary-purple-dark); /* Dark purple on light background */
+  letter-spacing: 0.3px;
+  text-shadow: none;
+}
+
+.form-group label::after {
+  content: '';
+  display: block;
+  margin-top: 4px;
+  height: 2px;
+  width: 0;
+  background: var(--primary-purple);
+  transition: width 0.3s ease;
+}
+
+.form-group:focus-within label::after {
+  width: 100%;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: var(--spacing-sm);
-  border: 1px solid var(--light-gray);
-  border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
   font-family: inherit;
+  background: var(--white);
+  color: var(--black);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-purple);
+  box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
 }
 
 .form-group textarea {
   resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+/* Required field indicator */
+.form-group label:has(+ input[required])::before,
+.form-group label:has(+ select[required])::before,
+.form-group label:has(+ textarea[required])::before {
+  content: '*';
+  color: #dc2626;
+  margin-right: 4px;
+  font-weight: 700;
 }
 
 .invoice-item-row {
   display: flex;
-  gap: var(--spacing-xs);
-  margin-bottom: var(--spacing-xs);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
   align-items: center;
+  padding: var(--spacing-sm);
+  background: #f9f9f9;
+  border-radius: var(--radius-sm);
 }
 
 .invoice-item-row input {
   flex: 1;
-  padding: var(--spacing-xs);
-  border: 1px solid var(--light-gray);
+  padding: var(--spacing-sm);
+  border: 2px solid var(--border-dark);
   border-radius: var(--radius-sm);
-  font-size: 0.9rem;
+  font-size: 1rem;
+  background: var(--white);
+  color: var(--black);
+}
+
+.invoice-item-row input:focus {
+  outline: none;
+  border-color: var(--primary-purple);
+  box-shadow: 0 0 0 2px rgba(107, 70, 193, 0.1);
 }
 
 .invoice-item-row button {
@@ -323,11 +384,45 @@
 
 .modal-actions {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-md);
   justify-content: flex-end;
   margin-top: var(--spacing-xl);
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--light-gray);
+  border-top: 2px solid #e5e5e5;
+}
+
+/* Modal header improvements */
+.quickbooks-container .modal-header {
+  background: linear-gradient(135deg, var(--primary-purple-dark), var(--primary-purple));
+  color: var(--cream-white);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin: 0;
+}
+
+.quickbooks-container .modal-header h2 {
+  color: var(--cream-white);
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.quickbooks-container .modal-close {
+  color: var(--cream-white);
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+}
+
+.quickbooks-container .modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .no-data {
